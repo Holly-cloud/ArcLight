@@ -108,7 +108,7 @@ test('AI 修改内容写入可追溯的颜色标记', () => {
   assert.match(result, /data-arc-revision-id="change-1"/)
   assert.match(result, /data-arc-revision-turn-id="turn-1"/)
   assert.match(result, /data-arc-revision-reason="调整人物语气"/)
-  assert.match(result, />新话<\/mark>/)
+  assert.match(result, />新<\/mark>话/)
 })
 
 test('再次替换已标注内容时不会生成嵌套标记', () => {
@@ -126,5 +126,69 @@ test('再次替换已标注内容时不会生成嵌套标记', () => {
 
   assert.doesNotMatch(result, /<mark[^>]*>[^]*<mark/)
   assert.equal((result.match(/<mark\b/g) ?? []).length, 1)
-  assert.match(result, /前<mark[^>]*>新句<\/mark>后/)
+  assert.match(result, /前<mark[^>]*>新<\/mark>句后/)
+})
+
+const revision = {
+  id: 'precise-change',
+  source: 'ai',
+  color: '#FFE58F',
+  createdAt: '2026-10-13T08:00:00.000Z'
+}
+
+function markedText(html) {
+  return [...html.matchAll(/<mark\b[^>]*>([^]*?)<\/mark>/g)].map((match) => match[1])
+}
+
+test('整段替换只标记修改文字，保留前后相同内容', () => {
+  const result = replaceInHtml('<p>AAAAAAA旧内容AAAAAA</p>', 'AAAAAAA旧内容AAAAAA', 'AAAAAAA新内容AAAAAA', revision)
+
+  assert.deepEqual(markedText(result), ['新'])
+  assert.match(result, /^<p>AAAAAAA<mark[^>]*>新<\/mark>内容AAAAAA<\/p>$/)
+})
+
+test('同段多处修改分别标记，不包含中间未改文字', () => {
+  const result = replaceInHtml('<p>他走进旧城，然后见到小李。</p>', '他走进旧城，然后见到小李。', '他走进北城，然后见到老李。', revision)
+
+  assert.deepEqual(markedText(result), ['北', '老'])
+  assert.match(result, /城，然后见到<mark/)
+})
+
+test('只删除文字时不标记仍然保留的正文', () => {
+  const result = replaceInHtml('<p>他缓缓走进城。</p>', '他缓缓走进城。', '他走进城。', revision)
+
+  assert.equal(result, '<p>他走进城。</p>')
+})
+
+test('相同文本替换不新增颜色标记', () => {
+  assert.equal(replaceInHtml('<p>原文。</p>', '原文。', '原文。', revision), '<p>原文。</p>')
+})
+
+test('忽略空白定位后使用实际原文计算标记范围', () => {
+  const result = replaceInHtml('<p>他 走进旧城。</p>', '他走进旧城。', '他 走进北城。', revision)
+
+  assert.deepEqual(markedText(result), ['北'])
+})
+
+test('整章替换保留未改段落，仅标记实际改写和新增内容', () => {
+  const result = replaceAllInHtml('<p>第一段不变。</p><p>他走进旧城。</p><p>最后一段不变。</p>', '第一段不变。\n他走进北城。\n最后一段不变。\n新增正文', revision)
+
+  assert.deepEqual(markedText(result), ['北', '新增正文'])
+  assert.match(result, /^<p>第一段不变。<\/p>/)
+  assert.match(result, /<p>最后一段不变。<\/p>/)
+  assert.ok(markedText(result).every((text) => !/<\/?p\b/.test(text)))
+})
+
+test('修改范围跨换行时，标记不会包住段落或换行标签', () => {
+  const result = replaceInHtml('<p>开头旧结尾</p>', '开头旧结尾', '开头新增\n下一行结尾', revision)
+
+  assert.deepEqual(markedText(result), ['新增', '下一行'])
+  assert.match(result, /<\/mark><br><mark/)
+})
+
+test('颜色标记保留 HTML 转义和完整 Unicode 字符', () => {
+  const result = replaceInHtml('<p>前&amp;旧后</p>', '前&旧后', '前&😀<新>后', revision)
+
+  assert.deepEqual(markedText(result), ['😀&lt;新&gt;'])
+  assert.match(result, /前&amp;<mark/)
 })

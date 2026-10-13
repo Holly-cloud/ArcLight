@@ -1,3 +1,5 @@
+import { diffChars } from 'diff'
+
 export type ChapterRevisionMetadata = {
   id: string
   source: 'ai' | 'manual'
@@ -120,6 +122,38 @@ function buildHtmlTextIndex(html: string): HtmlTextIndex {
   }
 
   return { value, htmlStarts, htmlEnds }
+}
+
+/** 按实际文字差异标记新内容；标签和段落边界不能放进 mark 内。 */
+function markChapterTextChanges(html: string, originalText: string, revision?: ChapterRevisionMetadata): string {
+  if (!revision) return html
+  const index = buildHtmlTextIndex(html)
+  const ranges: Array<{ start: number; end: number }> = []
+  let offset = 0
+  for (const change of diffChars(originalText, index.value)) {
+    if (change.removed) continue
+    if (change.added) {
+      for (let i = offset; i < offset + change.value.length; i += 1) {
+        const start = index.htmlStarts[i]
+        const end = index.htmlEnds[i]
+        if (html[start] === '<') continue
+        const previous = ranges[ranges.length - 1]
+        if (previous && previous.end >= start) {
+          previous.end = Math.max(previous.end, end)
+        } else {
+          ranges.push({ start, end })
+        }
+      }
+    }
+    offset += change.value.length
+  }
+  let result = ''
+  let cursor = 0
+  for (const range of ranges) {
+    result += html.slice(cursor, range.start) + wrapChapterRevisionHtml(html.slice(range.start, range.end), revision)
+    cursor = range.end
+  }
+  return result + html.slice(cursor)
 }
 
 export function stripHtmlTags(html: string): string {
@@ -248,7 +282,10 @@ export function replaceInHtml(
   }
   const htmlStart = index.htmlStarts[range.start]
   const htmlEnd = index.htmlEnds[range.end - 1]
-  const replacementHtml = textToInlineHtml(replacement, revision)
+  const originalText = index.value.slice(range.start, range.end)
+  const inlineHtml = textToInlineHtml(replacement)
+  if (revision && originalText === buildHtmlTextIndex(inlineHtml).value) return html
+  const replacementHtml = markChapterTextChanges(inlineHtml, originalText, revision)
   const containingRevision = findContainingRevisionMark(html, htmlStart, htmlEnd)
   if (containingRevision) {
     return html.slice(0, containingRevision.openStart) +
@@ -262,11 +299,11 @@ export function replaceInHtml(
 
 /** 整章替换：显式操作才会调用，不依赖原文定位，输出标准段落 HTML。 */
 export function replaceAllInHtml(
-  _html: string,
+  html: string,
   replacement: string,
   revision?: ChapterRevisionMetadata
 ): string {
-  return textToHtmlParagraphs(replacement, revision)
+  return markChapterTextChanges(textToHtmlParagraphs(replacement), buildHtmlTextIndex(html).value, revision)
 }
 
 export function insertInHtml(

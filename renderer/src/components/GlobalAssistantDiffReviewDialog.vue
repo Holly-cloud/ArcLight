@@ -2,18 +2,12 @@
 import { computed, ref, watch } from 'vue'
 import { html as diffToHtml } from 'diff2html'
 import 'diff2html/bundles/css/diff2html.min.css'
+import { compareChapterRevision } from '@/features/chapters/chapterRevisionDiff'
 import { Check, ChevronDown, ChevronRight, GitCompare, Info, Lock, X } from 'lucide-vue-next'
 import { NButton, NModal, NScrollbar, NTag } from 'naive-ui'
 import type { GlobalAssistantProposalDiffFile } from '@/composables/useGlobalAssistant'
 
 type FileDecision = 'pending' | 'accepted' | 'rejected'
-type ChapterCompareParagraphState = 'unchanged' | 'removed' | 'added'
-type ChapterCompareParagraph = {
-  id: string
-  text: string
-  state: ChapterCompareParagraphState
-}
-
 const props = defineProps<{
   show: boolean
   summary: string
@@ -75,59 +69,10 @@ const pendingCount = computed(() => actionableFiles.value.filter((f) => decision
 const currentDecision = computed(() => activeFile.value ? getDecision(activeFile.value.id) : 'pending')
 const chapterActionLabel = computed(() => resolveChapterActionLabel(activeFile.value?.reason ?? ''))
 const chapterReasonText = computed(() => resolveChapterReasonText(activeFile.value?.reason ?? props.summary))
-const chapterCompareParagraphs = computed<{ before: ChapterCompareParagraph[]; after: ChapterCompareParagraph[] }>(() => {
+const chapterCompareParagraphs = computed(() => {
   const file = activeFile.value
-  if (!file) return { before: [], after: [] }
-
-  const oldParagraphs = splitParagraphs(file.oldText)
-  const newParagraphs = splitParagraphs(file.newText)
-  if (oldParagraphs.length === 0 && newParagraphs.length === 0) return { before: [], after: [] }
-
-  let start = 0
-  while (
-    start < oldParagraphs.length &&
-    start < newParagraphs.length &&
-    normalizeParagraph(oldParagraphs[start]) === normalizeParagraph(newParagraphs[start])
-  ) {
-    start += 1
-  }
-
-  let oldEnd = oldParagraphs.length - 1
-  let newEnd = newParagraphs.length - 1
-  while (
-    oldEnd >= start &&
-    newEnd >= start &&
-    normalizeParagraph(oldParagraphs[oldEnd]) === normalizeParagraph(newParagraphs[newEnd])
-  ) {
-    oldEnd -= 1
-    newEnd -= 1
-  }
-
-  const before: ChapterCompareParagraph[] = [
-    ...oldParagraphs.slice(0, start).map((text, index) => ({ id: `before-prefix-${index}`, text, state: 'unchanged' as const })),
-    ...oldParagraphs.slice(start, oldEnd + 1).map((text, index) => ({ id: `before-removed-${index}`, text, state: 'removed' as const })),
-    ...oldParagraphs.slice(oldEnd + 1).map((text, index) => ({ id: `before-suffix-${index}`, text, state: 'unchanged' as const }))
-  ]
-  const after: ChapterCompareParagraph[] = [
-    ...newParagraphs.slice(0, start).map((text, index) => ({ id: `after-prefix-${index}`, text, state: 'unchanged' as const })),
-    ...newParagraphs.slice(start, newEnd + 1).map((text, index) => ({ id: `after-added-${index}`, text, state: 'added' as const })),
-    ...newParagraphs.slice(newEnd + 1).map((text, index) => ({ id: `after-suffix-${index}`, text, state: 'unchanged' as const }))
-  ]
-
-  return { before, after }
+  return compareChapterRevision(file?.oldText ?? '', file?.newText ?? '')
 })
-
-function normalizeParagraph(text: string): string {
-  return text.replace(/\s+/g, ' ').trim()
-}
-
-function splitParagraphs(text: string): string[] {
-  return text
-    .replace(/\r\n/g, '\n')
-    .split(/\n+/)
-    .map((paragraph) => paragraph.trim())
-    .filter(Boolean)
-}
 
 function resolveChapterActionLabel(reason: string): string {
   if (reason.includes('替换正文') || reason === 'replace') return '替换正文'
@@ -308,23 +253,29 @@ watch(() => props.show, (val) => {
             <article class="chapter-compare__pane">
               <div class="chapter-compare__label">原文</div>
               <p
-                v-for="paragraph in chapterCompareParagraphs.before"
-                :key="paragraph.id"
+                v-for="(paragraph, index) in chapterCompareParagraphs.before"
+                :key="index"
                 class="chapter-compare__paragraph"
-                :class="`chapter-compare__paragraph--${paragraph.state}`"
               >
-                {{ paragraph.text }}
+                <span
+                  v-for="(segment, segmentIndex) in paragraph.segments"
+                  :key="segmentIndex"
+                  :class="{ 'chapter-compare__text--removed': segment.changed }"
+                >{{ segment.text }}</span>
               </p>
             </article>
             <article class="chapter-compare__pane chapter-compare__pane--after">
               <div class="chapter-compare__label">修改后</div>
               <p
-                v-for="paragraph in chapterCompareParagraphs.after"
-                :key="paragraph.id"
+                v-for="(paragraph, index) in chapterCompareParagraphs.after"
+                :key="index"
                 class="chapter-compare__paragraph"
-                :class="`chapter-compare__paragraph--${paragraph.state}`"
               >
-                {{ paragraph.text }}
+                <span
+                  v-for="(segment, segmentIndex) in paragraph.segments"
+                  :key="segmentIndex"
+                  :class="{ 'chapter-compare__text--added': segment.changed }"
+                >{{ segment.text }}</span>
               </p>
             </article>
           </div>
@@ -1071,12 +1022,7 @@ watch(() => props.show, (val) => {
   border-radius: 7px;
 }
 
-.chapter-compare__paragraph--unchanged {
-  color: var(--arc-text-secondary, #4b5563);
-}
-
-.chapter-compare__paragraph--removed {
-  border-color: color-mix(in srgb, var(--arc-danger, #dc2626) 24%, var(--arc-border, #e5e7eb));
+.chapter-compare__text--removed {
   background: color-mix(in srgb, var(--arc-danger, #dc2626) 5%, var(--arc-bg-surface, #ffffff));
   color: color-mix(in srgb, var(--arc-danger, #dc2626) 72%, var(--arc-text-primary, #1f2937));
   text-decoration: line-through;
@@ -1084,8 +1030,7 @@ watch(() => props.show, (val) => {
   text-decoration-color: color-mix(in srgb, var(--arc-danger, #dc2626) 36%, transparent);
 }
 
-.chapter-compare__paragraph--added {
-  border-color: color-mix(in srgb, var(--arc-success, #16a34a) 26%, var(--arc-border, #e5e7eb));
+.chapter-compare__text--added {
   background: color-mix(in srgb, var(--arc-success, #16a34a) 6%, var(--arc-bg-surface, #ffffff));
   color: color-mix(in srgb, var(--arc-success, #16a34a) 65%, var(--arc-text-primary, #1f2937));
 }
