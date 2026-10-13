@@ -32,6 +32,8 @@ import { makeStageChapterDeleteTool } from './tools/stage-chapter-delete'
 import { makeChapterManagementTools } from './tools/stage-chapter-management'
 import { makeStageEntitiesTools } from './tools/stage-entities'
 import { makeStageProjectEntityTools } from './tools/stage-project-entities'
+import { makeStoryStateTools } from './tools/story-state-tools'
+import { ensureWorkspaceDb } from '../../workspace-store'
 import { type ToolFactory } from './agent-loop'
 import type { ResolveTurnExecutionPlan } from './ipc'
 import { getProjectView, type SnapshotAccessor } from './providers/shared'
@@ -208,7 +210,14 @@ export function createExecutionPlanner(
         stageChapterDelete,
         ...chapterManagementTools,
         ...stageEntityTools,
-        ...stageProjectEntityTools
+        ...stageProjectEntityTools,
+        ...makeStoryStateTools({
+          sessionId: ctx.sessionId,
+          turnId: ctx.turnId,
+          projectId: ctx.projectId,
+          stagedStore: stagedChangesStore,
+          ensureDb: ensureWorkspaceDb
+        })
       ]
       return wrapToolsWithRuntimeBudget(
         filterToolsBySurface(combined, surface),

@@ -153,6 +153,7 @@ export type StagedChangeKind =
   | 'knowledge_document'
   | 'plot_thread'
   | 'workflow_document'
+  | 'story_state'
   | 'project'
 
 /** create = 新增实体；update = 修改已有实体（entityId 必填）；delete = 删除已有实体（entityId 必填）。 */

@@ -213,8 +213,14 @@ const cleanupBackfillProgress = window.characterArc.onBackfillStateProgress((pay
   }
 })
 
+// 助手写回后会同步工作区；世界状态不在工作区快照内，需要单独重新读取。
+const cleanupWorkspaceSync = window.characterArc.onWorkspaceSync(() => {
+  void loadStoryState()
+})
+
 onBeforeUnmount(() => {
   cleanupBackfillProgress()
+  cleanupWorkspaceSync()
 })
 
 onMounted(() => {
@@ -728,7 +734,7 @@ watch(
       </div>
 
       <p class="pk-card-desc">
-        章节定稿或状态补录时沉淀的结构化世界状态。这些数据会在 AI 写作/审校时作为上下文注入，保证前后一致。
+        章节定稿或状态补录时沉淀的结构化世界状态。这些数据会在 AI 写作/审校时作为上下文注入，保证前后一致。需要删除条目时，可向全局 AI 助手说明目标，在暂存区确认并写回后生效。
       </p>
 
       <n-spin :show="isLoadingStoryState">

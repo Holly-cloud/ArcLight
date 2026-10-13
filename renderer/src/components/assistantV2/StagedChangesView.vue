@@ -80,6 +80,7 @@ function kindLabel(kind: string): string {
     case 'knowledge_document': return '知识'
     case 'plot_thread': return '线索'
     case 'workflow_document': return '流程'
+    case 'story_state': return '世界状态'
     case 'project': return '项目'
     default: return kind
   }

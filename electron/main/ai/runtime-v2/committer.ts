@@ -14,6 +14,7 @@ import { ensureWorkspaceDb } from '../../workspace-store'
 import type { WorkflowDocumentKey } from '../../workspace-types'
 import { commitChapterEdit } from '../agent/tools/chapter-data-access'
 import type { StagedChangeCommitter } from './staged-changes-store'
+import { deleteStoryStateRecords, isStoryStateEntityType } from '../../story-state-management'
 
 /**
  * 缺 projectId 的问题：`commitChapterEdit(projectId, chapterId, ...)` 需要 projectId。
@@ -139,6 +140,15 @@ async function commitDelete(
     return { changeId: change.id, ok: false, error: 'delete 缺少 entityId' }
   }
   const db = await ensureWorkspaceDb()
+
+  if (change.kind === 'story_state') {
+    const payload = readPayload(change)
+    if (!isStoryStateEntityType(payload.entityType) || typeof payload.expectedRecords !== 'string') {
+      return { changeId: change.id, ok: false, error: '世界状态删除缺少合法的类别或原始记录。' }
+    }
+    deleteStoryStateRecords(db, projectId, payload.entityType, change.entityId, payload.expectedRecords)
+    return { changeId: change.id, ok: true, entityId: change.entityId }
+  }
 
   if (change.kind === 'chapter') {
     const existing = db.prepare('SELECT id FROM chapters WHERE id = ? AND project_id = ?')

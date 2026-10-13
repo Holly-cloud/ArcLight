@@ -305,6 +305,8 @@ function describeToolAction(t: AssistantToolCallView): string {
       if (a.summary_only === true) return `读取${dataLabel}摘要`
       return `读取${dataLabel}`
     }
+    case 'read_story_state': return '读取项目知识库中的世界状态'
+    case 'stage_story_state_delete': return '暂存删除指定世界状态条目'
     case 'stage_chapter_edit':
       return `暂存章节${actionLabel(a.operation)}提案`
     case 'stage_chapter_create': return `暂存新章节：${short(a.title ?? '未命名章节')}`

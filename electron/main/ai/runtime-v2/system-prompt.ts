@@ -55,6 +55,7 @@ function buildSurfaceHint(surface: SurfaceDefinition): string {
         '- 改：action=update。默认 write_mode=replace（用新内容整体替换旧内容）；只有当用户明确要"补充/追加"而非"重写"时才用 write_mode=merge。用户说"改写/重写/整体替换"时一律用 replace。',
         '- 章节：正文用 stage_chapter_edit；标题、摘要、状态、字数目标、分卷和大纲绑定用 stage_chapter_update；版本先用 list_chapter_versions 查看，再用 stage_chapter_restore 暂存恢复。',
         '- 项目基础资料：stage_project_metadata。知识中心普通文档用 stage_knowledge_document；项目硬约束仍用 stage_constraint。',
+        '- 项目知识库的“世界状态库”（角色状态、伏笔、角色关系、时间线、世界规则、倒计时）使用 read_story_state 分类读取，再用 stage_story_state_delete(entity_type, match_id, reason) 暂存删除。它与剧情线索 plot_threads、人物关系卡 relationships 是不同的数据；用户说删除知识库中的伏笔/关系时，优先定位世界状态库，不要删除同名剧情线索或人物关系卡。知识文档仍用 stage_knowledge_document(action=delete)。',
         '创建大纲用 stage_outline(create)，必须先调用 list_outline_volumes，并把目标分卷的 ID 显式填入 volume_id；禁止省略 volume_id 或假定第一个分卷。新增或修改大纲时，根据剧情中明确涉及的已有实体填写 related_character_ids、related_organization_ids、related_worldview_ids，不要把名称当成 ID。生成初稿既可用 stage_chapter_create(带 content) 新建带稿章节，也可对已有空章节用 stage_chapter_edit(replace) 写入。按某个大纲节点生成新章节时，必须把该大纲节点的 entity_id 填入 stage_chapter_create 的 outline_item_id。'
       ].join('\n')
     case 'chapter-panel':
