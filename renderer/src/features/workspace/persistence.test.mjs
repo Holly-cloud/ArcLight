@@ -99,3 +99,59 @@ test('章节排序保存失败后自动重试并保留较新的排序', async ()
     globalThis.window = originalWindow
   }
 })
+
+test('工作区实体批处理会保留新增的场景/道具字段', async () => {
+  const originalWindow = globalThis.window
+  const timers = new Map()
+  const calls = []
+  let nextTimerId = 1
+  let resolveSaved
+  const saved = new Promise((resolve) => {
+    resolveSaved = resolve
+  })
+
+  globalThis.window = {
+    setTimeout(callback, delay) {
+      const id = nextTimerId
+      nextTimerId += 1
+      timers.set(id, { callback, delay })
+      return id
+    },
+    clearTimeout(id) {
+      timers.delete(id)
+    },
+    characterArc: {
+      saveWorkspaceEntities(payload) {
+        calls.push(payload)
+        resolveSaved()
+        return Promise.resolve({ success: true })
+      }
+    }
+  }
+
+  try {
+    const persistence = createPersistence()
+    persistence.scheduleWorkspaceEntitiesPersist({
+      projectId: 'project-1',
+      sceneLocations: [{ id: 'scene-1', name: '云顶城' }]
+    })
+    persistence.scheduleWorkspaceEntitiesPersist({
+      projectId: 'project-1',
+      propItems: [{ id: 'prop-1', name: '断魂剑' }]
+    })
+
+    assert.equal(persistence.hasPendingWorkspaceEntityPersists.value, true)
+    const [timer] = timers.values()
+    timers.clear()
+    timer.callback()
+    await saved
+    await Promise.resolve()
+
+    assert.equal(calls.length, 1)
+    assert.deepEqual(calls[0].sceneLocations, [{ id: 'scene-1', name: '云顶城' }])
+    assert.deepEqual(calls[0].propItems, [{ id: 'prop-1', name: '断魂剑' }])
+    assert.equal(persistence.hasPendingWorkspaceEntityPersists.value, false)
+  } finally {
+    globalThis.window = originalWindow
+  }
+})

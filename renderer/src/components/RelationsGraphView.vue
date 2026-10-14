@@ -223,6 +223,16 @@ watch(isDarkMode, () => {
   }
 })
 
+// 主题预设切换（如海蓝 → 玉绿）会改变 --arc-* 令牌实际色值，需重建 cytoscape 样式表以跟随配色。
+watch(
+  () => appStore.theme,
+  () => {
+    if (cy) {
+      cy.style(buildStylesheet())
+    }
+  }
+)
+
 onMounted(async () => {
   await nextTick()
   scheduleGraphRender()
@@ -341,7 +351,7 @@ function renderGraph(): void {
     const graphNode = displayGraph.value.nodes.find((node) => node.id === nodeId)
     if (graphNode && lastTappedNodeId === nodeId && now - lastTappedAt < 320) {
       emit('openNode', {
-        kind: 'character',
+        kind: graphNode.kind,
         entityId: graphNode.entityId
       })
       lastTappedNodeId = null
@@ -560,6 +570,32 @@ function buildStylesheet(): StylesheetJson {
       }
     },
     {
+      selector: 'node.scene',
+      style: {
+        label: '',
+        shape: 'round-rectangle',
+        width: '64',
+        height: '44',
+        'background-color': 'data(accent)',
+        'border-width': '2',
+        'border-color': 'data(borderColor)',
+        opacity: '0.94'
+      }
+    },
+    {
+      selector: 'node.prop',
+      style: {
+        label: '',
+        shape: 'diamond',
+        width: '50',
+        height: '50',
+        'background-color': 'data(accent)',
+        'border-width': '2',
+        'border-color': 'data(borderColor)',
+        opacity: '0.94'
+      }
+    },
+    {
       selector: 'node.selected-node',
       style: {
         'border-color': '#1d4ed8',
@@ -616,6 +652,14 @@ function buildStylesheet(): StylesheetJson {
     {
       selector: 'edge.relationship',
       style: {
+        'line-color': 'data(color)'
+      }
+    },
+    {
+      selector: 'edge.scene-link, edge.prop-link',
+      style: {
+        'line-style': 'dashed',
+        'line-dash-pattern': [6, 4],
         'line-color': 'data(color)'
       }
     },
@@ -810,8 +854,20 @@ function syncNodeLabels(): void {
             <span>角色节点</span>
           </div>
           <div class="legend-item">
+            <span class="legend-dot scene"></span>
+            <span>场景节点</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-dot prop"></span>
+            <span>道具节点</span>
+          </div>
+          <div class="legend-item">
             <span class="legend-line relationship"></span>
             <span>普通关系</span>
+          </div>
+          <div class="legend-item">
+            <span class="legend-line scene-link"></span>
+            <span>跨实体关联</span>
           </div>
           <div class="legend-item">
             <span class="legend-line internal"></span>
@@ -1392,6 +1448,17 @@ function syncNodeLabels(): void {
   background: #2563eb;
 }
 
+.legend-dot.scene {
+  border-radius: 4px;
+  background: var(--arc-success);
+}
+
+.legend-dot.prop {
+  border-radius: 2px;
+  background: var(--arc-text-secondary);
+  transform: rotate(45deg);
+}
+
 .legend-line {
   width: 22px;
   height: 2px;
@@ -1400,6 +1467,16 @@ function syncNodeLabels(): void {
 
 .legend-line.relationship {
   background: rgba(37, 99, 235, 0.56);
+}
+
+.legend-line.scene-link {
+  background: repeating-linear-gradient(
+    90deg,
+    var(--arc-border-strong) 0,
+    var(--arc-border-strong) 5px,
+    transparent 5px,
+    transparent 9px
+  );
 }
 
 .legend-line.internal {

@@ -5,6 +5,7 @@ import type {
   ChatMessage,
   CharacterRelationship,
   CharacterCard,
+  CharacterTag,
   GlobalAssistantProposal,
   GlobalAssistantSession,
   InspirationEntry,
@@ -15,6 +16,8 @@ import type {
   OutlineVolume,
   PlotThread,
   ProjectWorkspaceData,
+  PropItem,
+  SceneLocation,
   WorkflowDocument,
   WorldviewEntry
 } from '@/types/app'
@@ -113,9 +116,69 @@ function normalizeOrganizations(organizations?: OrganizationEntry[]): Organizati
   }))
 }
 
+// 清理实体标签列表：去空白、限制数量、保留 tone 色调
+function normalizeEntityTags(tags?: CharacterTag[]): CharacterTag[] {
+  if (!Array.isArray(tags)) return []
+  return tags
+    .map((tag) => ({
+      label: String(tag?.label ?? '').trim(),
+      ...(tag?.tone ? { tone: tag.tone } : {})
+    }))
+    .filter((tag) => tag.label)
+    .slice(0, 8)
+}
+
+// 清理内嵌关联 id 数组：去重、去空
+function normalizeEntityReferenceIds(value?: string[]): string[] {
+  if (!Array.isArray(value)) return []
+  return [...new Set(value.map((id) => String(id).trim()).filter(Boolean))]
+}
+
+// 校正场景/地点条目：排序、清理标签与关联 id、确保时间戳
+function normalizeSceneLocations(sceneLocations?: SceneLocation[]): SceneLocation[] {
+  const sortedEntries = (sceneLocations ?? [])
+    .map((entry, index) => ({ entry, index }))
+    .sort((left, right) => (left.entry.sortOrder ?? left.index) - (right.entry.sortOrder ?? right.index))
+
+  return sortedEntries.map(({ entry }, index) => ({
+    ...entry,
+    name: String(entry.name ?? '').trim(),
+    type: String(entry.type ?? '').trim(),
+    description: String(entry.description ?? ''),
+    tags: normalizeEntityTags(entry.tags),
+    color: String(entry.color ?? ''),
+    sortOrder: index,
+    relatedCharacterIds: normalizeEntityReferenceIds(entry.relatedCharacterIds),
+    relatedPropIds: normalizeEntityReferenceIds(entry.relatedPropIds),
+    createdAt: toIsoTimestamp(entry.createdAt),
+    updatedAt: toIsoTimestamp(entry.updatedAt || entry.createdAt)
+  }))
+}
+
+// 校正道具条目：排序、清理标签与关联 id、确保时间戳
+function normalizePropItems(propItems?: PropItem[]): PropItem[] {
+  const sortedEntries = (propItems ?? [])
+    .map((entry, index) => ({ entry, index }))
+    .sort((left, right) => (left.entry.sortOrder ?? left.index) - (right.entry.sortOrder ?? right.index))
+
+  return sortedEntries.map(({ entry }, index) => ({
+    ...entry,
+    name: String(entry.name ?? '').trim(),
+    type: String(entry.type ?? '').trim(),
+    description: String(entry.description ?? ''),
+    ownerCharacterId: String(entry.ownerCharacterId ?? ''),
+    tags: normalizeEntityTags(entry.tags),
+    color: String(entry.color ?? ''),
+    sortOrder: index,
+    relatedSceneIds: normalizeEntityReferenceIds(entry.relatedSceneIds),
+    relatedCharacterIds: normalizeEntityReferenceIds(entry.relatedCharacterIds),
+    createdAt: toIsoTimestamp(entry.createdAt),
+    updatedAt: toIsoTimestamp(entry.updatedAt || entry.createdAt)
+  }))
+}
+
 // 校正角色关系：将强度值限制在 0-100 范围内，默认 50
-function normalizeCharacterRelationships(relationships?: CharacterRelationship[]): CharacterRelationship[] {
-  return (relationships ?? []).map((relationship) => ({
+function normalizeCharacterRelationships(relationships?: CharacterRelationship[]): CharacterRelationship[] {  return (relationships ?? []).map((relationship) => ({
     ...relationship,
     intensity: Number.isFinite(relationship.intensity) ? Math.min(100, Math.max(0, relationship.intensity)) : 50,
     createdAt: toIsoTimestamp(relationship.createdAt),
@@ -370,6 +433,16 @@ function cloneOrganizations(organizations?: OrganizationEntry[]): OrganizationEn
   return normalizeOrganizations(organizations)
 }
 
+// 拷贝场景/地点列表并校正排序、关联与时间戳
+function cloneSceneLocations(sceneLocations?: SceneLocation[]): SceneLocation[] {
+  return normalizeSceneLocations(sceneLocations)
+}
+
+// 拷贝道具列表并校正排序、关联与时间戳
+function clonePropItems(propItems?: PropItem[]): PropItem[] {
+  return normalizePropItems(propItems)
+}
+
 // 拷贝角色关系并校正强度值与时间戳
 function cloneCharacterRelationships(relationships?: CharacterRelationship[]): CharacterRelationship[] {
   return normalizeCharacterRelationships(relationships)
@@ -443,6 +516,8 @@ export function createEmptyWorkspace(overrides?: Partial<ProjectWorkspaceData>):
     worldviewEntries: cloneWorldviewEntries(overrides?.worldviewEntries),
     characters: cloneCharacters(overrides?.characters),
     organizations: cloneOrganizations(overrides?.organizations),
+    sceneLocations: cloneSceneLocations(overrides?.sceneLocations),
+    propItems: clonePropItems(overrides?.propItems),
     characterRelationships: cloneCharacterRelationships(overrides?.characterRelationships),
     organizationMemberships: cloneOrganizationMemberships(overrides?.organizationMemberships),
     inspirationEntries: cloneInspirationEntries(overrides?.inspirationEntries),
@@ -501,6 +576,8 @@ export function normalizeWorkspace(
     worldviewEntries: cloneWorldviewEntries(workspace.worldviewEntries),
     characters: cloneCharacters(workspace.characters),
     organizations: cloneOrganizations(workspace.organizations),
+    sceneLocations: cloneSceneLocations(workspace.sceneLocations),
+    propItems: clonePropItems(workspace.propItems),
     characterRelationships: cloneCharacterRelationships(workspace.characterRelationships),
     organizationMemberships: cloneOrganizationMemberships(workspace.organizationMemberships),
     inspirationEntries: cloneInspirationEntries(workspace.inspirationEntries),

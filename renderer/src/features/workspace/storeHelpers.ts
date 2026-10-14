@@ -505,6 +505,8 @@ export function normalizeProjectWorkspaceData(
     worldviewEntries: normalized.worldviewEntries,
     characters: normalized.characters,
     organizations: normalized.organizations,
+    sceneLocations: normalized.sceneLocations,
+    propItems: normalized.propItems,
     characterRelationships: normalized.characterRelationships,
     organizationMemberships: normalized.organizationMemberships,
     inspirationEntries: normalized.inspirationEntries,

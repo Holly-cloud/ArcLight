@@ -214,6 +214,33 @@ export type WorkspacePayload = {
         createdAt: string
         updatedAt: string
       }>
+      sceneLocations: Array<{
+        id: string
+        name: string
+        type: string
+        description: string
+        tags: Array<{ label: string; tone?: string }>
+        color: string
+        sortOrder: number
+        relatedCharacterIds: string[]
+        relatedPropIds: string[]
+        createdAt: string
+        updatedAt: string
+      }>
+      propItems: Array<{
+        id: string
+        name: string
+        type: string
+        description: string
+        ownerCharacterId: string
+        tags: Array<{ label: string; tone?: string }>
+        color: string
+        sortOrder: number
+        relatedSceneIds: string[]
+        relatedCharacterIds: string[]
+        createdAt: string
+        updatedAt: string
+      }>
       characterRelationships: Array<{
         id: string
         fromCharacterId: string
@@ -759,6 +786,8 @@ export function normalizeWorkspacePayload(payload: WorkspacePayload | LegacyWork
               }))
             : [],
         characters: project.id === selectedProjectId ? legacyPayload.characters ?? [] : [],
+        sceneLocations: [],
+        propItems: [],
         organizations:
           project.id === selectedProjectId
             ? (legacyPayload.organizations ?? []).map((entry, index) => ({

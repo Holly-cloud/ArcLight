@@ -70,7 +70,9 @@ export function createWorkspacePersistence(deps: WorkspacePersistenceDeps) {
       projectId: next.projectId,
       worldviewEntries: next.worldviewEntries ?? current?.worldviewEntries,
       characters: next.characters ?? current?.characters,
-      inspirationEntries: next.inspirationEntries ?? current?.inspirationEntries
+      inspirationEntries: next.inspirationEntries ?? current?.inspirationEntries,
+      sceneLocations: next.sceneLocations ?? current?.sceneLocations,
+      propItems: next.propItems ?? current?.propItems
     }
   }
 
@@ -80,7 +82,9 @@ export function createWorkspacePersistence(deps: WorkspacePersistenceDeps) {
       projectId: batch.projectId,
       worldviewEntries: current?.worldviewEntries ?? batch.worldviewEntries,
       characters: current?.characters ?? batch.characters,
-      inspirationEntries: current?.inspirationEntries ?? batch.inspirationEntries
+      inspirationEntries: current?.inspirationEntries ?? batch.inspirationEntries,
+      sceneLocations: current?.sceneLocations ?? batch.sceneLocations,
+      propItems: current?.propItems ?? batch.propItems
     })
   }
 

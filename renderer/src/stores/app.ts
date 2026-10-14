@@ -90,7 +90,9 @@ import type {
   ProjectImportPayload,
   ProjectSummary,
   ProjectWorkspaceData,
+  PropItem,
   ReferenceWorkItem,
+  SceneLocation,
   ThemeName,
   WorldviewEntry
 } from '@/types/app'
@@ -125,6 +127,8 @@ interface ProjectWorkspacePayload {
   worldviewEntries?: WorldviewEntry[]
   characters?: CharacterCard[]
   organizations?: OrganizationEntry[]
+  sceneLocations?: SceneLocation[]
+  propItems?: PropItem[]
   characterRelationships?: CharacterRelationship[]
   organizationMemberships?: OrganizationMembership[]
   inspirationEntries?: InspirationEntry[]
@@ -215,6 +219,40 @@ function reindexOrganizations(entries: OrganizationEntry[]): OrganizationEntry[]
     ...entry,
     sortOrder: index
   }))
+}
+
+/** 重新编排场景/地点的 sortOrder */
+function reindexSceneLocations(entries: SceneLocation[]): SceneLocation[] {
+  return entries.map((entry, index) => ({
+    ...entry,
+    sortOrder: index
+  }))
+}
+
+/** 重新编排道具的 sortOrder */
+function reindexPropItems(entries: PropItem[]): PropItem[] {
+  return entries.map((entry, index) => ({
+    ...entry,
+    sortOrder: index
+  }))
+}
+
+/** 清理实体标签：去空白、限制数量、保留 tone 色调 */
+function normalizeEntityTags(tags?: CharacterCard['tags']): CharacterCard['tags'] {
+  if (!Array.isArray(tags)) return []
+  return tags
+    .map((tag) => ({
+      label: String(tag?.label ?? '').trim(),
+      ...(tag?.tone ? { tone: tag.tone } : {})
+    }))
+    .filter((tag) => tag.label)
+    .slice(0, 8)
+}
+
+/** 清理内嵌关联 id 数组：去重、去空 */
+function normalizeEntityReferenceIds(value?: string[]): string[] {
+  if (!Array.isArray(value)) return []
+  return [...new Set(value.map((id) => String(id).trim()).filter(Boolean))]
 }
 
 /** 按分卷顺序重排带 volumeId 的条目，保留同卷内原始顺序 */
@@ -321,6 +359,10 @@ export const useAppStore = defineStore('app', () => {
   const characters = computed(() => currentWorkspace.value.characters)
   /** 当前项目的组织列表 */
   const organizations = computed(() => currentWorkspace.value.organizations)
+  /** 当前项目的场景/地点列表 */
+  const sceneLocations = computed(() => currentWorkspace.value.sceneLocations)
+  /** 当前项目的道具列表 */
+  const propItems = computed(() => currentWorkspace.value.propItems)
   /** 当前项目的角色关系列表 */
   const characterRelationships = computed(() => currentWorkspace.value.characterRelationships)
   /** 当前项目的组织成员归属列表 */
@@ -1067,6 +1109,8 @@ export const useAppStore = defineStore('app', () => {
       worldviewEntries: payload.worldviewEntries,
       characters: payload.characters,
       organizations: payload.organizations,
+      sceneLocations: payload.sceneLocations,
+      propItems: payload.propItems,
       characterRelationships: payload.characterRelationships,
       organizationMemberships: payload.organizationMemberships,
       inspirationEntries: payload.inspirationEntries,
@@ -1120,6 +1164,8 @@ export const useAppStore = defineStore('app', () => {
         worldviewEntries: payload.worldviewEntries,
         characters: payload.characters,
         organizations: payload.organizations,
+        sceneLocations: payload.sceneLocations,
+        propItems: payload.propItems,
         characterRelationships: payload.characterRelationships,
         organizationMemberships: payload.organizationMemberships,
         inspirationEntries: payload.inspirationEntries,
@@ -1480,6 +1526,8 @@ export const useAppStore = defineStore('app', () => {
         worldviewEntries: payload.worldviewEntries,
         characters: payload.characters,
         organizations: payload.organizations,
+        sceneLocations: payload.sceneLocations,
+        propItems: payload.propItems,
         characterRelationships: payload.characterRelationships,
         organizationMemberships: payload.organizationMemberships,
         inspirationEntries: payload.inspirationEntries,
@@ -1851,6 +1899,22 @@ export const useAppStore = defineStore('app', () => {
     })
   }
 
+  function persistSceneLocationsIncrementally(): void {
+    if (!selectedProjectId.value) return
+    scheduleWorkspaceEntitiesPersist({
+      projectId: selectedProjectId.value,
+      sceneLocations: toSerializable(sceneLocations.value)
+    })
+  }
+
+  function persistPropItemsIncrementally(): void {
+    if (!selectedProjectId.value) return
+    scheduleWorkspaceEntitiesPersist({
+      projectId: selectedProjectId.value,
+      propItems: toSerializable(propItems.value)
+    })
+  }
+
   /** 创建世界观设定条目，插入到列表头部 */
   function createWorldviewEntry(payload?: Partial<WorldviewEntry>): string {
     const entryId = uniqueId('world')
@@ -1955,7 +2019,7 @@ export const useAppStore = defineStore('app', () => {
     persistCharactersIncrementally()
   }
 
-  /** 删除角色，同时清理其所有关系和组织归属 */
+  /** 删除角色，同时清理其所有关系、组织归属以及场景/道具中的悬空引用 */
   function deleteCharacter(characterId: string): void {
     updateCurrentWorkspace((workspace) => ({
       ...workspace,
@@ -1966,9 +2030,21 @@ export const useAppStore = defineStore('app', () => {
       ),
       organizationMemberships: workspace.organizationMemberships.filter(
         (membership) => membership.characterId !== characterId
-      )
+      ),
+      sceneLocations: workspace.sceneLocations.map((scene) => (
+        scene.relatedCharacterIds.includes(characterId)
+          ? { ...scene, relatedCharacterIds: scene.relatedCharacterIds.filter((id) => id !== characterId) }
+          : scene
+      )),
+      propItems: workspace.propItems.map((prop) => ({
+        ...prop,
+        ownerCharacterId: prop.ownerCharacterId === characterId ? '' : prop.ownerCharacterId,
+        relatedCharacterIds: prop.relatedCharacterIds.filter((id) => id !== characterId)
+      }))
     }))
     persistCharactersIncrementally()
+    persistSceneLocationsIncrementally()
+    persistPropItemsIncrementally()
   }
 
   // ── 组织 CRUD ──
@@ -2033,6 +2109,158 @@ export const useAppStore = defineStore('app', () => {
       )
     }))
     schedulePersist('fast')
+  }
+
+  // ── 场景/地点 CRUD ──
+  /** 创建场景/地点，插入到列表头部 */
+  function createSceneLocation(payload?: Partial<SceneLocation>): string {
+    const sceneId = uniqueId('scene')
+    const createdAt = toIsoTimestamp(payload?.createdAt)
+    const updatedAt = toIsoTimestamp(payload?.updatedAt || payload?.createdAt)
+
+    updateCurrentWorkspace((workspace) => ({
+      ...workspace,
+      sceneLocations: reindexSceneLocations([
+        {
+          id: sceneId,
+          name: payload?.name?.trim() || `新场景 ${workspace.sceneLocations.length + 1}`,
+          type: payload?.type?.trim() || '城市',
+          description: payload?.description?.trim() || '',
+          tags: payload?.tags ? normalizeEntityTags(payload.tags) : [],
+          color: payload?.color ?? '',
+          sortOrder: payload?.sortOrder ?? 0,
+          relatedCharacterIds: normalizeEntityReferenceIds(payload?.relatedCharacterIds),
+          relatedPropIds: normalizeEntityReferenceIds(payload?.relatedPropIds),
+          createdAt,
+          updatedAt
+        },
+        ...workspace.sceneLocations
+      ])
+    }))
+    persistSceneLocationsIncrementally()
+    return sceneId
+  }
+
+  function updateSceneLocation(sceneId: string, payload: Partial<SceneLocation>): void {
+    updateCurrentWorkspace((workspace) => ({
+      ...workspace,
+      sceneLocations: reindexSceneLocations(
+        workspace.sceneLocations.map((scene) =>
+          scene.id === sceneId
+            ? {
+                ...scene,
+                name: payload.name?.trim() || scene.name,
+                type: payload.type?.trim() || scene.type,
+                description: payload.description !== undefined ? payload.description.trim() : scene.description,
+                tags: payload.tags ? normalizeEntityTags(payload.tags) : scene.tags,
+                color: payload.color !== undefined ? payload.color : scene.color,
+                relatedCharacterIds: payload.relatedCharacterIds
+                  ? normalizeEntityReferenceIds(payload.relatedCharacterIds)
+                  : scene.relatedCharacterIds,
+                relatedPropIds: payload.relatedPropIds
+                  ? normalizeEntityReferenceIds(payload.relatedPropIds)
+                  : scene.relatedPropIds,
+                updatedAt: toIsoTimestamp(payload.updatedAt || new Date().toISOString())
+              }
+            : scene
+        )
+      )
+    }))
+    persistSceneLocationsIncrementally()
+  }
+
+  /** 删除场景，同时清理道具侧的关联场景引用 */
+  function deleteSceneLocation(sceneId: string): void {
+    updateCurrentWorkspace((workspace) => ({
+      ...workspace,
+      sceneLocations: reindexSceneLocations(
+        workspace.sceneLocations.filter((scene) => scene.id !== sceneId)
+      ),
+      propItems: workspace.propItems.map((prop) => (
+        prop.relatedSceneIds.includes(sceneId)
+          ? { ...prop, relatedSceneIds: prop.relatedSceneIds.filter((id) => id !== sceneId) }
+          : prop
+      ))
+    }))
+    persistSceneLocationsIncrementally()
+    persistPropItemsIncrementally()
+  }
+
+  // ── 道具 CRUD ──
+  /** 创建道具，插入到列表头部 */
+  function createPropItem(payload?: Partial<PropItem>): string {
+    const propId = uniqueId('prop')
+    const createdAt = toIsoTimestamp(payload?.createdAt)
+    const updatedAt = toIsoTimestamp(payload?.updatedAt || payload?.createdAt)
+
+    updateCurrentWorkspace((workspace) => ({
+      ...workspace,
+      propItems: reindexPropItems([
+        {
+          id: propId,
+          name: payload?.name?.trim() || `新道具 ${workspace.propItems.length + 1}`,
+          type: payload?.type?.trim() || '信物',
+          description: payload?.description?.trim() || '',
+          ownerCharacterId: payload?.ownerCharacterId?.trim() || '',
+          tags: payload?.tags ? normalizeEntityTags(payload.tags) : [],
+          color: payload?.color ?? '',
+          sortOrder: payload?.sortOrder ?? 0,
+          relatedSceneIds: normalizeEntityReferenceIds(payload?.relatedSceneIds),
+          relatedCharacterIds: normalizeEntityReferenceIds(payload?.relatedCharacterIds),
+          createdAt,
+          updatedAt
+        },
+        ...workspace.propItems
+      ])
+    }))
+    persistPropItemsIncrementally()
+    return propId
+  }
+
+  function updatePropItem(propId: string, payload: Partial<PropItem>): void {
+    updateCurrentWorkspace((workspace) => ({
+      ...workspace,
+      propItems: reindexPropItems(
+        workspace.propItems.map((prop) =>
+          prop.id === propId
+            ? {
+                ...prop,
+                name: payload.name?.trim() || prop.name,
+                type: payload.type?.trim() || prop.type,
+                description: payload.description !== undefined ? payload.description.trim() : prop.description,
+                ownerCharacterId: payload.ownerCharacterId !== undefined
+                  ? payload.ownerCharacterId.trim()
+                  : prop.ownerCharacterId,
+                tags: payload.tags ? normalizeEntityTags(payload.tags) : prop.tags,
+                color: payload.color !== undefined ? payload.color : prop.color,
+                relatedSceneIds: payload.relatedSceneIds
+                  ? normalizeEntityReferenceIds(payload.relatedSceneIds)
+                  : prop.relatedSceneIds,
+                relatedCharacterIds: payload.relatedCharacterIds
+                  ? normalizeEntityReferenceIds(payload.relatedCharacterIds)
+                  : prop.relatedCharacterIds,
+                updatedAt: toIsoTimestamp(payload.updatedAt || new Date().toISOString())
+              }
+            : prop
+        )
+      )
+    }))
+    persistPropItemsIncrementally()
+  }
+
+  /** 删除道具，同时清理场景侧的关联道具引用 */
+  function deletePropItem(propId: string): void {
+    updateCurrentWorkspace((workspace) => ({
+      ...workspace,
+      propItems: reindexPropItems(workspace.propItems.filter((prop) => prop.id !== propId)),
+      sceneLocations: workspace.sceneLocations.map((scene) => (
+        scene.relatedPropIds.includes(propId)
+          ? { ...scene, relatedPropIds: scene.relatedPropIds.filter((id) => id !== propId) }
+          : scene
+      ))
+    }))
+    persistPropItemsIncrementally()
+    persistSceneLocationsIncrementally()
   }
 
   // ── 角色关系 CRUD ──
@@ -3975,6 +4203,10 @@ export const useAppStore = defineStore('app', () => {
     createInspirationEntry,
     createOrganization,
     createOrganizationMembership,
+    createSceneLocation,
+    createPropItem,
+    persistSceneLocationsIncrementally,
+    persistPropItemsIncrementally,
     createOutlineItem,
     createOutlineItemsAfter,
     applyOutlineImportPlan,
@@ -4001,6 +4233,8 @@ export const useAppStore = defineStore('app', () => {
     deleteInspirationEntry,
     deleteOrganization,
     deleteOrganizationMembership,
+    deleteSceneLocation,
+    deletePropItem,
     deleteOutlineItem,
     deleteOutlineVolume,
     deletePlotThread,
@@ -4030,6 +4264,8 @@ export const useAppStore = defineStore('app', () => {
     outlineItems,
     organizationMemberships,
     organizations,
+    sceneLocations,
+    propItems,
     outlineVolumeGroups,
     outlineVolumes,
     pendingChapterInsertion,
@@ -4106,6 +4342,8 @@ export const useAppStore = defineStore('app', () => {
     updateInspirationEntry,
     updateOrganization,
     updateOrganizationMembership,
+    updateSceneLocation,
+    updatePropItem,
     updateOutlineItem,
     updateOutlineVolume,
     updatePlotThread,

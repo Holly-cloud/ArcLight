@@ -3,11 +3,13 @@ import type {
   CharacterCard,
   CharacterRelationship,
   OrganizationEntry,
-  OrganizationMembership
+  OrganizationMembership,
+  PropItem,
+  SceneLocation
 } from '@/types/app'
 
-export type RelationsGraphNodeKind = 'character' | 'organization'
-export type RelationsGraphEdgeKind = 'relationship' | 'membership'
+export type RelationsGraphNodeKind = 'character' | 'organization' | 'scene' | 'prop'
+export type RelationsGraphEdgeKind = 'relationship' | 'membership' | 'scene-link' | 'prop-link'
 export type RelationsGraphFocusMode = 'overview' | 'chain' | 'camp'
 
 export type RelationsGraphNode = {
@@ -62,11 +64,43 @@ export type RelationsGraphHotspot = RelationsGraphNode & {
 const HIGH_INTENSITY_THRESHOLD = 65
 const ACCENT_PALETTE = ['#2563eb', '#f97316', '#0f766e', '#c026d3', '#ca8a04', '#7c3aed']
 
+/**
+ * `--arc-*` 设计令牌的静态回退色。cytoscape 只接受字面量颜色，无法直接消费 CSS 变量，
+ * 因此在运行时通过 getComputedStyle 读取令牌真实值；若处于非 DOM 环境（如单测）则回退到此处。
+ */
+const ARC_TOKEN_FALLBACKS: Record<string, string> = {
+  '--arc-primary': '#0066cc',
+  '--arc-primary-hover': '#0b76e8',
+  '--arc-warning': '#a16207',
+  '--arc-success': '#15803d',
+  '--arc-danger': '#dc2626',
+  '--arc-text-primary': '#18181b',
+  '--arc-text-secondary': '#52525b',
+  '--arc-text-hint': '#a1a1aa',
+  '--arc-border': '#e4e4e7',
+  '--arc-border-strong': '#d4d4d8'
+}
+
+/**
+ * 读取 `--arc-*` 主题令牌的当前字面量颜色值，使 cytoscape 样式能跟随主题/暗色模式切换。
+ * 非浏览器环境下回退到内置色板，保证纯逻辑层可测试。
+ */
+export function resolveArcTokenColor(token: string, fallback?: string): string {
+  const name = token.trim()
+  if (typeof document !== 'undefined' && typeof getComputedStyle === 'function') {
+    const value = getComputedStyle(document.documentElement).getPropertyValue(name).trim()
+    if (value) return value
+  }
+  return fallback ?? ARC_TOKEN_FALLBACKS[name] ?? '#94a3b8'
+}
+
 export function buildRelationsGraphData(payload: {
   characters: CharacterCard[]
   organizations: OrganizationEntry[]
   characterRelationships: CharacterRelationship[]
   organizationMemberships: OrganizationMembership[]
+  sceneLocations: SceneLocation[]
+  propItems: PropItem[]
 }): RelationsGraphData {
   const nodes = [
     ...payload.organizations.map<RelationsGraphNode>((organization) => ({
@@ -88,12 +122,33 @@ export function buildRelationsGraphData(payload: {
       description: character.description,
       accent: resolveAccentColor(character.avatar, character.name),
       searchText: `${character.name} ${character.role} ${character.description} ${character.tags.map((tag) => tag.label).join(' ')}`.toLowerCase()
+    })),
+    ...payload.sceneLocations.map<RelationsGraphNode>((scene) => ({
+      id: buildSceneNodeId(scene.id),
+      entityId: scene.id,
+      kind: 'scene',
+      label: scene.name,
+      subtitle: scene.type || '场景',
+      description: scene.description,
+      accent: scene.color?.trim() || resolveArcTokenColor('--arc-success'),
+      searchText: `${scene.name} ${scene.type} ${scene.description} ${scene.tags.map((tag) => tag.label).join(' ')}`.toLowerCase()
+    })),
+    ...payload.propItems.map<RelationsGraphNode>((prop) => ({
+      id: buildPropNodeId(prop.id),
+      entityId: prop.id,
+      kind: 'prop',
+      label: prop.name,
+      subtitle: prop.type || '道具',
+      description: prop.description,
+      accent: prop.color?.trim() || resolveArcTokenColor('--arc-text-secondary'),
+      searchText: `${prop.name} ${prop.type} ${prop.description} ${prop.tags.map((tag) => tag.label).join(' ')}`.toLowerCase()
     }))
   ]
 
   const nodeIdSet = new Set(nodes.map((node) => node.id))
   const characterNameMap = new Map(payload.characters.map((character) => [character.id, character.name]))
   const organizationNameMap = new Map(payload.organizations.map((organization) => [organization.id, organization.name]))
+  const sceneNameMap = new Map(payload.sceneLocations.map((scene) => [scene.id, scene.name]))
 
   const relationshipEdges = payload.characterRelationships
     .map<RelationsGraphEdge | null>((relationship) => {
@@ -137,9 +192,76 @@ export function buildRelationsGraphData(payload: {
     })
     .filter((edge): edge is RelationsGraphEdge => Boolean(edge))
 
+  // 场景 ↔ 角色（取 SceneLocation.relatedCharacterIds 方向）
+  const sceneLinkEdges = payload.sceneLocations.flatMap<RelationsGraphEdge>((scene) =>
+    scene.relatedCharacterIds
+      .map<RelationsGraphEdge | null>((characterId) => {
+        const source = buildSceneNodeId(scene.id)
+        const target = buildCharacterNodeId(characterId)
+        if (!nodeIdSet.has(source) || !nodeIdSet.has(target)) return null
+        return {
+          id: `scene-character-${scene.id}-${characterId}`,
+          kind: 'scene-link',
+          source,
+          target,
+          label: '关联角色',
+          description: '',
+          intensity: 50,
+          searchText: `${scene.name} ${characterNameMap.get(characterId) ?? ''} 关联角色 场景`.toLowerCase()
+        }
+      })
+      .filter((edge): edge is RelationsGraphEdge => Boolean(edge))
+  )
+
+  // 道具 ↔ 场景 / 道具 ↔ 角色（道具为主方向：relatedSceneIds / ownerCharacterId / relatedCharacterIds）
+  const propLinkEdges = payload.propItems.flatMap<RelationsGraphEdge>((prop) => {
+    const source = buildPropNodeId(prop.id)
+    if (!nodeIdSet.has(source)) return []
+
+    const sceneEdges = prop.relatedSceneIds
+      .map<RelationsGraphEdge | null>((sceneId) => {
+        const target = buildSceneNodeId(sceneId)
+        if (!nodeIdSet.has(target)) return null
+        return {
+          id: `prop-scene-${prop.id}-${sceneId}`,
+          kind: 'prop-link',
+          source,
+          target,
+          label: '所属场景',
+          description: '',
+          intensity: 50,
+          searchText: `${prop.name} ${sceneNameMap.get(sceneId) ?? ''} 所属场景 道具`.toLowerCase()
+        }
+      })
+      .filter((edge): edge is RelationsGraphEdge => Boolean(edge))
+
+    const relatedCharacterIds = prop.ownerCharacterId
+      ? [prop.ownerCharacterId, ...prop.relatedCharacterIds.filter((id) => id !== prop.ownerCharacterId)]
+      : prop.relatedCharacterIds
+    const characterEdges = relatedCharacterIds
+      .map<RelationsGraphEdge | null>((characterId) => {
+        const target = buildCharacterNodeId(characterId)
+        if (!nodeIdSet.has(target)) return null
+        const isOwner = characterId === prop.ownerCharacterId
+        return {
+          id: `${isOwner ? 'prop-owner' : 'prop-character'}-${prop.id}-${characterId}`,
+          kind: 'prop-link',
+          source,
+          target,
+          label: isOwner ? '持有者' : '关联角色',
+          description: '',
+          intensity: 50,
+          searchText: `${prop.name} ${characterNameMap.get(characterId) ?? ''} ${isOwner ? '持有者' : '关联角色'} 道具`.toLowerCase()
+        }
+      })
+      .filter((edge): edge is RelationsGraphEdge => Boolean(edge))
+
+    return [...sceneEdges, ...characterEdges]
+  })
+
   return {
     nodes,
-    edges: [...relationshipEdges, ...membershipEdges]
+    edges: [...relationshipEdges, ...membershipEdges, ...sceneLinkEdges, ...propLinkEdges]
   }
 }
 
@@ -148,7 +270,10 @@ export function filterRelationsGraph(
   filters: RelationsGraphFilterState
 ): FilteredRelationsGraph {
   const normalizedQuery = filters.query.trim().toLowerCase()
-  const baseNodes = graph.nodes.filter((node) => node.kind === 'character')
+  // 基础节点门禁：角色 / 场景 / 道具为一等公民；组织仅作为筛选镜头不进入基础集。
+  const baseNodes = graph.nodes.filter(
+    (node) => node.kind === 'character' || node.kind === 'scene' || node.kind === 'prop'
+  )
   const baseNodeMap = new Map(baseNodes.map((node) => [node.id, node]))
   const directNodeMatches = new Set(
     baseNodes
@@ -156,8 +281,9 @@ export function filterRelationsGraph(
       .map((node) => node.id)
   )
 
+  // 基础边放行：角色关系 + 场景/道具跨实体边（组织归属仍不进入基础集）。
   const baseEdges = graph.edges.filter((edge) => {
-    if (edge.kind !== 'relationship') {
+    if (edge.kind !== 'relationship' && edge.kind !== 'scene-link' && edge.kind !== 'prop-link') {
       return false
     }
 
@@ -336,23 +462,34 @@ export function buildRelationsCytoscapeElements(graph: FilteredRelationsGraph): 
       },
       classes: [node.kind, graph.matchedNodeIds.has(node.id) ? 'matched' : ''].filter(Boolean).join(' ')
     })),
-    ...graph.edges.map<ElementDefinition>((edge) => ({
-      data: {
-        id: edge.id,
-        source: edge.source,
-        target: edge.target,
-        kind: edge.kind,
-        label: edge.label,
-        description: edge.description,
-        intensity: edge.intensity,
-        searchText: edge.searchText,
-        width: resolveEdgeWidth(edge),
-        opacity: edge.kind === 'membership' ? 0.78 : 0.24 + edge.intensity / 170,
-        color: resolveRelationshipEdgeColor(edge.intensity),
-        activeColor: resolveRelationshipActiveColor(edge.intensity)
-      },
-      classes: edge.kind
-    }))
+    ...graph.edges.map<ElementDefinition>((edge) => {
+      const crossEntityEdge = edge.kind === 'scene-link' || edge.kind === 'prop-link'
+      return {
+        data: {
+          id: edge.id,
+          source: edge.source,
+          target: edge.target,
+          kind: edge.kind,
+          label: edge.label,
+          description: edge.description,
+          intensity: edge.intensity,
+          searchText: edge.searchText,
+          width: resolveEdgeWidth(edge),
+          opacity: crossEntityEdge
+            ? 0.62
+            : edge.kind === 'membership'
+              ? 0.78
+              : 0.24 + edge.intensity / 170,
+          color: crossEntityEdge
+            ? resolveArcTokenColor('--arc-border-strong')
+            : resolveRelationshipEdgeColor(edge.intensity),
+          activeColor: crossEntityEdge
+            ? resolveArcTokenColor('--arc-border-strong')
+            : resolveRelationshipActiveColor(edge.intensity)
+        },
+        classes: edge.kind
+      }
+    })
   ]
 }
 
@@ -362,6 +499,14 @@ export function buildCharacterNodeId(characterId: string): string {
 
 export function buildOrganizationNodeId(organizationId: string): string {
   return `organization-${organizationId}`
+}
+
+export function buildSceneNodeId(sceneId: string): string {
+  return `scene-${sceneId}`
+}
+
+export function buildPropNodeId(propId: string): string {
+  return `prop-${propId}`
 }
 
 export function resolveAccentColor(source: string, fallbackSeed: string): string {
@@ -388,6 +533,10 @@ function normalizeIntensity(intensity: number): number {
 function resolveEdgeWidth(edge: RelationsGraphEdge): number {
   if (edge.kind === 'membership') {
     return 3
+  }
+
+  if (edge.kind === 'scene-link' || edge.kind === 'prop-link') {
+    return 2
   }
 
   return 1.8 + edge.intensity / 24

@@ -190,6 +190,39 @@ export async function ensureWorkspaceDb(options: {
       FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
     ) STRICT;
 
+    CREATE TABLE IF NOT EXISTS scene_locations (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL,
+      description TEXT NOT NULL,
+      tags_json TEXT NOT NULL DEFAULT '[]',
+      color TEXT NOT NULL,
+      sort_order INTEGER NOT NULL,
+      related_character_ids_json TEXT NOT NULL DEFAULT '[]',
+      related_prop_ids_json TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+    ) STRICT;
+
+    CREATE TABLE IF NOT EXISTS prop_items (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      name TEXT NOT NULL,
+      type TEXT NOT NULL,
+      description TEXT NOT NULL,
+      owner_character_id TEXT NOT NULL DEFAULT '',
+      tags_json TEXT NOT NULL DEFAULT '[]',
+      color TEXT NOT NULL,
+      sort_order INTEGER NOT NULL,
+      related_scene_ids_json TEXT NOT NULL DEFAULT '[]',
+      related_character_ids_json TEXT NOT NULL DEFAULT '[]',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+    ) STRICT;
+
     CREATE TABLE IF NOT EXISTS inspiration_entries (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL,
@@ -648,6 +681,8 @@ function ensureProjectScopedColumns(db: DatabaseSync): void {
     'worldview_entries',
     'characters',
     'organizations',
+    'scene_locations',
+    'prop_items',
     'character_relationships',
     'organization_memberships',
     'inspiration_entries',
@@ -1087,6 +1122,53 @@ export function readWorkspaceSnapshot(
     ORDER BY project_id ASC, rowid ASC
   `).all() as Array<WorkspacePayload['workspaces'][string]['organizationMemberships'][number] & { projectId: string }>
 
+  const sceneLocations = db.prepare(`
+    SELECT project_id AS projectId, id, name, type, description, tags_json AS tagsJson, color,
+      sort_order AS sortOrder,
+      related_character_ids_json AS relatedCharacterIdsJson,
+      related_prop_ids_json AS relatedPropIdsJson,
+      created_at AS createdAt, updated_at AS updatedAt
+    FROM scene_locations
+    ORDER BY project_id ASC, sort_order ASC
+  `).all().map((row) => ({
+    projectId: row.projectId as string,
+    id: row.id as string,
+    name: row.name as string,
+    type: row.type as string,
+    description: row.description as string,
+    tags: parseJson(row.tagsJson as string, [] as Array<{ label: string; tone?: string }>),
+    color: row.color as string,
+    sortOrder: row.sortOrder as number,
+    relatedCharacterIds: parseJson(row.relatedCharacterIdsJson as string, [] as string[]),
+    relatedPropIds: parseJson(row.relatedPropIdsJson as string, [] as string[]),
+    createdAt: row.createdAt as string,
+    updatedAt: row.updatedAt as string
+  })) as Array<WorkspacePayload['workspaces'][string]['sceneLocations'][number] & { projectId: string }>
+
+  const propItems = db.prepare(`
+    SELECT project_id AS projectId, id, name, type, description, owner_character_id AS ownerCharacterId,
+      tags_json AS tagsJson, color, sort_order AS sortOrder,
+      related_scene_ids_json AS relatedSceneIdsJson,
+      related_character_ids_json AS relatedCharacterIdsJson,
+      created_at AS createdAt, updated_at AS updatedAt
+    FROM prop_items
+    ORDER BY project_id ASC, sort_order ASC
+  `).all().map((row) => ({
+    projectId: row.projectId as string,
+    id: row.id as string,
+    name: row.name as string,
+    type: row.type as string,
+    description: row.description as string,
+    ownerCharacterId: row.ownerCharacterId as string,
+    tags: parseJson(row.tagsJson as string, [] as Array<{ label: string; tone?: string }>),
+    color: row.color as string,
+    sortOrder: row.sortOrder as number,
+    relatedSceneIds: parseJson(row.relatedSceneIdsJson as string, [] as string[]),
+    relatedCharacterIds: parseJson(row.relatedCharacterIdsJson as string, [] as string[]),
+    createdAt: row.createdAt as string,
+    updatedAt: row.updatedAt as string
+  })) as Array<WorkspacePayload['workspaces'][string]['propItems'][number] & { projectId: string }>
+
   const inspirationEntries = db.prepare(`
     SELECT project_id AS projectId, id, type, title, content, tags_json AS tagsJson, source, sort_order AS sortOrder, created_at AS createdAt, updated_at AS updatedAt
     FROM inspiration_entries
@@ -1409,6 +1491,8 @@ export function readWorkspaceSnapshot(
   const organizationsByProject = groupBy(organizations)
   const relationshipsByProject = groupBy(characterRelationships)
   const membershipsByProject = groupBy(organizationMemberships)
+  const sceneLocationsByProject = groupBy(sceneLocations)
+  const propItemsByProject = groupBy(propItems)
   const inspirationByProject = groupBy(inspirationEntries)
   const volumesByProject = groupBy(outlineVolumes)
   const outlineItemsByProject = groupBy(outlineItems)
@@ -1436,6 +1520,10 @@ export function readWorkspaceSnapshot(
         characters: (charactersByProject.get(project.id) ?? [])
           .map(({ projectId: _projectId, ...character }) => character),
         organizations: (organizationsByProject.get(project.id) ?? [])
+          .map(({ projectId: _projectId, ...entry }) => entry),
+        sceneLocations: (sceneLocationsByProject.get(project.id) ?? [])
+          .map(({ projectId: _projectId, ...entry }) => entry),
+        propItems: (propItemsByProject.get(project.id) ?? [])
           .map(({ projectId: _projectId, ...entry }) => entry),
         characterRelationships: (relationshipsByProject.get(project.id) ?? [])
           .map(({ projectId: _projectId, ...entry }) => entry),
@@ -1533,6 +1621,8 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
       worldview_entries: new Set(),
       characters: new Set(),
       organizations: new Set(),
+      scene_locations: new Set(),
+      prop_items: new Set(),
       character_relationships: new Set(),
       organization_memberships: new Set(),
       inspiration_entries: new Set(),
@@ -1606,6 +1696,22 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
     const insertOrganization = db.prepare(`
       INSERT OR REPLACE INTO organizations (id, project_id, name, type, description, motto, color, sort_order, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+
+    const insertSceneLocation = db.prepare(`
+      INSERT OR REPLACE INTO scene_locations (
+        id, project_id, name, type, description, tags_json, color, sort_order,
+        related_character_ids_json, related_prop_ids_json, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+
+    const insertPropItem = db.prepare(`
+      INSERT OR REPLACE INTO prop_items (
+        id, project_id, name, type, description, owner_character_id, tags_json, color, sort_order,
+        related_scene_ids_json, related_character_ids_json, created_at, updated_at
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
 
     const insertCharacterRelationship = db.prepare(`
@@ -1689,6 +1795,8 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
         worldviewEntries: [],
         characters: [],
         organizations: [],
+        sceneLocations: [],
+        propItems: [],
         characterRelationships: [],
         organizationMemberships: [],
         inspirationEntries: [],
@@ -1745,6 +1853,43 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
           organization.sortOrder ?? index,
           organization.createdAt,
           organization.updatedAt
+        )
+      })
+
+      ;(workspace.sceneLocations ?? []).forEach((scene, index) => {
+        allIds.scene_locations.add(scene.id)
+        insertSceneLocation.run(
+          scene.id,
+          project.id,
+          scene.name,
+          scene.type,
+          scene.description,
+          JSON.stringify(scene.tags ?? []),
+          scene.color ?? '',
+          scene.sortOrder ?? index,
+          JSON.stringify(scene.relatedCharacterIds ?? []),
+          JSON.stringify(scene.relatedPropIds ?? []),
+          scene.createdAt,
+          scene.updatedAt
+        )
+      })
+
+      ;(workspace.propItems ?? []).forEach((prop, index) => {
+        allIds.prop_items.add(prop.id)
+        insertPropItem.run(
+          prop.id,
+          project.id,
+          prop.name,
+          prop.type,
+          prop.description,
+          prop.ownerCharacterId ?? '',
+          JSON.stringify(prop.tags ?? []),
+          prop.color ?? '',
+          prop.sortOrder ?? index,
+          JSON.stringify(prop.relatedSceneIds ?? []),
+          JSON.stringify(prop.relatedCharacterIds ?? []),
+          prop.createdAt,
+          prop.updatedAt
         )
       })
 

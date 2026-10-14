@@ -109,11 +109,42 @@ export interface PersistedInspirationEntryRecord {
   updatedAt: string
 }
 
+export interface PersistedSceneLocationRecord {
+  id: string
+  name: string
+  type: string
+  description: string
+  tags: Array<{ label: string; tone?: 'default' | 'danger' | 'success' | 'warning' }>
+  color: string
+  sortOrder: number
+  relatedCharacterIds: string[]
+  relatedPropIds: string[]
+  createdAt: string
+  updatedAt: string
+}
+
+export interface PersistedPropRecord {
+  id: string
+  name: string
+  type: string
+  description: string
+  ownerCharacterId: string
+  tags: Array<{ label: string; tone?: 'default' | 'danger' | 'success' | 'warning' }>
+  color: string
+  sortOrder: number
+  relatedSceneIds: string[]
+  relatedCharacterIds: string[]
+  createdAt: string
+  updatedAt: string
+}
+
 export interface SaveWorkspaceEntitiesRequest {
   projectId: string
   worldviewEntries?: PersistedWorldviewEntryRecord[]
   characters?: PersistedCharacterRecord[]
   inspirationEntries?: PersistedInspirationEntryRecord[]
+  sceneLocations?: PersistedSceneLocationRecord[]
+  propItems?: PersistedPropRecord[]
 }
 
 export interface DatabaseBackupSummary {

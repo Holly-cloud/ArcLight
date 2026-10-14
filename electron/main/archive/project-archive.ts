@@ -194,6 +194,8 @@ function createEmptyWorkspace(): ProjectWorkspace {
     worldviewEntries: [],
     characters: [],
     organizations: [],
+    sceneLocations: [],
+    propItems: [],
     characterRelationships: [],
     organizationMemberships: [],
     inspirationEntries: [],
@@ -559,6 +561,8 @@ export async function exportProjectArchive(options: ExportProjectArchiveOptions)
   addJson(zip, 'manifest.json', manifest)
   addJson(zip, 'project.json', project)
   addJson(zip, 'workspace/worldview.json', workspace.worldviewEntries)
+  addJson(zip, 'workspace/sceneLocations.json', workspace.sceneLocations)
+  addJson(zip, 'workspace/propItems.json', workspace.propItems)
   addJson(zip, 'workspace/characters.json', {
     characters: workspace.characters,
     organizations: workspace.organizations
@@ -638,6 +642,8 @@ async function readArchiveContent(filePath: string): Promise<ProjectArchiveConte
     worldviewEntries: await readZipJson(zip, 'workspace/worldview.json', []),
     characters: characterPayload.characters ?? [],
     organizations: characterPayload.organizations ?? [],
+    sceneLocations: await readZipJson(zip, 'workspace/sceneLocations.json', []),
+    propItems: await readZipJson(zip, 'workspace/propItems.json', []),
     characterRelationships: relationPayload.characterRelationships ?? [],
     organizationMemberships: relationPayload.organizationMemberships ?? [],
     inspirationEntries: await readZipJson(zip, 'workspace/inspiration.json', []),
@@ -787,6 +793,9 @@ function remapArchiveContent(
     organizations: modules.has('characters')
       ? content.workspace.organizations.map((organization) => ({ ...organization, id: mapId(idMap, organization.id) }))
       : [],
+    // 场景/道具暂未纳入归档导入模块（P2），导入时保持为空，避免半量数据。
+    sceneLocations: [],
+    propItems: [],
     characterRelationships: modules.has('relations')
       ? content.workspace.characterRelationships.map((relationship) => ({
           ...relationship,

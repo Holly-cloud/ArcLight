@@ -409,6 +409,60 @@ export interface OrganizationEntry {
   updatedAt: string
 }
 
+/** 场景/地点条目（结构化实体） */
+export interface SceneLocation {
+  /** 场景唯一标识（id 前缀 scene-） */
+  id: string
+  /** 场景名称（必填） */
+  name: string
+  /** 场景类型：城市 / 建筑 / 自然地形 / 室内 / 异空间 */
+  type: string
+  /** 场景详细描述 */
+  description: string
+  /** 场景标签列表，复用角色标签结构（含 tone 色调） */
+  tags: CharacterTag[]
+  /** 主色，取自主题预设色板；缺省为空字符串，渲染时回退到主题令牌 */
+  color: string
+  /** 排序权重，数值越小越靠前 */
+  sortOrder: number
+  /** 关联角色 ID 列表（内嵌 id 数组，沿用 OutlineItem 范式） */
+  relatedCharacterIds: string[]
+  /** 关联道具 ID 列表 */
+  relatedPropIds: string[]
+  /** 创建时间 ISO 时间戳 */
+  createdAt: string
+  /** 最后更新时间 ISO 时间戳 */
+  updatedAt: string
+}
+
+/** 道具条目（结构化实体） */
+export interface PropItem {
+  /** 道具唯一标识（id 前缀 prop-） */
+  id: string
+  /** 道具名称（必填） */
+  name: string
+  /** 道具类型：武器 / 信物 / 法器 / 消耗品 / 线索物 */
+  type: string
+  /** 道具详细描述 */
+  description: string
+  /** 主要持有者角色 ID（单值，最简建模；缺省为空字符串） */
+  ownerCharacterId: string
+  /** 道具标签列表，复用角色标签结构 */
+  tags: CharacterTag[]
+  /** 主色，取自主题预设色板；缺省为空字符串，渲染时回退到主题令牌 */
+  color: string
+  /** 排序权重，数值越小越靠前 */
+  sortOrder: number
+  /** 关联场景 ID 列表（道具位于/出现于哪些场景） */
+  relatedSceneIds: string[]
+  /** 其他关联角色 ID 列表（不含 ownerCharacterId） */
+  relatedCharacterIds: string[]
+  /** 创建时间 ISO 时间戳 */
+  createdAt: string
+  /** 最后更新时间 ISO 时间戳 */
+  updatedAt: string
+}
+
 /** 角色之间的关系条目 */
 export interface CharacterRelationship {
   /** 关系唯一标识 */
@@ -826,6 +880,10 @@ export interface ProjectWorkspaceData {
   characters: CharacterCard[]
   /** 组织列表 */
   organizations: OrganizationEntry[]
+  /** 场景/地点列表 */
+  sceneLocations: SceneLocation[]
+  /** 道具列表 */
+  propItems: PropItem[]
   /** 角色关系列表 */
   characterRelationships: CharacterRelationship[]
   /** 组织成员归属列表 */
@@ -865,6 +923,8 @@ export interface ProjectImportPayload {
   worldviewEntries?: WorldviewEntry[]
   characters?: CharacterCard[]
   organizations?: OrganizationEntry[]
+  sceneLocations?: SceneLocation[]
+  propItems?: PropItem[]
   characterRelationships?: CharacterRelationship[]
   organizationMemberships?: OrganizationMembership[]
   inspirationEntries?: InspirationEntry[]
