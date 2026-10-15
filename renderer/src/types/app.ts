@@ -908,10 +908,12 @@ export interface ProjectWorkspaceData {
   workflowDocuments: WorkflowDocument[]
   /** 剧情线索 / 伏笔追踪列表 */
   plotThreads: PlotThread[]
+  /** 文章拆解改编运行列表（4 阶段 AI 拆解；旧项目无此字段读取默认空数组） */
+  adaptationRuns?: AdaptationRun[]
 }
 
 /** 导入/导出的模块类型标识 */
-export type ImportExportModuleType = 'project' | 'characters' | 'outline' | 'inspiration' | 'relations' | 'chapters'
+export type ImportExportModuleType = 'project' | 'characters' | 'outline' | 'inspiration' | 'relations' | 'chapters' | 'adaptationRuns'
 
 /** 导入冲突解决模式 */
 export type ImportConflictMode = 'overwrite' | 'copy'
@@ -932,6 +934,7 @@ export interface ProjectImportPayload {
   outlineItems?: OutlineItem[]
   chapters?: ChapterDraft[]
   chapterVersions?: ChapterVersion[]
+  adaptationRuns?: AdaptationRun[]
 }
 
 /** CharacterArc 导出文件的标准信封格式 */
@@ -1122,4 +1125,416 @@ export interface GlobalAssistantProposal {
     relatedWorldviewIds?: string[]
   }>
   notes: string[]
+}
+
+/* =========================================================
+ * 文章拆解改编页（DeconstructionAdaptationPage）领域类型
+ * - 4 阶段 AI 拆解：主角 → 阶段 → 剧情卡 → 人物 + 基调
+ * - 单表 JSON blob：所有实体作为内嵌数组存于 AdaptationRun
+ * ========================================================= */
+
+/** 4 阶段串行 + 重跑级联：进度条与门禁共用的阶段标识 */
+export type AdaptationStageId =
+  | 'lead'
+  | 'stages'
+  | 'plot-cards'
+  | 'characters'
+  | 'tone'
+
+/** 质量门禁 18 类 issue 编码（PRD §3.2 P0-7） */
+export type AdaptationIssueCode =
+  | 'lead-missing'
+  | 'stage-count'
+  | 'cards-empty'
+  | 'characters-empty'
+  | 'tone-missing'
+  | 'tone-stale'
+  | 'card-stage-missing'
+  | 'card-source-range'
+  | 'card-evidence-missing'
+  | 'card-protagonist-causality-weak'
+  | 'card-characters-missing'
+  | 'final-choice-card-without-active-character'
+  | 'dependency-missing'
+
+/** 阶段状态机状态：locked / running / completed / failed / stale */
+export type AdaptationStageStatus = 'locked' | 'running' | 'completed' | 'failed' | 'stale'
+
+/** 阶段状态机单元（与 AdaptationRun 平级，便于 UI 进度条渲染） */
+export interface AdaptationStageState {
+  /** 阶段唯一标识 */
+  id: AdaptationStageId
+  /** 当前状态 */
+  status: AdaptationStageStatus
+  /** 错误信息（status === 'failed' 时填写） */
+  error: string
+  /** 状态最近更新时间 ISO 时间戳 */
+  updatedAt: string
+}
+
+/** AI 拆解任务主表（一次拆解 = 一个 run） */
+export interface AdaptationRun {
+  /** 唯一标识（id 前缀 adapt-run-） */
+  id: string
+  /** 引用项目内 ReferenceWorkItem.id（删除时仅 archive） */
+  referenceWorkId: string
+  /** 用户可改的来源作品标题 */
+  sourceTitle: string
+  /** 原文内容哈希（溯源 / 去重 / 缓存键） */
+  sourceContentHash: string
+  /** 原文章节总数（脚本统计） */
+  sourceChapterCount: number
+  /** 目标集数；clamp(10,200)，默认 80 */
+  targetEpisodeCount: number
+  /** 固定 novel-to-short-drama */
+  requestedWorkKind: 'novel-to-short-drama'
+  /** 固定 faithful-adaptation */
+  adaptationMode: 'faithful-adaptation'
+  /** 顶层 status：draft / running / completed / archived */
+  status: 'draft' | 'running' | 'completed' | 'archived'
+  /** 当前激活阶段 */
+  activeStage: AdaptationStageId
+  /** 候选主角列表 */
+  leadCandidates: LeadCandidate[]
+  /** 用户选中的主角（确认后填写） */
+  leadSelection: LeadSelection | null
+  /** 4-5 个阶段卡 */
+  stages: AdaptationStage[]
+  /** 主线 + 副线剧情卡 */
+  plotCards: PlotCard[]
+  /** 人物资产列表 */
+  characters: AdaptationCharacter[]
+  /** 关系列表（≤ 20 条核心关系） */
+  relationships: CharacterRelationship[]
+  /** 人物合并台账（用户手动接受） */
+  characterMergeLedger: CharacterMergeEntry[]
+  /** 全书基调（含 status: 'stale'） */
+  toneProfile: ToneProfile | null
+  /** 全书理解记忆（聚合阶段产出） */
+  bookUnderstanding: BookUnderstanding | null
+  /** 进入改编的剧情卡 ID 列表 */
+  selectedCardIds: string[]
+  /** 4 阶段状态机 */
+  stageStates: AdaptationStageState[]
+  /** 留位 Fusion（本期不做影视化） */
+  fusionImport: null
+  /** 主循环错误信息 */
+  error: string
+  /** 创建时间 ISO 时间戳 */
+  createdAt: string
+  /** 最后更新时间 ISO 时间戳 */
+  updatedAt: string
+}
+
+/** 主角候选条目 */
+export interface LeadCandidate {
+  /** 唯一标识 */
+  id: string
+  /** 候选角色名 */
+  name: string
+  /** 角色定位（male-lead / female-lead / supporting / ...） */
+  role: string
+  /** 置信度 0-1 */
+  confidence: number
+  /** 判断理由 */
+  reason: string
+  /** 原文证据引用（必填 ≥ 1 条） */
+  evidenceRefs: AdaptationEvidenceRef[]
+}
+
+/** 用户确认主角选择 */
+export interface LeadSelection {
+  /** 选中的候选 ID */
+  id: string
+  /** 用户手写补充 */
+  userNote: string
+  /** 确认时间 ISO 时间戳 */
+  confirmedAt: string
+}
+
+/** 单条原文证据引用 */
+export interface AdaptationEvidenceRef {
+  /** 章节 ID（指向 ChapterSegment.id） */
+  chapterId: string
+  /** 章节序号（兼容展示） */
+  chapterNumber: number
+  /** 引用原因 */
+  reason: string
+}
+
+/** 阶段卡（4-5 个） */
+export interface AdaptationStage {
+  /** 唯一标识 */
+  id: string
+  /** 阶段顺序（0-based） */
+  index: number
+  /** 阶段标题 */
+  title: string
+  /** 原文阶段章节范围 */
+  sourceChapterStart: number
+  sourceChapterEnd: number
+  /** 目标集数范围 */
+  targetEpisodeStart: number
+  targetEpisodeEnd: number
+  /** 起势 / 终势 */
+  startState: string
+  endState: string
+  /** 目标 / 阻力 */
+  goal: string
+  obstacle: string
+  /** 性格 / 情感需求 */
+  personality: string
+  emotionalNeed: string
+  /** 转折点 / 阶段兑现 */
+  turningPoint: string
+  stagePayoff: string
+  /** 承接钩子（下一阶段入口） */
+  transitionHook: string
+  /** 主角事件 1-3 条 */
+  protagonistEvents: string[]
+  /** 原文证据引用 */
+  evidenceRefs: AdaptationEvidenceRef[]
+}
+
+/** 剧情卡功能标签（9 类叙事模板） */
+export type PlotCardFunction =
+  | 'opening'
+  | 'trigger'
+  | 'escalation'
+  | 'reversal'
+  | 'reveal'
+  | 'relationship'
+  | 'emotional-reward'
+  | 'payoff'
+  | 'transition'
+
+/** 主角关系标签（5 类） */
+export type PlotCardProtagonistRelation =
+  | 'direct-action'
+  | 'external-pressure'
+  | 'relationship-change'
+  | 'information-reveal'
+  | 'side-branch'
+
+/** 剧情卡状态 */
+export type PlotCardStatus = 'active' | 'rejected'
+
+/** 剧情卡重用模式 */
+export type PlotCardReuseMode = 'keep' | 'omit' | 'merge'
+
+/** 对白锚点模式（反幻觉底座） */
+export type DialogueAnchorMode = 'original' | 'adapted'
+
+/** 单条对白锚点 */
+export interface DialogueAnchor {
+  /** 唯一标识 */
+  id: string
+  /** 引用对白文本 */
+  text: string
+  /** 锚点模式：original 表示原文对白，adapted 表示改编对白 */
+  mode: DialogueAnchorMode
+  /** 所在章节 ID（仅 mode === 'original' 时使用） */
+  sourceChapterId: string
+  /** 原文摘录（仅 mode === 'original' 时使用） */
+  sourceQuote: string | undefined
+  /** 备注 */
+  notes: string
+}
+
+/** 剧情卡 */
+export interface PlotCard {
+  /** 唯一标识 */
+  id: string
+  /** 所属阶段 ID（指向 AdaptationStage.id） */
+  stageId: string
+  /** 标题（如"初临大唐，崭露头角"） */
+  title: string
+  /** 9 类功能标签 */
+  function: PlotCardFunction
+  /** 5 类主角关系标签 */
+  protagonistRelation: PlotCardProtagonistRelation
+  /** 摘要 */
+  synopsis: string
+  /** 故事节拍 2-5 条 */
+  storyBeats: string[]
+  /** 主角五要素（goal/action/obstacle/choice/result/stateChange） */
+  protagonistGoal: string
+  protagonistAction: string
+  protagonistObstacle: string
+  protagonistChoice: string
+  protagonistResult: string
+  protagonistStateChange: string
+  /** 下一集钩子 / 冲突 / 结果 / 情绪效果 */
+  nextHook: string
+  conflict: string
+  result: string
+  emotionalEffect: string
+  /** 原文章节范围 */
+  sourceChapterStart: number
+  sourceChapterEnd: number
+  /** 原文证据（必填） */
+  sourceRefs: AdaptationEvidenceRef[]
+  /** 参与人物 ID 列表 */
+  participatingCharacterIds: string[]
+  /** 前置卡依赖 */
+  dependencies: string[]
+  /** 状态：active / rejected */
+  status: PlotCardStatus
+  /** 重用模式：keep / omit / merge */
+  reuseMode: PlotCardReuseMode
+  /** 对白锚点（防伪逐条执行） */
+  dialogueAnchors: DialogueAnchor[]
+}
+
+/** 人物资产 */
+export interface AdaptationCharacter {
+  /** 唯一标识 */
+  id: string
+  /** 姓名 */
+  name: string
+  /** 别名 */
+  aliases: string[]
+  /** 身份描述 */
+  identity: string
+  /** 性别 */
+  gender: string
+  /** 年龄 */
+  age: string
+  /** 社会身份 */
+  socialStatus: string
+  /** 背景 */
+  background: string
+  /** 性格 */
+  personality: string
+  /** 目标 */
+  goal: string
+  /** 恐惧或弱点 */
+  fearOrWeakness: string
+  /** 首次 / 末次出场章节序号 */
+  firstAppearanceChapter: number
+  lastAppearanceChapter: number
+  /** 涉及阶段 ID 列表 */
+  stageIds: string[]
+  /** 戏剧功能 */
+  dramaticFunction: string
+  /** 对主角的影响 */
+  protagonistImpact: string
+  /** 合并候选列表 */
+  mergeCandidates: string[]
+  /** 合并理由 */
+  mergeReason: string
+  /** 合并置信度 0-1 */
+  mergeConfidence: number
+  /** 参与剧情卡次数（脚本统计） */
+  participationCount: number
+  /** 主线剧情卡次数（脚本统计） */
+  mainlineCardCount: number
+  /** 原文证据引用 */
+  evidenceRefs: AdaptationEvidenceRef[]
+}
+
+/** 人物关系（≤ 20 条核心关系） */
+export interface CharacterRelationship {
+  /** 唯一标识 */
+  id: string
+  /** 起点人物 ID */
+  fromCharacterId: string
+  /** 终点人物 ID */
+  toCharacterId: string
+  /** 关系类型（如"战友"、"宿敌"） */
+  type: string
+  /** 关系描述 */
+  description: string
+  /** 关系强度 0-100 */
+  intensity: number
+  /** 涉及剧情卡 ID（脚本计算） */
+  participatingCardIds: string[]
+}
+
+/** 人物合并台账条目 */
+export interface CharacterMergeEntry {
+  /** 唯一标识 */
+  id: string
+  /** 保留哪一方 */
+  keepCharacterId: string
+  /** 合并入哪一方 */
+  mergeIntoCharacterId: string
+  /** 影响剧情段（剧情卡 ID 列表） */
+  affectedPlotCardIds: string[]
+  /** 合并后损失与风险描述 */
+  mergeLossesAndRisks: string
+  /** 用户手动确认时间 */
+  confirmedAt: string | null
+}
+
+/** 全书基调 */
+export interface ToneProfile {
+  /** 核心基调 */
+  coreTone: string
+  /** 类型承诺 */
+  genrePromise: string
+  /** 观众承诺 */
+  audiencePromise: string
+  /** 情绪色板 */
+  emotionalPalette: string[]
+  /** 叙事声音 */
+  narrativeVoice: string
+  /** 节奏 */
+  pacing: string
+  /** 冲突温度 */
+  conflictTemperature: string
+  /** 对白风格 */
+  dialogueStyle: string
+  /** 幽默浓度 0-100 */
+  humorLevel: number
+  /** 浪漫浓度 0-100 */
+  romanceLevel: number
+  /** 黑暗浓度 0-100 */
+  darknessLevel: number
+  /** 正向约束 */
+  mustKeepRules: string[]
+  /** 负向约束 */
+  avoidRules: string[]
+  /** 偏离警告 */
+  deviationWarnings: string[]
+  /** 状态：fresh / stale */
+  status: 'fresh' | 'stale'
+  /** 提取时间 ISO 时间戳 */
+  extractedAt: string
+}
+
+/** 全书理解记忆（聚合阶段产出，作为后续任务的"上下文记忆"） */
+export interface BookUnderstanding {
+  /** 全文摘要 */
+  wholeBookSummary: string
+  /** 主要故事线 */
+  majorStoryLines: string[]
+  /** 关键转折点 */
+  keyTurningPoints: string[]
+  /** 主角弧线 */
+  protagonistArc: string
+  /** 覆盖范围说明 */
+  coverageNote: string
+  /** 原文证据引用 */
+  evidenceRefs: AdaptationEvidenceRef[]
+}
+
+/** 章节级原文证据（AI 中间产物，不持久化；注入后续任务） */
+export interface AdaptationSourceEvidence {
+  /** 章节 ID */
+  chapterId: string
+  /** 章节序号 */
+  chapterNumber: number
+  /** 章节标题 */
+  chapterTitle: string
+  /** 章节摘录（≤ 24000 字） */
+  excerpt: string
+  /** 对白引用（含精确 sourceOffset） */
+  dialogueQuotes: Array<{
+    speaker: string
+    text: string
+    sourceOffset: number
+  }>
+  /** 抽取目的说明 */
+  purpose: string
 }
