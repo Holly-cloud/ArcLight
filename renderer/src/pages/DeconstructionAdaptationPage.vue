@@ -92,7 +92,9 @@ watch(referenceWorkId, (next) => {
 })
 
 function back(): void {
-  appStore.closeDeconstructionAdaptation()
+  // v1.25 起返回「工作台 → 全局 Tab」（原 `closeDeconstructionAdaptation()` 内部已统一改写为 `openWorkbench('global')`，
+  // 这里直接显式调 openWorkbench 以增强可读性；旧 closeDeconstructionAdaptation 仍可作为软迁移兼容入口）
+  appStore.openWorkbench('global')
 }
 
 function selectStage(stageId: AdaptationStageId): void {
