@@ -284,7 +284,7 @@ export const useAppStore = defineStore('app', () => {
   /** 是否已完成初始化水合（从 SQLite 加载数据） */
   const hasHydrated = ref(false)
   /** 当前视图：项目列表 / 新建向导 / 工作台 / 章节写作 / 独立能力页 */
-  const currentView = ref<'projects' | 'wizard' | 'continuation-import' | 'workbench' | 'chapter-studio' | 'deconstruction-library' | 'skills' | 'cover-workbench' | 'fanqie-trends'>('projects')
+  const currentView = ref<'projects' | 'wizard' | 'continuation-import' | 'workbench' | 'chapter-studio' | 'deconstruction-library' | 'skills' | 'cover-workbench' | 'fanqie-trends' | 'deconstruction-adaptation'>('projects')
   const pendingWizardDraft = ref<{ title?: string; genre?: string; premise?: string } | null>(null)
   /** 工作台中当前激活的面板 */
   const activePanel = ref<PanelName>('outline')
@@ -305,6 +305,10 @@ export const useAppStore = defineStore('app', () => {
   const coverWorkbenchHistory = ref<import('@/types/app').CoverWorkbenchHistoryItem[]>(stored.coverWorkbenchHistory ?? [])
   /** 待执行的章节正文插入请求 */
   const pendingChapterInsertion = ref<ChapterInsertionRequest | null>(null)
+  /**
+   * 文章拆解改编页：当前选中的 referenceWorkId（开页时填入，关页时清空）
+   */
+  const pendingAdaptationReferenceWorkId = ref<string>('')
   /** 用户在编辑器中当前选中的文本状态 */
   const currentChapterSelection = ref<ChapterSelectionState | null>(null)
   /** 章节轻检告警：key 为 chapterId，value 为告警 payload。由章节生成后的异步后处理流水线推送。 */
@@ -1438,10 +1442,32 @@ export const useAppStore = defineStore('app', () => {
     schedulePersist('fast')
   }
 
+  /**
+   * 打开文章拆解改编页（依赖 referenceWorkId）
+   * - 若无 referenceWorkId 直接不切换（UI 错误页兜底）
+   */
+  function openDeconstructionAdaptation(referenceWorkId: string): void {
+    const trimmed = String(referenceWorkId ?? '').trim()
+    if (!trimmed) return
+    pendingChapterInsertion.value = null
+    pendingAdaptationReferenceWorkId.value = trimmed
+    currentView.value = 'deconstruction-adaptation'
+    schedulePersist('fast')
+  }
+
+  /** 退出文章拆解改编页，回到拆书知识库列表 */
+  function closeDeconstructionAdaptation(): void {
+    pendingAdaptationReferenceWorkId.value = ''
+    if (currentView.value === 'deconstruction-adaptation') {
+      currentView.value = 'deconstruction-library'
+    }
+    schedulePersist('fast')
+  }
+
   /** 打开网文风向标独立页面（全局功能，不依赖项目） */
   function openFanqieTrends(): void {
     pendingChapterInsertion.value = null
-    currentView.value = 'fanqie-trends'
+    currentView.value = 'deconstruction-adaptation'
   }
 
   /** 打开 Skills 独立页面 */
@@ -4515,6 +4541,9 @@ export const useAppStore = defineStore('app', () => {
     applyOutlineArrangement,
     openChapterStudio,
     openDeconstructionLibrary,
+    openDeconstructionAdaptation,
+    closeDeconstructionAdaptation,
+    pendingAdaptationReferenceWorkId,
     openFanqieTrends,
     openProject,
     openCoverWorkbenchPage,

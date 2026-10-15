@@ -91,6 +91,10 @@ function openReferenceAsset(asset: ReferenceAssetLibrary): void {
   }
 }
 
+function openAdaptation(asset: ReferenceAssetLibrary): void {
+  appStore.openDeconstructionAdaptation(asset.id)
+}
+
 function removeReferenceAsset(asset: ReferenceAssetLibrary): void {
   dialog.warning({
     title: '删除参考资产',
@@ -346,6 +350,9 @@ function resolveAssetDocuments(asset: ReferenceAssetLibrary): KnowledgeDocumentV
         </div>
 
         <div class="asset-actions">
+          <n-button type="primary" size="small" @click="openAdaptation(asset)">
+            新建改编 →
+          </n-button>
           <n-button tertiary type="primary" size="small" @click="openReferenceAsset(asset)">查看主文档</n-button>
           <n-button
             type="primary"

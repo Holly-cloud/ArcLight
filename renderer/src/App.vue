@@ -14,6 +14,7 @@ const ContinuationImportPage = defineAsyncComponent(() => import('@/pages/Contin
 const WorkbenchPage = defineAsyncComponent(() => import('@/pages/WorkbenchPage.vue'))
 const ChapterStudioPage = defineAsyncComponent(() => import('@/pages/ChapterStudioPage.vue'))
 const DeconstructionLibraryPage = defineAsyncComponent(() => import('@/pages/DeconstructionLibraryPage.vue'))
+const DeconstructionAdaptationPage = defineAsyncComponent(() => import('@/pages/DeconstructionAdaptationPage.vue'))
 const SkillsPage = defineAsyncComponent(() => import('@/pages/SkillsPage.vue'))
 const CoverWorkbenchPage = defineAsyncComponent(() => import('@/pages/CoverWorkbenchPage.vue'))
 const FanqieTrendsPage = defineAsyncComponent(() => import('@/pages/FanqieTrendsPage.vue'))
@@ -254,6 +255,7 @@ onBeforeUnmount(() => {
               <ContinuationImportPage v-else-if="appStore.currentView === 'continuation-import'" key="continuation-import" />
               <ChapterStudioPage v-else-if="appStore.currentView === 'chapter-studio'" key="chapter-studio" />
               <DeconstructionLibraryPage v-else-if="appStore.currentView === 'deconstruction-library'" key="deconstruction-library" />
+              <DeconstructionAdaptationPage v-else-if="appStore.currentView === 'deconstruction-adaptation'" key="deconstruction-adaptation" />
               <SkillsPage v-else-if="appStore.currentView === 'skills'" key="skills" />
               <CoverWorkbenchPage v-else-if="appStore.currentView === 'cover-workbench'" key="cover-workbench" />
               <FanqieTrendsPage v-else-if="appStore.currentView === 'fanqie-trends'" key="fanqie-trends" />
