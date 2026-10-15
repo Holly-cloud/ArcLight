@@ -6,9 +6,9 @@
  * - 主角因果链 + 反抄原文 + 合法"不知道"出口
  * - validate() 仅校验 title + synopsis 非空（完整质量门禁走前端 validateAdaptationRun）
  */
-import type { TaskHandler, PromptBuildInput } from './base'
-import { normalizeAssistantText } from './base'
-import type { AiTaskResult } from '../shared-types'
+import type { TaskHandler, PromptBuildInput } from './base.ts'
+import { normalizeAssistantText } from './base.ts'
+import type { AiTaskResult } from '../shared-types.ts'
 
 interface PlotCardsPayload {
   raw: string

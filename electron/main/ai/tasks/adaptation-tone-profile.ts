@@ -4,9 +4,9 @@
  * - 三遍扫描：chunkPass / synthesis / singlePass
  * - defaultCapabilities 加 writing-style（受文风影响）
  */
-import type { TaskHandler, PromptBuildInput } from './base'
-import { normalizeAssistantText } from './base'
-import type { AiTaskResult } from '../shared-types'
+import type { TaskHandler, PromptBuildInput } from './base.ts'
+import { normalizeAssistantText } from './base.ts'
+import type { AiTaskResult } from '../shared-types.ts'
 
 interface ToneProfilePayload {
   raw: string

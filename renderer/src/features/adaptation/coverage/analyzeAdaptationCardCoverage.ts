@@ -10,7 +10,7 @@ import {
   mergeChapterRanges,
   missingChapterRanges,
   type ChapterRange
-} from '../types'
+} from '../types.ts'
 
 /** 单阶段覆盖率报告 */
 export interface StageCoverageReport {

@@ -5,9 +5,9 @@
  * - 主角由用户提供，禁止重新识别
  * - 三遍扫描策略：chunkPass / synthesis / singlePass 由 context 标志动态切换
  */
-import type { TaskHandler, PromptBuildInput } from './base'
-import { normalizeAssistantText } from './base'
-import type { AiTaskResult } from '../shared-types'
+import type { TaskHandler, PromptBuildInput } from './base.ts'
+import { normalizeAssistantText } from './base.ts'
+import type { AiTaskResult } from '../shared-types.ts'
 
 interface StageMapPayload {
   /** 原始返回（含 <STAGE> <TONE> <BOOK_UNDERSTANDING>） */

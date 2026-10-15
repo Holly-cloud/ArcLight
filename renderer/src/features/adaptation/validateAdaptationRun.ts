@@ -12,7 +12,7 @@ import type {
   ToneProfile
 } from '@/types/app'
 
-import { isMainlineProtagonistCard, mergeChapterRanges } from './types'
+import { isMainlineProtagonistCard, mergeChapterRanges } from './types.ts'
 
 export type IssueSeverity = 'error' | 'warning'
 

@@ -6,9 +6,9 @@
  * - validate() 强制 evidenceRefs.length > 0（每条 ref 需 chapterId + reason）
  * - 整批拒收不自动重试（handler validate 失败应触发 UI 层手动修复）
  */
-import type { TaskHandler, PromptBuildInput } from './base'
-import { normalizeAssistantText } from './base'
-import type { AiTaskResult } from '../shared-types'
+import type { TaskHandler, PromptBuildInput } from './base.ts'
+import { normalizeAssistantText } from './base.ts'
+import type { AiTaskResult } from '../shared-types.ts'
 
 interface LeadIdentifyPayload {
   /** AI 返回的原文（含 <LEAD>...</LEAD> 标签），UI 层用 parseLeadBlocks 解析 */

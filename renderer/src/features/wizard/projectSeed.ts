@@ -265,8 +265,9 @@ export function createProjectWorkspaceSeedFromSpiral(
       fromCharacterId: characterIdByName.get(relationship.fromCharacter?.trim()) ?? '',
       toCharacterId: characterIdByName.get(relationship.toCharacter?.trim()) ?? '',
       type: relationship.type?.trim() || '关系',
-      description: relationship.description?.trim() || '待补充关系说明。',
-      intensity: Math.min(100, Math.max(0, Number(relationship.intensity) || 50)),
+      description: relationship.description?.trim() || '',
+      intensity: Number.isFinite(relationship.intensity) ? Math.max(0, Math.min(100, Number(relationship.intensity))) : 50,
+      participatingCardIds: [],
       createdAt,
       updatedAt: createdAt
     }))

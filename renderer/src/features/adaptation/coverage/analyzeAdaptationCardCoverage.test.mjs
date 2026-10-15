@@ -177,7 +177,7 @@ test('analyzeAdaptationCardCoverage returns cross-stage gaps and percent', () =>
         obstacle: '',
         personality: '',
         emotionalNeed: '',
-        turningTriggerPoint: '',
+        turningPoint: '',
         stagePayoff: '',
         transitionHook: '',
         protagonistEvents: [],

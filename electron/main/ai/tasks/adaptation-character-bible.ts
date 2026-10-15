@@ -5,9 +5,9 @@
  * - 合并"只能作为建议"，不替用户自动执行
  * - 合并首要标准：戏剧功能重复（而非同场出现）
  */
-import type { TaskHandler, PromptBuildInput } from './base'
-import { normalizeAssistantText } from './base'
-import type { AiTaskResult } from '../shared-types'
+import type { TaskHandler, PromptBuildInput } from './base.ts'
+import { normalizeAssistantText } from './base.ts'
+import type { AiTaskResult } from '../shared-types.ts'
 
 interface CharacterBiblePayload {
   raw: string

@@ -6,7 +6,7 @@
  */
 
 import type { AdaptationStageId, AdaptationStageState, AdaptationStageStatus } from '@/types/app'
-import { ADAPTATION_STAGE_IDS } from '../types'
+import { ADAPTATION_STAGE_IDS } from '../types.ts'
 
 /**
  * 获取初始阶段状态：lead=running，其余=locked

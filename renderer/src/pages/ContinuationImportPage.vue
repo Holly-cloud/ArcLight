@@ -754,6 +754,7 @@ function createContinuationProject(): void {
           type: relationship.type || '关联',
           description: relationship.description,
           intensity: Math.min(100, Math.max(0, relationship.intensity || 50)),
+          participatingCardIds: [],
           createdAt: now,
           updatedAt: now
         }]
