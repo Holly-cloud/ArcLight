@@ -12,8 +12,11 @@ import TitlebarAiTaskCenter from '@/components/TitlebarAiTaskCenter.vue'
 const ProjectWizardPage = defineAsyncComponent(() => import('@/pages/ProjectWizardPage.vue'))
 const ContinuationImportPage = defineAsyncComponent(() => import('@/pages/ContinuationImportPage.vue'))
 const WorkbenchPage = defineAsyncComponent(() => import('@/pages/WorkbenchPage.vue'))
+const WorkbenchContainerPage = defineAsyncComponent(() => import('@/pages/WorkbenchContainerPage.vue'))
 const ChapterStudioPage = defineAsyncComponent(() => import('@/pages/ChapterStudioPage.vue'))
-const DeconstructionLibraryPage = defineAsyncComponent(() => import('@/pages/DeconstructionLibraryPage.vue'))
+// v1.25 起 DeconstructionLibraryPage 已迁出 App.vue 路由；保留文件不删，
+// 旧调用方（openDeconstructionLibrary / setPanel('deconstruction')）已统一 redirect 到工作台 → 全局 Tab。
+// const DeconstructionLibraryPage = defineAsyncComponent(() => import('@/pages/DeconstructionLibraryPage.vue'))
 const DeconstructionAdaptationPage = defineAsyncComponent(() => import('@/pages/DeconstructionAdaptationPage.vue'))
 const SkillsPage = defineAsyncComponent(() => import('@/pages/SkillsPage.vue'))
 const CoverWorkbenchPage = defineAsyncComponent(() => import('@/pages/CoverWorkbenchPage.vue'))
@@ -253,8 +256,8 @@ onBeforeUnmount(() => {
               <ProjectCenter v-if="appStore.currentView === 'projects'" key="projects" />
               <ProjectWizardPage v-else-if="appStore.currentView === 'wizard'" key="wizard" />
               <ContinuationImportPage v-else-if="appStore.currentView === 'continuation-import'" key="continuation-import" />
+              <WorkbenchContainerPage v-else-if="appStore.currentView === 'workbench-container'" key="workbench-container" />
               <ChapterStudioPage v-else-if="appStore.currentView === 'chapter-studio'" key="chapter-studio" />
-              <DeconstructionLibraryPage v-else-if="appStore.currentView === 'deconstruction-library'" key="deconstruction-library" />
               <DeconstructionAdaptationPage v-else-if="appStore.currentView === 'deconstruction-adaptation'" key="deconstruction-adaptation" />
               <SkillsPage v-else-if="appStore.currentView === 'skills'" key="skills" />
               <CoverWorkbenchPage v-else-if="appStore.currentView === 'cover-workbench'" key="cover-workbench" />

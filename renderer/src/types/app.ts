@@ -1017,6 +1017,13 @@ export interface AppSettings {
   uiScale: number
   /** 工作台创作模块的全局菜单顺序，使用稳定菜单 ID */
   workspaceMenuOrder: string[]
+  /**
+   * 工作台 Tab 状态（v1.25 新增）
+   * - 持久化到 appSettings（走 scheduleSettingsPersist）
+   * - 切换项目不重置（用户偏好优先）
+   * - 默认 'project'（缺省时由 store watch 兜底）
+   */
+  workbenchActiveTab?: 'project' | 'global'
   /** 是否启用深色模式 */
   darkMode: boolean
   /** 深色模式风格预设 */

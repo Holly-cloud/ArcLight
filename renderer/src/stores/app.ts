@@ -284,7 +284,7 @@ export const useAppStore = defineStore('app', () => {
   /** 是否已完成初始化水合（从 SQLite 加载数据） */
   const hasHydrated = ref(false)
   /** 当前视图：项目列表 / 新建向导 / 工作台 / 章节写作 / 独立能力页 */
-  const currentView = ref<'projects' | 'wizard' | 'continuation-import' | 'workbench' | 'chapter-studio' | 'deconstruction-library' | 'skills' | 'cover-workbench' | 'fanqie-trends' | 'deconstruction-adaptation'>('projects')
+  const currentView = ref<'projects' | 'wizard' | 'continuation-import' | 'workbench' | 'workbench-container' | 'chapter-studio' | 'skills' | 'cover-workbench' | 'fanqie-trends' | 'deconstruction-adaptation'>('projects')
   const pendingWizardDraft = ref<{ title?: string; genre?: string; premise?: string } | null>(null)
   /** 工作台中当前激活的面板 */
   const activePanel = ref<PanelName>('outline')
@@ -302,6 +302,28 @@ export const useAppStore = defineStore('app', () => {
   const globalAiRuns = ref<AiRunRecord[]>(normalizeAiRuns(stored.aiRuns))
   /** 应用全局设置（AI 供应商、模型、自动保存等） */
   const appSettings = ref<AppSettings>(stored.appSettings)
+  /**
+   * 工作台 Tab 状态（v1.25 新增）
+   * - 内存层 ref；与 appSettings.workbenchActiveTab 双向 watch 同步
+   * - 切项目不重置（用户偏好优先）
+   * - 持久化到 appSettings（走 scheduleSettingsPersist）
+   */
+  const workbenchActiveTab = ref<'project' | 'global'>('project')
+  // 应用层 → 内存层：水合时（immediate）把持久化值同步到 ref；后续外部改动同步流入
+  watch(
+    () => appSettings.value.workbenchActiveTab,
+    (next) => {
+      workbenchActiveTab.value = next === 'global' ? 'global' : 'project'
+    },
+    { immediate: true }
+  )
+  // 内存层 → 应用层：用户在 UI 切 Tab 后写回 appSettings + 触发 scheduleSettingsPersist
+  watch(workbenchActiveTab, (next) => {
+    if (appSettings.value.workbenchActiveTab !== next) {
+      appSettings.value.workbenchActiveTab = next
+      scheduleSettingsPersist({ flushWorkspace: false })
+    }
+  })
   const coverWorkbenchHistory = ref<import('@/types/app').CoverWorkbenchHistoryItem[]>(stored.coverWorkbenchHistory ?? [])
   /** 待执行的章节正文插入请求 */
   const pendingChapterInsertion = ref<ChapterInsertionRequest | null>(null)
@@ -1435,11 +1457,13 @@ export const useAppStore = defineStore('app', () => {
     scheduleSettingsPersist({ flushWorkspace: false })
   }
 
-  /** 打开拆书知识库独立页面（全局库，不依赖项目） */
+  /**
+   * 打开拆书知识库独立页面（v1.25 起 redirect 至工作台 → 全局 Tab，签名保留兼容旧调用方）
+   * - 不再切换 currentView === 'deconstruction-library'（App.vue 已移除对应分支）
+   * - 统一走 openWorkbench('global') 单一入口
+   */
   function openDeconstructionLibrary(): void {
-    pendingChapterInsertion.value = null
-    currentView.value = 'deconstruction-library'
-    schedulePersist('fast')
+    openWorkbench('global')
   }
 
   /**
@@ -1455,13 +1479,29 @@ export const useAppStore = defineStore('app', () => {
     schedulePersist('fast')
   }
 
-  /** 退出文章拆解改编页，回到拆书知识库列表 */
+  /**
+   * 打开工作台顶级容器（v1.25 新增）
+   * - 单一入口：所有"打开工作台"的入口（菜单 / openDeconstructionLibrary / setPanel('deconstruction') / closeDeconstructionAdaptation）统一走此函数
+   * - tab 缺省 = 不改（沿用上次偏好；由双向 watch 持久化）
+   * - 切 currentView 到 'workbench-container'（与项目级 'workbench' 区分）
+   */
+  function openWorkbench(tab?: 'project' | 'global'): void {
+    if (tab === 'project' || tab === 'global') {
+      workbenchActiveTab.value = tab
+    }
+    pendingChapterInsertion.value = null
+    currentView.value = 'workbench-container'
+    // 不显式 schedulePersist：workbenchActiveTab 由 watch 自动持久化；currentView 是视图层状态不入 appSettings
+  }
+
+  /**
+   * 退出文章拆解改编页（v1.25 起回到工作台 → 全局 Tab；不再回 'deconstruction-library'）
+   * - 软迁移：保留函数签名（外部旧调用方不需改）
+   * - 统一走 openWorkbench('global') 单一入口
+   */
   function closeDeconstructionAdaptation(): void {
     pendingAdaptationReferenceWorkId.value = ''
-    if (currentView.value === 'deconstruction-adaptation') {
-      currentView.value = 'deconstruction-library'
-    }
-    schedulePersist('fast')
+    openWorkbench('global')
   }
 
   /** 打开网文风向标独立页面（全局功能，不依赖项目） */
@@ -2954,7 +2994,8 @@ export const useAppStore = defineStore('app', () => {
     }
 
     if (panel === 'deconstruction') {
-      openDeconstructionLibrary()
+      // v1.25 起 redirect 至工作台 → 全局 Tab（原 openDeconstructionLibrary 方法体改写）
+      openWorkbench('global')
       return
     }
 
@@ -4543,6 +4584,8 @@ export const useAppStore = defineStore('app', () => {
     openDeconstructionLibrary,
     openDeconstructionAdaptation,
     closeDeconstructionAdaptation,
+    openWorkbench,
+    workbenchActiveTab,
     pendingAdaptationReferenceWorkId,
     openFanqieTrends,
     openProject,

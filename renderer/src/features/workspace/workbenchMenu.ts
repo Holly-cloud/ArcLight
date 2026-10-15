@@ -1,4 +1,5 @@
 export const WORKBENCH_MENU_DEFINITIONS = [
+  { id: 'workbench', label: '工作台' },
   { id: 'overview', label: '作品概览' },
   { id: 'characters', label: '角色图鉴' },
   { id: 'relations', label: '关系组织' },
@@ -14,9 +15,16 @@ export const WORKBENCH_MENU_DEFINITIONS = [
 export type WorkbenchMenuId = typeof WORKBENCH_MENU_DEFINITIONS[number]['id']
 export type WorkbenchMenuDropPosition = 'before' | 'after'
 
-export const DEFAULT_WORKBENCH_MENU_ORDER: WorkbenchMenuId[] = WORKBENCH_MENU_DEFINITIONS.map(
-  (item) => item.id
-)
+/**
+ * 默认菜单顺序。
+ * - v1.25 起：将"工作台"（workbench）置顶，使其成为菜单最显眼位置
+ * - 用户自定义顺序（appSettings.workspaceMenuOrder）若已包含 workbench，则按用户位置保留
+ * - 缺失项（包含 'workbench'）由 normalizeWorkbenchMenuOrder 自动补齐到首位 / 末尾
+ */
+export const DEFAULT_WORKBENCH_MENU_ORDER: WorkbenchMenuId[] = [
+  'workbench',
+  ...WORKBENCH_MENU_DEFINITIONS.filter((d) => d.id !== 'workbench').map((d) => d.id)
+]
 
 const workbenchMenuIdSet = new Set<string>(DEFAULT_WORKBENCH_MENU_ORDER)
 

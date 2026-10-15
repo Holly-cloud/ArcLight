@@ -1,3 +1,10 @@
+<!--
+  v1.25 起 redirect 至工作台 → 全局 Tab：
+  - `appStore.openDeconstructionLibrary()` / `setPanel('deconstruction')` 方法体已改为 `openWorkbench('global')`
+  - App.vue 路由已移除 currentView === 'deconstruction-library' 分支
+  - 本文件保留不删（避免污染 git 历史），但不再被任何 import 引用
+  - 工作台 → 全局 Tab 的同等内容已挂载在 WorkbenchContainerPage（参考作品库 + 改编记录）
+-->
 <script setup lang="ts">
 import { ChevronLeft, LibraryBig } from 'lucide-vue-next'
 import { computed } from 'vue'

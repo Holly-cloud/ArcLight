@@ -8,6 +8,7 @@ import {
   FileText,
   Globe2,
   LayoutDashboard,
+  LayoutGrid,
   Lightbulb,
   Network,
   PanelLeftClose,
@@ -78,6 +79,7 @@ const panelSearch = reactive<Record<string, string>>({
 const searchKeyword = ref(panelSearch[appStore.activePanel] ?? '')
 
 const sidebarItemPresentation = {
+  workbench: { description: '跨级 AI 工具容器', icon: LayoutGrid, color: 'var(--arc-primary)', emphasized: true },
   overview: { description: '掌握项目进度与全局信息', icon: LayoutDashboard, color: '#8b5cf6' },
   characters: { description: '维护人物卡、关系与成长线索', icon: Users, color: '#ec4899' },
   relations: { description: '维护势力结构、人物关系与成员归属', icon: Network, color: '#6b7280' },
@@ -88,7 +90,7 @@ const sidebarItemPresentation = {
   inspiration: { description: '收集标题、桥段、转折与人物动机', icon: Lightbulb, color: '#f59e0b' },
   'project-knowledge': { description: '一致性审计与从已有章节补录状态', icon: FileCheck2, color: '#14b8a6' },
   'global-assistant-v2': { description: 'Runtime v2 · 多轮对话 + 暂存变更审阅', icon: Sparkles, color: '#0d7d5a' }
-} satisfies Record<WorkbenchMenuId, { description: string; icon: Component; color: string }>
+} satisfies Record<WorkbenchMenuId, { description: string; icon: Component; color: string; emphasized?: boolean }>
 
 const sidebarItemCatalog = WORKBENCH_MENU_DEFINITIONS.map((item) => ({
   ...item,
@@ -101,6 +103,19 @@ const sidebarItems = computed(() => {
     .map((id) => itemById.get(id))
     .filter((item): item is typeof sidebarItemCatalog[number] => Boolean(item))
 })
+
+/**
+ * 处理侧边栏菜单点击。
+ * - id === 'workbench'：跳转到顶级"工作台"容器（v1.25 新增；不进入项目级工作台子面板）
+ * - 其他：沿用既有 setPanel 路径
+ */
+function handleSidebarItemClick(itemId: WorkbenchMenuId): void {
+  if (itemId === 'workbench') {
+    appStore.openWorkbench()
+    return
+  }
+  appStore.setPanel(itemId)
+}
 
 const hiddenPanelLabels: Partial<Record<PanelName, string>> = {
   deconstruction: '拆书知识库',
@@ -345,9 +360,12 @@ watch(searchKeyword, (value) => {
             :key="item.id"
             type="button"
             class="sidebar-item"
-            :class="{ active: appStore.activePanel === item.id }"
+            :class="{
+              active: item.id !== 'workbench' && appStore.activePanel === item.id,
+              'is-emphasized': 'emphasized' in item && Boolean(item.emphasized)
+            }"
             :title="item.label"
-            @click="appStore.setPanel(item.id)"
+            @click="handleSidebarItemClick(item.id)"
           >
             <span class="sidebar-icon-shell" :style="{ color: appStore.activePanel === item.id ? undefined : item.color }">
               <component :is="item.icon" :size="18" class="sidebar-icon" />
@@ -683,6 +701,21 @@ watch(searchKeyword, (value) => {
 
 .sidebar-item.active::before {
   background: var(--arc-primary);
+}
+
+/* v1.25 工作台：菜单最顶 + font-weight: 600 + 强调色，与"项目工作台"视觉区分 */
+.sidebar-item.is-emphasized {
+  font-weight: 600;
+  color: var(--arc-text-primary);
+}
+
+.sidebar-item.is-emphasized .sidebar-icon-shell {
+  color: var(--arc-primary);
+}
+
+.sidebar-item.is-emphasized.active {
+  background: var(--arc-primary-soft);
+  color: var(--arc-primary);
 }
 
 .sidebar-icon-shell {
