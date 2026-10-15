@@ -4,6 +4,36 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.25.0] - 2026-10-15+
+
+### 导航重构
+
+- **顶级菜单新增「工作台」**：左侧菜单最顶位置（lucide `LayoutGrid` 图标 + `font-weight: 600` + 副文案「跨级 AI 工具容器」），与既有「项目工作台」三重视觉区分
+- **双 Tab 容器**：工作台内分「项目内」「全局」双 Tab，Badge 实时显示统计（项目内 = 场景数 + 道具数；全局 = 参考作品数）
+- **状态保持**：Tab 选择持久化到 `appSettings.workbenchActiveTab`（双 watch 同步），切项目不重置，重启应用保持上次偏好
+
+### 入口迁移
+
+- **场景/道具入口迁移**：从「关系组织 → 关系图谱」迁至「工作台 → 项目内 Tab」。`RelationsPanel.vue` 硬迁移移除 `scenes` / `props` 段切换、场景/道具卡片/编辑器/图谱代码
+- **拆解/改编入口迁移**：从原独立 `DeconstructionLibraryPage` 迁至「工作台 → 全局 Tab」。`openDeconstructionLibrary()` / `setPanel('deconstruction')` / `closeDeconstructionAdaptation()` 方法体统一改写为 `openWorkbench('global')`（签名零变化，向后兼容）
+- **跨项目聚合**：全局 Tab 内的「改编记录」按 `updatedAt` 倒序聚合所有项目的非 archived runs，点击行直接进入对应改编页
+
+### 架构级变更
+
+- **版本号独立 bump**（v1.24 → v1.25）：「工作台」是导航架构级变更，不是 v1.24 的补丁
+- **不动 IPC / 持久化 / 实体**：v1.23 sceneprop 与 v1.24 deconstruct-adapt 的 7 步同步链路全部保持，仅前端 `appSettings` 增加 `workbenchActiveTab` 字段（走既有 `scheduleSettingsPersist` 链路）
+- **不重写实体**：v1.23 场景/道具与 v1.24 adaptation runs 实体模型、SQLite schema、IPC handler 全部不动
+
+### ⚠️ 破坏性变更
+
+- **场景/道具从角色图谱完全迁出至「工作台 → 项目内 Tab」**：v1.23 才发布 1 天，硬迁移意味着 v1.23→v1.25 升级的用户从角色图谱找不到场景/道具入口。请通过菜单「工作台」访问。CHANGELOG + 应用启动公告（`severity: "warning"`）是唯一告知渠道
+- **`currentView === 'deconstruction-library'` 不再渲染**：App.vue 路由已移除该分支，调用方（`openDeconstructionLibrary` / `setPanel('deconstruction')`）统一改写后 redirect 至工作台 → 全局 Tab
+
+### 占位与未来
+
+- **P1 AI 占位按钮**：工作台 Header 右侧「AI 批量生成」（项目内 Tab）/「AI 重跑」（全局 Tab），均 disabled + hover popover「将在 v1.25.1 上线」
+- **未选项目空态**：工作台项目内 Tab 在 `selectedProjectId` 为空时显示 `NEmpty` + 「前往项目中心」+「新建项目」两个引导按钮（不强行切到全局 Tab）
+
 ## [1.24.0] - 2026-10-15
 
 ### 文章拆解改编
