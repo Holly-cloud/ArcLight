@@ -128,6 +128,15 @@ function switchProject(projectId: string): void {
 <template>
   <section class="workbench-container">
     <header class="workbench-header">
+      <NButton
+        quaternary
+        circle
+        size="medium"
+        :render-icon="() => h(ChevronLeft, { size: 18 })"
+        aria-label="返回项目中心"
+        class="workbench-back-button"
+        @click="openProjectCenter"
+      />
       <div class="workbench-title-block">
         <span class="workbench-kicker">跨级 AI 工具容器</span>
         <div class="workbench-title-row">
@@ -288,8 +297,8 @@ function switchProject(projectId: string): void {
 .workbench-header {
   display: flex;
   align-items: flex-end;
-  justify-content: space-between;
-  gap: 18px;
+  justify-content: flex-start;
+  gap: 14px;
   padding:
     calc(var(--arc-titlebar-height) + 18px)
     max(20px, calc(var(--arc-window-controls-width) + 18px))
@@ -297,6 +306,11 @@ function switchProject(projectId: string): void {
     24px;
   border-bottom: 1px solid var(--arc-border);
   background: var(--arc-bg-surface);
+}
+
+.workbench-back-button {
+  flex-shrink: 0;
+  margin-bottom: 6px;
 }
 
 .workbench-title-block {
@@ -350,6 +364,7 @@ function switchProject(projectId: string): void {
   align-items: center;
   gap: 10px;
   flex-shrink: 0;
+  margin-left: auto;
 }
 
 .workbench-tabs {
