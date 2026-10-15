@@ -59,7 +59,7 @@ export interface FeatureDescription {
 }
 
 /**
- * 13 条 featureId 的总表（聚合 3 个模块的 HELP_DATA）
+ * 12 条 featureId 的总表（聚合 3 个模块的 HELP_DATA）
  */
 const ALL_DESCRIPTIONS: ReadonlyMap<FeatureId, FeatureDescription> = new Map(
   [...SCENEPROP_HELP, ...ADAPTATION_HELP, ...WORKBENCH_HELP].map((desc) => [desc.id, desc])
