@@ -1,5 +1,5 @@
 import type { DatabaseSync } from 'node:sqlite'
-import type { SaveWorkspaceEntitiesRequest } from '@shared/ipc-types'
+import type { PersistedAdaptationRunRecord, SaveWorkspaceEntitiesRequest } from '@shared/ipc-types'
 
 type EntityTable =
   | 'worldview_entries'
@@ -7,8 +7,11 @@ type EntityTable =
   | 'inspiration_entries'
   | 'scene_locations'
   | 'prop_items'
+  | 'adaptation_runs'
 
-/** 安全解析字符串数组 JSON 列，非法值回退为空数组。 */
+/**
+ * 安全解析字符串数组 JSON 列，非法值回退为空数组。
+ */
 function parseStringArray(value: unknown): string[] {
   if (typeof value !== 'string' || !value.trim()) return []
   try {
@@ -19,12 +22,33 @@ function parseStringArray(value: unknown): string[] {
   }
 }
 
+/**
+ * 安全解析任意 JSON 值（payloadJson / 等）
+ */
+function parseJsonValue<T>(value: unknown, fallback: T): T {
+  if (typeof value !== 'string' || !value.trim()) return fallback
+  try {
+    return JSON.parse(value) as T
+  } catch {
+    return fallback
+  }
+}
+
 function deleteMissingRows(
   db: DatabaseSync,
   table: EntityTable,
   projectId: string,
   activeIds: Set<string>
 ): void {
+  // adaptation_runs 仅清 status !== 'archived'（PRD Q6）：archived 行永久保留
+  if (table === 'adaptation_runs') {
+    const rows = db.prepare(`SELECT id FROM ${table} WHERE project_id = ?`).all(projectId) as Array<{ id: string }>
+    const remove = db.prepare(`DELETE FROM ${table} WHERE id = ? AND project_id = ? AND status != 'archived'`)
+    for (const row of rows) {
+      if (!activeIds.has(String(row.id))) remove.run(row.id, projectId)
+    }
+    return
+  }
   const rows = db.prepare(`SELECT id FROM ${table} WHERE project_id = ?`).all(projectId) as Array<{ id: string }>
   const remove = db.prepare(`DELETE FROM ${table} WHERE id = ? AND project_id = ?`)
   for (const row of rows) {
@@ -142,6 +166,31 @@ function cleanupDeletedPropReferences(
     const next = ids.filter((id) => activePropIds.has(id))
     if (next.length !== ids.length) updateSceneRefs.run(JSON.stringify(next), scene.id, projectId)
   }
+}
+
+/**
+ * 删除参考作品时，将关联的 AdaptationRun 标 archived 而非真删（双层架构前端内存层 + 主进程 DB 层）
+ * - store 层 removeReferenceWork 已把前端 state 改为 status: 'archived'
+ * - 本函数作为兜底：若发现 adaptation_runs.status 仍为非 archived，强制修正为 archived
+ */
+function cleanupDeletedReferenceWorkReferences(
+  db: DatabaseSync,
+  projectId: string,
+  removedReferenceWorkIds: Set<string>
+): void {
+  if (removedReferenceWorkIds.size === 0) return
+  const placeholders = Array.from({ length: removedReferenceWorkIds.size }, () => '?').join(', ')
+  const updateArchived = db.prepare(
+    `UPDATE adaptation_runs
+     SET status = 'archived', updated_at = ?
+     WHERE project_id = ? AND reference_work_id IN (${placeholders})
+       AND status != 'archived'`
+  )
+  updateArchived.run(
+    new Date().toISOString(),
+    projectId,
+    ...Array.from(removedReferenceWorkIds)
+  )
 }
 
 export function writeWorkspaceEntities(db: DatabaseSync, request: SaveWorkspaceEntitiesRequest): void {
@@ -326,6 +375,45 @@ export function writeWorkspaceEntities(db: DatabaseSync, request: SaveWorkspaceE
       }
       deleteMissingRows(db, 'prop_items', request.projectId, activeIds)
       cleanupDeletedPropReferences(db, request.projectId, activeIds)
+    }
+
+    if (request.adaptationRuns) {
+      const upsert = db.prepare(`
+        INSERT INTO adaptation_runs (
+          id, project_id, reference_work_id, source_title, source_content_hash,
+          source_chapter_count, target_episode_count, status, payload_json, created_at, updated_at
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          project_id = excluded.project_id,
+          reference_work_id = excluded.reference_work_id,
+          source_title = excluded.source_title,
+          source_content_hash = excluded.source_content_hash,
+          source_chapter_count = excluded.source_chapter_count,
+          target_episode_count = excluded.target_episode_count,
+          status = excluded.status,
+          payload_json = excluded.payload_json,
+          created_at = excluded.created_at,
+          updated_at = excluded.updated_at
+      `)
+      const activeIds = new Set<string>()
+      for (const run of request.adaptationRuns) {
+        activeIds.add(run.id)
+        upsert.run(
+          run.id,
+          request.projectId,
+          run.referenceWorkId,
+          run.sourceTitle,
+          run.sourceContentHash,
+          run.sourceChapterCount,
+          run.targetEpisodeCount,
+          run.status,
+          run.payloadJson,
+          run.createdAt,
+          run.updatedAt
+        )
+      }
+      deleteMissingRows(db, 'adaptation_runs', request.projectId, activeIds)
     }
 
     db.exec('COMMIT')

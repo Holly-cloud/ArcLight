@@ -8,6 +8,7 @@ import { getChapterCharacterCount } from '@/features/chapters/editorContent'
 import { createOutlineVolume as createWorkspaceVolume } from '@/features/workspace/outlineVolumes'
 import { createDemoWorkspace, normalizeWorkspace } from '@/features/workspace/projectWorkspace'
 import type {
+  AdaptationRun,
   AiProfile,
   AiRunRecord,
   AppSettings,
@@ -524,7 +525,8 @@ export function normalizeProjectWorkspaceData(
     activeGlobalAssistantSessionId: normalized.activeGlobalAssistantSessionId,
     aiRuns: normalizeAiRuns(normalized.aiRuns),
     workflowDocuments: normalizeWorkflowDocuments(normalized.workflowDocuments),
-    plotThreads: normalized.plotThreads
+    plotThreads: normalized.plotThreads,
+    adaptationRuns: normalized.adaptationRuns ?? []
   }
 }
 

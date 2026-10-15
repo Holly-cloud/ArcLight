@@ -92,6 +92,23 @@ export type WorkspaceAiRunRecord = {
   responsePreview: string
 }
 
+/**
+ * 文章拆解改编运行（与 electron/shared/ipc-types.ts PersistedAdaptationRunRecord 同构）
+ * - 用于 WorkspacePayload['workspaces'][string]['adaptationRuns'] 列表
+ */
+export type WorkspaceAdaptationRunRecord = {
+  id: string
+  referenceWorkId: string
+  sourceTitle: string
+  sourceContentHash: string
+  sourceChapterCount: number
+  targetEpisodeCount: number
+  status: 'draft' | 'running' | 'completed' | 'archived'
+  payloadJson: string
+  createdAt: string
+  updatedAt: string
+}
+
 export type WorkspaceChatMessage = {
   id: string
   role: 'user' | 'assistant'
@@ -348,6 +365,14 @@ export type WorkspacePayload = {
         createdAt: string
         updatedAt: string
       }>
+      /**
+       * 文章拆解改编运行（单表 JSON blob）
+       * - 顶层冗余字段便于查询；其余字段（activeStage / leadCandidates / stages /
+       *   plotCards / characters / relationships / characterMergeLedger / toneProfile /
+       *   bookUnderstanding / selectedCardIds / stageStates / fusionImport / error）合并到 payloadJson
+       * - 旧项目无此字段读取默认空数组
+       */
+      adaptationRuns?: WorkspaceAdaptationRunRecord[]
     }
   >
   appSettings: {

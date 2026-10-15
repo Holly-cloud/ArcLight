@@ -419,6 +419,24 @@ export async function ensureWorkspaceDb(options: {
       FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
     ) STRICT;
 
+    CREATE TABLE IF NOT EXISTS adaptation_runs (
+      id TEXT PRIMARY KEY,
+      project_id TEXT NOT NULL,
+      reference_work_id TEXT NOT NULL,
+      source_title TEXT NOT NULL,
+      source_content_hash TEXT NOT NULL,
+      source_chapter_count INTEGER NOT NULL,
+      target_episode_count INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft',
+      payload_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
+    ) STRICT;
+
+    CREATE INDEX IF NOT EXISTS idx_adaptation_runs_project_status
+      ON adaptation_runs (project_id, status);
+
     CREATE TABLE IF NOT EXISTS app_settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
       theme TEXT NOT NULL,
@@ -690,7 +708,8 @@ function ensureProjectScopedColumns(db: DatabaseSync): void {
     'outline_items',
     'chapters',
     'chapter_versions',
-    'ai_messages'
+    'ai_messages',
+    'adaptation_runs'
   ]
 
   for (const tableName of projectScopedTables) {
@@ -1418,6 +1437,27 @@ export function readWorkspaceSnapshot(
     updatedAt: string
   }>
 
+  const adaptationRuns = db.prepare(`
+    SELECT project_id AS projectId, id, reference_work_id AS referenceWorkId,
+      source_title AS sourceTitle, source_content_hash AS sourceContentHash,
+      source_chapter_count AS sourceChapterCount, target_episode_count AS targetEpisodeCount,
+      status, payload_json AS payloadJson, created_at AS createdAt, updated_at AS updatedAt
+    FROM adaptation_runs
+    ORDER BY project_id ASC, created_at ASC
+  `).all() as Array<{
+    projectId: string
+    id: string
+    referenceWorkId: string
+    sourceTitle: string
+    sourceContentHash: string
+    sourceChapterCount: number
+    targetEpisodeCount: number
+    status: 'draft' | 'running' | 'completed' | 'archived'
+    payloadJson: string
+    createdAt: string
+    updatedAt: string
+  }>
+
   const coverWorkbenchHistoryRows = db.prepare(`
     SELECT id, created_at AS createdAt, cover, prompt_title AS promptTitle, prompt, summary,
       keywords_json AS keywordsJson, genre, target_platform AS targetPlatform,
@@ -1501,6 +1541,7 @@ export function readWorkspaceSnapshot(
   const messagesByProject = groupBy(messages)
   const assistantSessionsByProject = groupBy(assistantSessions)
   const plotThreadsByProject = groupBy(plotThreads)
+  const adaptationRunsByProject = groupBy(adaptationRuns)
 
   // workflow documents need compound key: projectId + volumeId
   const workflowByProjectVolume = new Map<string, typeof workflowDocuments>()
@@ -1560,7 +1601,14 @@ export function readWorkspaceSnapshot(
           .map(({ projectId: _projectId, tagsJson, ...thread }) => ({
             ...thread,
             tags: parseJson(tagsJson, [] as string[])
-          }))
+          })),
+        /**
+         * 文章拆解改编运行列表
+         * - 顶层冗余字段直接返回
+         * - 其余字段解析 payloadJson（前端再合并成顶层 AdaptationRun）
+         */
+        adaptationRuns: (adaptationRunsByProject.get(project.id) ?? [])
+          .map(({ projectId: _projectId, ...run }) => run)
       }
     ])
   ) as WorkspacePayload['workspaces']
@@ -1635,6 +1683,7 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
       reference_works: new Set(),
       workflow_documents: new Set(),
       plot_threads: new Set(),
+      adaptation_runs: new Set(),
       assistant_sessions: new Set(),
       cover_workbench_history: new Set()
     }
@@ -1788,6 +1837,11 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
     const insertPlotThread = db.prepare(`
       INSERT OR REPLACE INTO plot_threads (id, project_id, title, description, opened_in_chapter_id, status, closed_in_chapter_id, tags_json, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `)
+
+    const insertAdaptationRun = db.prepare(`
+      INSERT OR REPLACE INTO adaptation_runs (id, project_id, reference_work_id, source_title, source_content_hash, source_chapter_count, target_episode_count, status, payload_json, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
 
     for (const project of payload.projects) {
@@ -2105,6 +2159,23 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
           JSON.stringify(thread.tags ?? []),
           thread.createdAt,
           thread.updatedAt
+        )
+      })
+
+      ;(workspace.adaptationRuns ?? []).forEach((run) => {
+        allIds.adaptation_runs.add(run.id)
+        insertAdaptationRun.run(
+          run.id,
+          project.id,
+          run.referenceWorkId,
+          run.sourceTitle,
+          run.sourceContentHash,
+          run.sourceChapterCount,
+          run.targetEpisodeCount,
+          run.status,
+          run.payloadJson,
+          run.createdAt,
+          run.updatedAt
         )
       })
     }

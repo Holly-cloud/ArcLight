@@ -72,7 +72,8 @@ export function createWorkspacePersistence(deps: WorkspacePersistenceDeps) {
       characters: next.characters ?? current?.characters,
       inspirationEntries: next.inspirationEntries ?? current?.inspirationEntries,
       sceneLocations: next.sceneLocations ?? current?.sceneLocations,
-      propItems: next.propItems ?? current?.propItems
+      propItems: next.propItems ?? current?.propItems,
+      adaptationRuns: next.adaptationRuns ?? current?.adaptationRuns
     }
   }
 
@@ -84,7 +85,8 @@ export function createWorkspacePersistence(deps: WorkspacePersistenceDeps) {
       characters: current?.characters ?? batch.characters,
       inspirationEntries: current?.inspirationEntries ?? batch.inspirationEntries,
       sceneLocations: current?.sceneLocations ?? batch.sceneLocations,
-      propItems: current?.propItems ?? batch.propItems
+      propItems: current?.propItems ?? batch.propItems,
+      adaptationRuns: current?.adaptationRuns ?? batch.adaptationRuns
     })
   }
 

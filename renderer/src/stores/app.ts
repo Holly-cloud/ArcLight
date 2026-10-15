@@ -61,6 +61,9 @@ import type {
   AssistantToolCall,
   AssistantTurn,
   AppSettings,
+  AdaptationRun,
+  AdaptationStageId,
+  AdaptationStageState,
   ChapterDraft,
   ChapterInsertionMode,
   ChapterInsertionRequest,
@@ -96,6 +99,9 @@ import type {
   ThemeName,
   WorldviewEntry
 } from '@/types/app'
+import type { PersistedAdaptationRunRecord } from '@shared/ipc-types'
+import { getInitialStageStates as getInitialStageStatesFromMachine, markDownstreamStagesStale } from '@/features/adaptation/stateMachine/adaptationStageMachine'
+import { isMainlineProtagonistCard } from '@/features/adaptation/types'
 
 type AssistantFocusPanel = 'world' | 'characters' | 'outline' | 'project-knowledge'
 
@@ -1755,7 +1761,260 @@ export const useAppStore = defineStore('app', () => {
         })
       }
     }
+    // 级联：关联 AdaptationRun 标 archived 而非真删（PRD §4.3 Q6 双层架构前端内存层）
+    const now = toIsoTimestamp()
+    const currentWorkspaceData = currentWorkspace.value
+    if (currentWorkspaceData && Array.isArray(currentWorkspaceData.adaptationRuns)) {
+      const updatedRuns = currentWorkspaceData.adaptationRuns.map((run) =>
+        run.referenceWorkId === trimmedId && run.status !== 'archived'
+          ? { ...run, status: 'archived' as const, updatedAt: now }
+          : run
+      )
+      currentWorkspaceData.adaptationRuns = updatedRuns
+      persistAdaptationRunsIncrementally()
+    }
     schedulePersist('fast')
+  }
+
+  /* ============================================================
+   * 文章拆解改编运行（AdaptationRun）CRUD
+   * - 7 步同步链路 stores/app.ts 一处；其余通过 workspace 快照落盘
+   * - 实体含 6 个内嵌数组 + 状态机 + 主线判定 / 对白防伪工具调用
+   * ============================================================ */
+
+  function adaptationRunsForProject(projectId: string) {
+    const projectWorkspace = projectWorkspaces.value[projectId]
+    return projectWorkspace?.adaptationRuns ?? []
+  }
+
+  function adaptationRunForReference(referenceWorkId: string): AdaptationRun | null {
+    const workspaceData = currentWorkspace.value
+    if (!workspaceData || !Array.isArray(workspaceData.adaptationRuns)) return null
+    const matching = workspaceData.adaptationRuns.filter((run) => run.referenceWorkId === referenceWorkId)
+    // 取最新未 archived 的 run；若无则取任意最新 run
+    const active = matching.filter((run) => run.status !== 'archived')
+    if (active.length > 0) {
+      return active.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0]
+    }
+    if (matching.length > 0) {
+      return matching.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0]
+    }
+    return null
+  }
+
+  function createAdaptationRun(payload: Partial<AdaptationRun> & { referenceWorkId: string }): string {
+    const trimmedId = String(payload.referenceWorkId ?? '').trim()
+    if (!trimmedId) throw new Error('referenceWorkId 不能为空')
+    const now = toIsoTimestamp()
+    const id = uniqueId('adapt-run')
+    const referenceWork = referenceWorks.value.find((item) => item.id === trimmedId)
+    const sourceTitle = String(payload.sourceTitle ?? referenceWork?.title ?? '未命名参考作品').trim() || '未命名参考作品'
+    const sourceContentHash = String(payload.sourceContentHash ?? '').trim()
+    const sourceChapterCount = Number.isFinite(payload.sourceChapterCount) ? Math.max(0, Number(payload.sourceChapterCount)) : 0
+    const targetEpisodeCount = Number.isFinite(payload.targetEpisodeCount)
+      ? Math.max(10, Math.min(200, Number(payload.targetEpisodeCount)))
+      : 80
+    const newRun: AdaptationRun = {
+      id,
+      referenceWorkId: trimmedId,
+      sourceTitle,
+      sourceContentHash,
+      sourceChapterCount,
+      targetEpisodeCount,
+      requestedWorkKind: 'novel-to-short-drama',
+      adaptationMode: 'faithful-adaptation',
+      status: 'draft',
+      activeStage: 'lead',
+      leadCandidates: Array.isArray(payload.leadCandidates) ? payload.leadCandidates : [],
+      leadSelection: payload.leadSelection ?? null,
+      stages: Array.isArray(payload.stages) ? payload.stages : [],
+      plotCards: Array.isArray(payload.plotCards) ? payload.plotCards : [],
+      characters: Array.isArray(payload.characters) ? payload.characters : [],
+      relationships: Array.isArray(payload.relationships) ? payload.relationships : [],
+      characterMergeLedger: Array.isArray(payload.characterMergeLedger) ? payload.characterMergeLedger : [],
+      toneProfile: payload.toneProfile ?? null,
+      bookUnderstanding: payload.bookUnderstanding ?? null,
+      selectedCardIds: Array.isArray(payload.selectedCardIds) ? payload.selectedCardIds : [],
+      stageStates: Array.isArray(payload.stageStates) && payload.stageStates.length > 0
+        ? payload.stageStates
+        : getInitialStageStatesFromMachine(now),
+      fusionImport: null,
+      error: '',
+      createdAt: now,
+      updatedAt: now
+    }
+    updateCurrentWorkspace((workspace) => ({
+      ...workspace,
+      adaptationRuns: [...(workspace.adaptationRuns ?? []), newRun]
+    }))
+    persistAdaptationRunsIncrementally()
+    schedulePersist('fast')
+    return id
+  }
+
+  function updateAdaptationRun(runId: string, payload: Partial<AdaptationRun>): void {
+    const trimmedId = String(runId ?? '').trim()
+    if (!trimmedId) return
+    const now = toIsoTimestamp()
+    updateCurrentWorkspace((workspace) => ({
+      ...workspace,
+      adaptationRuns: (workspace.adaptationRuns ?? []).map((run) =>
+        run.id === trimmedId
+          ? { ...run, ...payload, updatedAt: now, fusionImport: null }
+          : run
+      )
+    }))
+    persistAdaptationRunsIncrementally()
+    schedulePersist('fast')
+  }
+
+  function archiveAdaptationRun(runId: string): void {
+    updateAdaptationRun(runId, { status: 'archived' })
+  }
+
+  function setActiveAdaptationStage(runId: string, stageId: AdaptationStageId): void {
+    updateAdaptationRun(runId, { activeStage: stageId })
+  }
+
+  function transitionAdaptationStageState(
+    runId: string,
+    stageId: AdaptationStageId,
+    status: AdaptationStageState['status'],
+    error = ''
+  ): void {
+    const trimmedId = String(runId ?? '').trim()
+    if (!trimmedId) return
+    const now = toIsoTimestamp()
+    updateCurrentWorkspace((workspace) => ({
+      ...workspace,
+      adaptationRuns: (workspace.adaptationRuns ?? []).map((run) => {
+        if (run.id !== trimmedId) return run
+        const states = Array.isArray(run.stageStates) && run.stageStates.length > 0
+          ? run.stageStates
+          : getInitialStageStatesFromMachine(now)
+        const nextStates = states.map((state) =>
+          state.id === stageId
+            ? { ...state, status, error: error ?? '', updatedAt: now }
+            : state
+        )
+        return { ...run, stageStates: nextStates, updatedAt: now }
+      })
+    }))
+    persistAdaptationRunsIncrementally()
+    schedulePersist('fast')
+  }
+
+  function markDownstreamAdaptationStagesStale(runId: string, fromStageId: AdaptationStageId): void {
+    const trimmedId = String(runId ?? '').trim()
+    if (!trimmedId) return
+    const now = toIsoTimestamp()
+    updateCurrentWorkspace((workspace) => ({
+      ...workspace,
+      adaptationRuns: (workspace.adaptationRuns ?? []).map((run) => {
+        if (run.id !== trimmedId) return run
+        const states = Array.isArray(run.stageStates) && run.stageStates.length > 0
+          ? run.stageStates
+          : getInitialStageStatesFromMachine(now)
+        const nextStates = markDownstreamStagesStale(fromStageId, states, now)
+        return { ...run, stageStates: nextStates, updatedAt: now }
+      })
+    }))
+    persistAdaptationRunsIncrementally()
+    schedulePersist('fast')
+  }
+
+  /**
+   * 重算人物统计字段（participationCount / mainlineCardCount）
+   * - AI 禁止填的字段（PRD §4.2 反幻觉硬约束）
+   * - 主线判定 + 关系"参与卡 ID"由本地脚本计算
+   */
+  function recalculateAdaptationCharacterStats(runId: string): void {
+    const trimmedId = String(runId ?? '').trim()
+    if (!trimmedId) return
+    const now = toIsoTimestamp()
+    updateCurrentWorkspace((workspace) => ({
+      ...workspace,
+      adaptationRuns: (workspace.adaptationRuns ?? []).map((run) => {
+        if (run.id !== trimmedId) return run
+        const nextCharacters = run.characters.map((character) => {
+          const participationCount = run.plotCards.filter((card) =>
+            Array.isArray(card.participatingCharacterIds)
+            && card.participatingCharacterIds.includes(character.id)
+          ).length
+          const mainlineCardCount = run.plotCards.filter((card) =>
+            isMainlineProtagonistCard(card)
+            && Array.isArray(card.participatingCharacterIds)
+            && card.participatingCharacterIds.includes(character.id)
+          ).length
+          return { ...character, participationCount, mainlineCardCount }
+        })
+        // 关系"参与卡 ID"由本地脚本计算
+        const nextRelationships = run.relationships.map((rel) => {
+          const participatingCardIds = run.plotCards
+            .filter((card) =>
+              isMainlineProtagonistCard(card)
+              && Array.isArray(card.participatingCharacterIds)
+              && card.participatingCharacterIds.includes(rel.fromCharacterId)
+              && card.participatingCharacterIds.includes(rel.toCharacterId)
+            )
+            .map((card) => card.id)
+          return { ...rel, participatingCardIds }
+        })
+        return {
+          ...run,
+          characters: nextCharacters,
+          relationships: nextRelationships,
+          updatedAt: now
+        }
+      })
+    }))
+    persistAdaptationRunsIncrementally()
+    schedulePersist('fast')
+  }
+
+  /**
+   * 增量持久化 adaptationRuns（PRD §3.4 7 步同步）
+   * - 仅当前工作区 → 通过 scheduleWorkspaceEntitiesPersist 走白名单合并
+   * - 旧版本存于顶层 snapshot，本函数确保新增/更新走 IPC 增量通道
+   */
+  function persistAdaptationRunsIncrementally(): void {
+    const workspaceData = currentWorkspace.value
+    const projectId = selectedProjectId.value
+    if (!workspaceData || !projectId) return
+    const runs = workspaceData.adaptationRuns ?? []
+    if (runs.length === 0) return
+    const records: PersistedAdaptationRunRecord[] = runs.map((run) => ({
+      id: run.id,
+      referenceWorkId: run.referenceWorkId,
+      sourceTitle: run.sourceTitle,
+      sourceContentHash: run.sourceContentHash,
+      sourceChapterCount: run.sourceChapterCount,
+      targetEpisodeCount: run.targetEpisodeCount,
+      status: run.status,
+      payloadJson: JSON.stringify({
+        activeStage: run.activeStage,
+        leadCandidates: run.leadCandidates,
+        leadSelection: run.leadSelection,
+        stages: run.stages,
+        plotCards: run.plotCards,
+        characters: run.characters,
+        relationships: run.relationships,
+        characterMergeLedger: run.characterMergeLedger,
+        toneProfile: run.toneProfile,
+        bookUnderstanding: run.bookUnderstanding,
+        selectedCardIds: run.selectedCardIds,
+        stageStates: run.stageStates,
+        error: run.error,
+        createdAt: run.createdAt,
+        updatedAt: run.updatedAt
+      }),
+      createdAt: run.createdAt,
+      updatedAt: run.updatedAt
+    }))
+    scheduleWorkspaceEntitiesPersist({
+      projectId,
+      adaptationRuns: records
+    })
   }
 
   function appendAiRun(projectId: string, record: Omit<AiRunRecord, 'projectId'>): void {
@@ -2289,6 +2548,7 @@ export const useAppStore = defineStore('app', () => {
             payload?.intensity !== undefined && Number.isFinite(payload.intensity)
               ? Math.min(100, Math.max(0, payload.intensity))
               : 50,
+          participatingCardIds: [],
           createdAt,
           updatedAt
         },
@@ -4319,6 +4579,16 @@ export const useAppStore = defineStore('app', () => {
     referenceWorks,
     upsertReferenceWork,
     removeReferenceWork,
+    adaptationRunsForProject,
+    adaptationRunForReference,
+    createAdaptationRun,
+    updateAdaptationRun,
+    archiveAdaptationRun,
+    setActiveAdaptationStage,
+    transitionAdaptationStageState,
+    markDownstreamAdaptationStagesStale,
+    recalculateAdaptationCharacterStats,
+    persistAdaptationRunsIncrementally,
     knowledgeDocuments,
     updateWorkflowDocument,
     updateWorkflowDocuments,
