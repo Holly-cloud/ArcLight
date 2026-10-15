@@ -50,9 +50,9 @@ export const ADAPTATION_HELP: readonly FeatureDescription[] = [
     whyItMatters:
       '每阶段的具体改编卡片（功能 / 与主角关系 / 主线 / 副线），AI 生成 + 人工编辑。80 集短剧的工作量管理。',
     keyConcepts: [
-      'PlotCard 字段：title / function / protagonistRelation / synopsis',
-      '主线判定 helper：isMainlineProtagonistCard 四重排除',
-      '覆盖率体检 + 缺口列表（按 stageId 分组）',
+      'PlotCard 字段：title / function / 主角关系',
+      '主线判定 helper：4 重排除',
+      '覆盖率体检 + 缺口列表',
       '对白锚点自动降级（防伪）'
     ],
     docLink: {
@@ -98,7 +98,7 @@ export const ADAPTATION_HELP: readonly FeatureDescription[] = [
     whyItMatters:
       '5 段 AI 任务统一以行式 KEY: value 标签返回（LEAD / STAGE / CARD / CHARACTER / RELATIONSHIP / TONE / BOOK_UNDERSTANDING），不返回标准 JSON：抗模型抖动 + 解析失败可定位行号。EVIDENCE_REFS 必填，不整批拒收。',
     keyConcepts: [
-      '7 个标签：LEAD / STAGE / CARD / CHARACTER / RELATIONSHIP / TONE / BOOK_UNDERSTANDING',
+      '7 个标签：LEAD / STAGE / CARD / CHARACTER 等',
       '行式 KEY: value 解析（失败定位行号）',
       'EVIDENCE_REFS 必填（拒收不整批）',
       '合法"不知道"出口：原文未明确'
@@ -130,10 +130,10 @@ export const ADAPTATION_HELP: readonly FeatureDescription[] = [
     whyItMatters:
       '改编完成后自动覆盖 18 类质量检查（缺主角 / 阶段数不符 / 缺证据 / 主线判定错误等）。质量保障的最后一道屏障。',
     keyConcepts: [
-      '18 类问题：lead-missing / stage-count / cards-empty / tone-stale',
+      '18 类问题：lead / stage / cards / tone 等',
       '主线判定 / 依赖闭包 / 18 条具体规则',
       'severity 分级（error / warning）',
-      'IssuesBanner 红 / 黄徽标 + 跳转 issue code'
+      'IssuesBanner 红 / 黄徽标 + 跳转 issue'
     ],
     docLink: {
       label: '查看完整文档',
