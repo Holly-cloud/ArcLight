@@ -1436,6 +1436,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
           && !Array.isArray(payload.inspirationEntries)
           && !Array.isArray(payload.sceneLocations)
           && !Array.isArray(payload.propItems)
+          && !Array.isArray(payload.adaptationRuns)
         )
       ) {
         throw new Error('工作区实体保存参数无效')

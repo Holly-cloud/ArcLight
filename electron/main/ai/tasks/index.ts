@@ -50,6 +50,12 @@ import continuationImportAggregate from './continuation-import-aggregate'
 import rankingStyleAnalysis from './ranking-style-analysis'
 import rankingIdeaCombinations from './ranking-idea-combinations'
 
+import adaptationLeadIdentify from './adaptation-lead-identify'
+import adaptationStageMap from './adaptation-stage-map'
+import adaptationPlotCards from './adaptation-plot-cards'
+import adaptationCharacterBible from './adaptation-character-bible'
+import adaptationToneProfile from './adaptation-tone-profile'
+
 /** 任务处理器注册表，按任务名称映射 */
 const TASK_REGISTRY = new Map<AiTaskName, TaskHandler>()
 
@@ -107,6 +113,13 @@ register(continuationImportChunk)
 register(continuationImportAggregate)
 register(rankingStyleAnalysis)
 register(rankingIdeaCombinations)
+
+// 文章拆解改编页 5 段 AI handler（PRD §3.2 P0-4 + Q8：不入 AGENT_TASK_WHITELIST）
+register(adaptationLeadIdentify)
+register(adaptationStageMap)
+register(adaptationPlotCards)
+register(adaptationCharacterBible)
+register(adaptationToneProfile)
 
 /**
  * 根据任务名称获取对应的任务处理器

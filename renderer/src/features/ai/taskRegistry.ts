@@ -62,6 +62,7 @@ export type AiTaskKind =
   | 'chapter-assistant'
   | 'chapter-post-process'
   | 'plot-thread'
+  | 'adaptation'
   | 'cover'
   | 'reference'
   | 'other'

@@ -106,6 +106,11 @@ export type AiTaskName =
   | 'cover-generate'
   | 'continuation-import-chunk'
   | 'continuation-import-aggregate'
+  | 'adaptation-lead-identify'
+  | 'adaptation-stage-map'
+  | 'adaptation-plot-cards'
+  | 'adaptation-character-bible'
+  | 'adaptation-tone-profile'
 
 /**
  * AI 运行时注入 prompt 的知识条目。
