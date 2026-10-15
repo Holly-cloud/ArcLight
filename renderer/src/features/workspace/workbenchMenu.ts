@@ -31,17 +31,28 @@ const workbenchMenuIdSet = new Set<string>(DEFAULT_WORKBENCH_MENU_ORDER)
 export function normalizeWorkbenchMenuOrder(value?: readonly string[] | null): WorkbenchMenuId[] {
   const result: WorkbenchMenuId[] = []
   const seen = new Set<string>()
+  let hasWorkbench = false
 
   if (Array.isArray(value)) {
     for (const rawId of value) {
       const id = typeof rawId === 'string' ? rawId.trim() : ''
       if (!id || seen.has(id) || !workbenchMenuIdSet.has(id)) continue
       seen.add(id)
+      if (id === 'workbench') hasWorkbench = true
       result.push(id as WorkbenchMenuId)
     }
   }
 
+  // v1.25 决策：用户升级场景（值不含 workbench）→ 强制 unshift 到首位，
+  // 避免旧配置（11 项 v1.24 顺序）补齐后 'workbench' 落到末尾。
+  if (!hasWorkbench) {
+    result.unshift('workbench')
+    seen.add('workbench')
+  }
+
+  // 其他缺失项按 DEFAULT 顺序补到末尾（workbench 已在首项）
   for (const id of DEFAULT_WORKBENCH_MENU_ORDER) {
+    if (id === 'workbench') continue
     if (!seen.has(id)) result.push(id)
   }
 
