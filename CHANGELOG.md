@@ -4,6 +4,12 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.25.1] - 2026-10-15+
+
+### 标题栏精简
+
+- 标题栏 brand 段移除附属标签，保留应用名与版本号，视觉更聚焦于核心信息
+
 ## [1.25.0] - 2026-10-15+
 
 ### 导航重构

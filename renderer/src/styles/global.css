@@ -133,29 +133,6 @@ input {
   font-weight: 500;
 }
 
-.app-titlebar__tag,
-.app-titlebar__qq {
-  display: inline-flex;
-  align-items: center;
-  height: 18px;
-  padding: 0 7px;
-  border: 1px solid color-mix(in srgb, var(--arc-primary) 18%, var(--arc-border));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--arc-primary) 6%, transparent);
-  color: color-mix(in srgb, var(--arc-primary) 76%, var(--arc-text-secondary));
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0;
-  line-height: 1;
-}
-
-.app-titlebar__qq {
-  color: var(--arc-text-hint);
-  background: var(--arc-bg-surface-hover);
-  border-color: var(--arc-border);
-  font-weight: 500;
-}
-
 .app-titlebar__tools {
   display: flex;
   min-width: 0;
@@ -163,18 +140,6 @@ input {
   gap: 8px;
   -webkit-app-region: no-drag;
   app-region: no-drag;
-}
-
-@media (max-width: 1320px) {
-  .app-titlebar__qq {
-    display: none;
-  }
-}
-
-@media (max-width: 1160px) {
-  .app-titlebar__tag {
-    display: none;
-  }
 }
 
 .app-titlebar__theme-toggle {
