@@ -1,5 +1,16 @@
 [
   {
+    "id": "v1.25.2-feature-help",
+    "title": "弧光 v1.25.2 功能说明上线",
+    "date": "2026-10-15",
+    "type": "info",
+    "severity": "info",
+    "items": [
+      "【功能说明】已加入 13 条核心功能的产品视角说明（场景 / 道具 / 关系图谱 / 主角确认 / 阶段划分 / 剧情卡 / 人物圣经 / 全书基调 / 自造标记协议 / 对白锚点防伪 / 18 类门禁 / 工作台 / P1 占位）",
+      "【? 按钮】8 处集成点（ScenePropSection 顶部 3 条 / 4 个 adaptation 视图 Header / IssuesBanner 顶部 3 条 / WorkbenchContainerPage Header 2 条）点击「?」即可了解每个功能的定位、关键概念与适用场景"
+    ]
+  },
+  {
     "id": "v1.25.1-ui-cleanup",
     "title": "弧光 v1.25.1 标题栏精简",
     "date": "2026-10-15",

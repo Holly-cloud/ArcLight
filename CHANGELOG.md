@@ -4,6 +4,45 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.25.2] - 2026-10-15+
+
+### 功能说明（13 条）
+
+13 个核心功能首次提供产品视角的「为什么有这个功能」说明 + 关键概念清单：
+
+1. **场景（SceneLocation）**——长篇小说"地点"成为可追踪、可关系化实体
+2. **道具（PropItem）**——物品成为一等公民（关键道具推动短剧改编剧情）
+3. **关系图谱融合**——角色 / 组织 / 场景 / 道具 / 关系 / 归属一张图
+4. **主角确认（LeadConfirmation）**——AI 识别 + 人工最终确认
+5. **阶段划分（StageMapping）**——4-5 阶段把长文拆为可改编单元
+6. **剧情卡（PlotCard）**——每阶段的具体改编卡片
+7. **人物圣经（CharacterBible）**——人物档案 + 关系图 + 合并建议
+8. **全书基调（ToneProfile）**——三刻度（humor / romance / darkness）
+9. **自造标记协议（7 标签）**——行式 KEY: value 返回，反幻觉
+10. **对白锚点防伪**——三重匹配原文，匹配不上自动降级
+11. **18 类质量门禁**——改编完成度自动检查
+12. **工作台（跨级容器）**——顶级 AI 工具容器（项目内 / 全局双 Tab）
+13. **P1 占位**——AI 批量生成 / AI 重跑（v1.25.x 上线）
+
+### 「?」按钮入口（8 处集成）
+
+- 工作台 → 项目内 Tab → ScenePropSection 顶部（聚合 3 条）
+- 4 个 adaptation 视图 Header（主角确认 / 阶段划分 / 剧情卡 / 人物资产）
+- CharacterBibleView Tone 卡独立「?」（全书基调）
+- IssuesBanner 顶部（反幻觉 + 门禁 3 条聚合）
+- WorkbenchContainerPage Header（工作台 + P1 占位 2 条聚合）
+
+### 公共组件
+
+- **FeatureHelp.vue**：统一接口、零状态、纯 prop 驱动
+- props 极简：`featureId`（必填）/ `placement`（默认 bottom-end）/ `size`（默认 small）
+
+### patch 级变更
+
+- **不动** IPC / 持久化 / 实体模型
+- **新增** `renderer/src/features/help/` + `{sceneprop,adaptation,workbench}/help/` + `components/FeatureHelp.vue`
+- **依赖** 全部沿用既有（Naive UI + lucide-vue-next + TS）
+
 ## [1.25.1] - 2026-10-15+
 
 ### 标题栏精简
