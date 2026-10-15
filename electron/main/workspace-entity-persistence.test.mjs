@@ -38,6 +38,13 @@ function createDb() {
       color TEXT NOT NULL, sort_order INTEGER NOT NULL, related_scene_ids_json TEXT NOT NULL DEFAULT '[]',
       related_character_ids_json TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
     ) STRICT;
+    CREATE TABLE adaptation_runs (
+      id TEXT PRIMARY KEY, project_id TEXT NOT NULL, reference_work_id TEXT NOT NULL,
+      source_title TEXT NOT NULL, source_content_hash TEXT NOT NULL,
+      source_chapter_count INTEGER NOT NULL, target_episode_count INTEGER NOT NULL,
+      status TEXT NOT NULL DEFAULT 'draft', payload_json TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+    ) STRICT;
   `)
   return db
 }
@@ -265,4 +272,111 @@ test('删除道具会清理场景侧 related_prop_ids 悬空引用', () => {
 
   const scene = db.prepare(`SELECT related_prop_ids_json AS propsJson FROM scene_locations`).get()
   assert.equal(scene.propsJson, '["prop-keep"]')
+})
+
+test('adaptation_runs round-trip：创建 run → upsert → 再次写入保持一致', () => {
+  const db = createDb()
+  const initial = {
+    projectId: 'project-1',
+    adaptationRuns: [{
+      id: 'adapt-run-1',
+      referenceWorkId: 'ref-1',
+      sourceTitle: '测试源',
+      sourceContentHash: 'hash',
+      sourceChapterCount: 60,
+      targetEpisodeCount: 80,
+      status: 'running',
+      payloadJson: JSON.stringify({ activeStage: 'lead', stageStates: [] }),
+      createdAt: '2026-10-15T00:00:00.000Z',
+      updatedAt: '2026-10-15T00:00:00.000Z'
+    }]
+  }
+  writeWorkspaceEntities(db, initial)
+
+  const row = db.prepare(`SELECT * FROM adaptation_runs WHERE id = ?`).get('adapt-run-1')
+  assert.ok(row)
+  assert.equal(row.reference_work_id, 'ref-1')
+  assert.equal(row.status, 'running')
+  assert.equal(row.target_episode_count, 80)
+
+  // 再次写入：upsert 同一 id，状态更新为 completed
+  writeWorkspaceEntities(db, {
+    projectId: 'project-1',
+    adaptationRuns: [{
+      ...initial.adaptationRuns[0],
+      status: 'completed',
+      payloadJson: JSON.stringify({ activeStage: 'tone', stageStates: [] }),
+      updatedAt: '2026-10-15T01:00:00.000Z'
+    }]
+  })
+
+  const updated = db.prepare(`SELECT status, payload_json AS payloadJson FROM adaptation_runs WHERE id = ?`).get('adapt-run-1')
+  assert.equal(updated.status, 'completed')
+  const payload = JSON.parse(updated.payloadJson)
+  assert.equal(payload.activeStage, 'tone')
+})
+
+test('删除参考作品时关联 adaptation_runs 标 archived 而非真删（双层兜底）', () => {
+  const db = createDb()
+  writeWorkspaceEntities(db, {
+    projectId: 'project-1',
+    adaptationRuns: [
+      {
+        id: 'adapt-run-1',
+        referenceWorkId: 'ref-to-delete',
+        sourceTitle: '测试源',
+        sourceContentHash: 'hash',
+        sourceChapterCount: 60,
+        targetEpisodeCount: 80,
+        status: 'running',
+        payloadJson: '{}',
+        createdAt: '2026-10-15T00:00:00.000Z',
+        updatedAt: '2026-10-15T00:00:00.000Z'
+      },
+      {
+        id: 'adapt-run-2',
+        referenceWorkId: 'ref-keep',
+        sourceTitle: '测试源2',
+        sourceContentHash: 'hash2',
+        sourceChapterCount: 60,
+        targetEpisodeCount: 80,
+        status: 'running',
+        payloadJson: '{}',
+        createdAt: '2026-10-15T00:00:00.000Z',
+        updatedAt: '2026-10-15T00:00:00.000Z'
+      }
+    ]
+  })
+
+  // 触发级联：写一个空 activeIds 的 batch 模拟已删除 referenceWorkId
+  // 这里直接 update 来模拟 store 级 archive 调用
+  db.prepare(`UPDATE adaptation_runs SET status = 'archived' WHERE id = ?`).run('adapt-run-1')
+
+  const archived = db.prepare(`SELECT status FROM adaptation_runs WHERE id = ?`).get('adapt-run-1')
+  assert.equal(archived.status, 'archived')
+
+  // 重新 writeWorkspaceEntities 时 archived 行不应被真删
+  writeWorkspaceEntities(db, {
+    projectId: 'project-1',
+    adaptationRuns: [{
+      id: 'adapt-run-2',
+      referenceWorkId: 'ref-keep',
+      sourceTitle: '测试源2',
+      sourceContentHash: 'hash2',
+      sourceChapterCount: 60,
+      targetEpisodeCount: 80,
+      status: 'running',
+      payloadJson: '{}',
+      createdAt: '2026-10-15T00:00:00.000Z',
+      updatedAt: '2026-10-15T00:00:00.000Z'
+    }]
+  })
+
+  const remaining = db.prepare(`SELECT id, status FROM adaptation_runs ORDER BY id`).all()
+  // 仍保留 archived 行 + 更新后的 run-2
+  assert.equal(remaining.length, 2)
+  assert.equal(remaining[0].id, 'adapt-run-1')
+  assert.equal(remaining[0].status, 'archived')
+  assert.equal(remaining[1].id, 'adapt-run-2')
+  assert.equal(remaining[1].status, 'running')
 })

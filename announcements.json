@@ -1,5 +1,16 @@
 [
   {
+    "title": "弧光 v1.24.0 发布",
+    "date": "2026-10-15",
+    "type": "success",
+    "items": [
+      "【文章拆解改编】参考作品原文 → 主角确认 → 阶段划分 → 剧情卡拆解 → 人物资产 + 全书基调 4 阶段 AI 拆解完整闭环；新增剧情卡体检表与缺口补拆入口",
+      "【反幻觉】自造标记协议（LEAD/STAGE/CARD/CHARACTER/RELATIONSHIP/TONE/BOOK_UNDERSTANDING）+ 三层防伪（证据引用强制 / 对白锚点降级 / \"原文未明确\" 合法出口）",
+      "【持久化】新增 adaptation_runs 单表 + 7 处同步链路；旧工作区无此字段读取默认空数组；删除参考作品时关联改编运行标 archived 而非真删",
+      "【AI 通道】5 段 handler 走通用 AI 管线（adaptation-lead-identify / adaptation-stage-map / adaptation-plot-cards / adaptation-character-bible / adaptation-tone-profile），不接 deconstruction-cloud-* 商业版 IPC"
+    ]
+  },
+  {
     "title": "弧光 v1.22.0 发布",
     "date": "2026-10-09",
     "type": "success",

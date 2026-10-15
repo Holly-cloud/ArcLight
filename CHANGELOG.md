@@ -4,6 +4,26 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.24.0] - 2026-10-15
+
+### 文章拆解改编
+
+- **闭环拆解**：参考作品原文 → 主角确认 → 阶段划分 → 剧情卡拆解 → 人物资产 + 全书基调 4 阶段 AI 拆解完整跑通，主页面壳含 4 阶段进度条与重跑级联
+- **反幻觉**：自造标记协议（`<LEAD>` / `<STAGE>` / `<CARD>` / `<CHARACTER>` / `<RELATIONSHIP>` / `<TONE>` / `<BOOK_UNDERSTANDING>`）逐字 KEY: value 解析 + 三层防伪（证据引用强制 / 对白锚点降级 / "原文未明确" 合法出口）
+- **持久化**：单表 `adaptation_runs` + 7 处同步链路（types / ipc-types / store / workspace-store / workspace-entity-persistence / persistence / storeHelpers + projectWorkspace 兜底）
+- **AI 通道**：5 段 handler（adaptation-lead-identify / adaptation-stage-map / adaptation-plot-cards / adaptation-character-bible / adaptation-tone-profile）走通用 AI 管线，不入 AGENT_TASK_WHITELIST，不接 `deconstruction-cloud-*` 商业版 IPC
+- **覆盖率**：剧情卡体检表（`analyzeAdaptationCardCoverage`）合并区间 + 缺口列表 + 主线判定 helper（4 重排除）
+- **旧项目兼容**：旧工作区无 `adaptationRuns` 字段读取默认空数组；删除 referenceWorks 时关联 run 标 archived 而非真删
+
+## [1.23.0] - 2026-10-15
+
+### 场景与道具
+
+- **结构化条目**：关系面板新增「场景」「道具」两类条目，可记录名称、类型、描述、标签与配色
+- **关联与图谱**：场景可关联角色与道具，道具可归属角色；关系图谱新增场景（圆角矩形）与道具（菱形）节点，跨实体以虚线连接
+- **级联清理**：删除角色、场景或道具时，相关关联同步清理，不留悬空引用
+- **旧项目兼容**：改动前创建的项目可直接打开，场景与道具为空
+
 ## [1.22.0] - 2026-10-09
 
 ### 小说简介
