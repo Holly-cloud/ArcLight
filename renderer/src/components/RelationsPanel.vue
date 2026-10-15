@@ -990,7 +990,7 @@ function handleEnhanceMemApply(accepted: Record<string, string | string[]>): voi
       <div class="head-tools">
         <div class="search-input">
           <Search :size="16" />
-          <input v-model="keyword" type="text" placeholder="搜索组织、关系、归属、场景或道具..." />
+          <input v-model="keyword" type="text" placeholder="搜索组织、关系或归属..." />
         </div>
         <div class="view-switch" role="tablist" aria-label="关系视图切换">
           <button class="view-switch-button" :class="{ active: viewMode === 'list' }" @click="setViewMode('list')">

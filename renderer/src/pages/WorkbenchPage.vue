@@ -79,7 +79,7 @@ const panelSearch = reactive<Record<string, string>>({
 const searchKeyword = ref(panelSearch[appStore.activePanel] ?? '')
 
 const sidebarItemPresentation = {
-  workbench: { description: '跨级 AI 工具容器', icon: LayoutGrid, color: 'var(--arc-primary)', emphasized: true },
+  workbench: { description: '场景/道具编辑与跨级 AI 工具容器', icon: LayoutGrid, color: 'var(--arc-primary)', emphasized: true },
   overview: { description: '掌握项目进度与全局信息', icon: LayoutDashboard, color: '#8b5cf6' },
   characters: { description: '维护人物卡、关系与成长线索', icon: Users, color: '#ec4899' },
   relations: { description: '维护势力结构、人物关系与成员归属', icon: Network, color: '#6b7280' },
