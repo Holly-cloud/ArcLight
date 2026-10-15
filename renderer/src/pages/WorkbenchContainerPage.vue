@@ -23,6 +23,7 @@ import type { SelectOption } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
 import ScenePropSection from '@/components/ScenePropSection.vue'
 import KnowledgeCenterPanel from '@/components/KnowledgeCenterPanel.vue'
+import FeatureHelp from '@/components/FeatureHelp.vue'
 import type { AdaptationRun, AdaptationStageId, AdaptationStageState, ProjectSummary } from '@/types/app'
 
 const appStore = useAppStore()
@@ -146,6 +147,10 @@ function switchProject(projectId: string): void {
         <p class="workbench-subtitle">在「项目内」管场景/道具，在「全局」管拆书知识库与改编记录。</p>
       </div>
       <div class="workbench-header-actions">
+        <!-- v1.25.2 新增：聚合 2 条 FeatureHelp（工作台 + P1 占位） -->
+        <FeatureHelp feature-id="workbench" />
+        <FeatureHelp feature-id="p1-placeholder" />
+
         <NPopover trigger="hover" placement="bottom-end">
           <template #trigger>
             <NButton

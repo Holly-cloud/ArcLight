@@ -199,6 +199,7 @@ function saveMergeEntry(): void {
     <n-card size="small" title="Tone 卡（三刻度可手动覆盖）">
       <template #header-extra>
         <n-space>
+          <FeatureHelp feature-id="tone-profile" />
           <n-tag v-if="toneStatus === 'stale'" type="warning" :bordered="false">基调已过期</n-tag>
           <n-button secondary :loading="toneLoading" @click="runTone">
             <template #icon><Sparkles :size="14" /></template>

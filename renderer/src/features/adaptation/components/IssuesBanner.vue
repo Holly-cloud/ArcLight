@@ -9,6 +9,7 @@ import { computed } from 'vue'
 import { AlertTriangle, ShieldAlert } from 'lucide-vue-next'
 import { NAlert, NEmpty, NSpace, NTag } from 'naive-ui'
 import type { AdaptationIssue } from '@/features/adaptation/validateAdaptationRun'
+import FeatureHelp from '@/components/FeatureHelp.vue'
 
 interface Props {
   issues: AdaptationIssue[]
@@ -51,6 +52,13 @@ function onIssueClick(issue: AdaptationIssue): void {
   <div class="issues-banner">
     <div v-if="props.showHeader" class="issues-banner-header">
       <strong>门禁问题</strong>
+      <!-- v1.25.2 新增：聚合 3 条 FeatureHelp（反幻觉 + 门禁） -->
+      <FeatureHelp
+        v-for="featureId in ['tag-protocol', 'dialogue-anchors', '18-gates']"
+        :key="featureId"
+        :feature-id="featureId"
+        placement="bottom-end"
+      />
       <n-space size="small">
         <n-tag :bordered="false" type="error" size="small">
           错误 {{ grouped.errors.length }}
