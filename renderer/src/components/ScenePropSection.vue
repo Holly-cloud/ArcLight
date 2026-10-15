@@ -23,6 +23,7 @@ import { NButton, NCheckbox, NDropdown, NDynamicTags, NForm, NFormItem, NInput, 
 import type { DropdownOption, SelectOption } from 'naive-ui'
 import RelationsGraphView from '@/components/RelationsGraphView.vue'
 import ScenePropCard from '@/components/ScenePropCard.vue'
+import FeatureHelp from '@/components/FeatureHelp.vue'
 import { buildRelationsGraphData } from '@/features/relations/graph'
 import { themePresets } from '@/theme/presets'
 import { useAppStore } from '@/stores/app'
@@ -416,6 +417,15 @@ function openGraphNodeEditor(payload: { kind: 'character' | 'organization' | 'sc
         <n-input v-model:value="keyword" size="small" placeholder="搜索场景 / 道具" clearable class="section-search">
           <template #prefix><Search :size="14" /></template>
         </n-input>
+
+        <!-- v1.25.2 新增：聚合 3 条功能说明按钮 -->
+        <FeatureHelp
+          v-for="featureId in ['scene-location', 'prop-item', 'relations-graph']"
+          :key="featureId"
+          :feature-id="featureId"
+          placement="bottom-end"
+        />
+
         <n-button size="small" secondary @click="setViewMode('list')" :type="viewMode === 'list' ? 'primary' : 'default'">
           <template #icon><Rows3 :size="14" /></template>
           列表
