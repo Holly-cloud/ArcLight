@@ -22,6 +22,7 @@ import {
   useMessage
 } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
+import FeatureHelp from '@/components/FeatureHelp.vue'
 import { PLOT_CARD_RELATION_LABELS } from '@/features/adaptation/types'
 import { parseLeadBlocks } from '@/features/adaptation/parsers/adaptationTagParser'
 import { runLeadIdentify } from '@/features/adaptation/services/runAdaptationAiTask'
@@ -103,6 +104,7 @@ void validateOriginalDialogueAnchors
   <n-card size="small" title="主角候选">
     <template #header-extra>
       <n-space>
+        <FeatureHelp feature-id="lead-confirmation" />
         <n-button type="primary" :loading="loading" @click="runIdentify">
           <template #icon><Sparkles :size="14" /></template>
           AI 重新识别

@@ -9,6 +9,7 @@ import { computed, ref } from 'vue'
 import { Sparkles, ArrowRight } from 'lucide-vue-next'
 import { NButton, NCard, NEmpty, NGrid, NGridItem, NSpace, NTag, useMessage } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
+import FeatureHelp from '@/components/FeatureHelp.vue'
 import { runStageMap } from '@/features/adaptation/services/runAdaptationAiTask'
 import {
   parseBookUnderstandingBlocks,
@@ -111,6 +112,7 @@ function completeStage(): void {
   <n-card size="small" title="阶段划分">
     <template #header-extra>
       <n-space>
+        <FeatureHelp feature-id="stage-mapping" />
         <n-button type="primary" :loading="loading" @click="runIdentify">
           <template #icon><Sparkles :size="14" /></template>
           AI 划分阶段

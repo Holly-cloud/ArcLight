@@ -23,6 +23,7 @@ import {
   useMessage
 } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
+import FeatureHelp from '@/components/FeatureHelp.vue'
 import {
   runCharacterBible,
   runToneProfile
@@ -224,6 +225,7 @@ function saveMergeEntry(): void {
     <n-card size="small" title="人物资产">
       <template #header-extra>
         <n-space>
+          <FeatureHelp feature-id="character-bible" />
           <n-button type="primary" :loading="loading" @click="runCharacters">
             <template #icon><Sparkles :size="14" /></template>
             AI 合成人物

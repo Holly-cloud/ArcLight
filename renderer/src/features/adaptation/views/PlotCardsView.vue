@@ -23,6 +23,7 @@ import {
   useMessage
 } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
+import FeatureHelp from '@/components/FeatureHelp.vue'
 import { runPlotCards } from '@/features/adaptation/services/runAdaptationAiTask'
 import { parseCardBlocks } from '@/features/adaptation/parsers/adaptationTagParser'
 import { validateOriginalDialogueAnchors } from '@/features/adaptation/antiHallucination/validateOriginalDialogueAnchors'
@@ -155,6 +156,7 @@ function saveEdit(): void {
   <n-card size="small" title="剧情卡拆解">
     <template #header-extra>
       <n-space>
+        <FeatureHelp feature-id="plot-card" />
         <n-checkbox v-model:checked="singlePass">强制 single-pass</n-checkbox>
         <n-button type="primary" :loading="loading" @click="runIdentify">
           <template #icon><Sparkles :size="14" /></template>
