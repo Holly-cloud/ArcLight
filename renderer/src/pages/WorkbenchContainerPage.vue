@@ -1,11 +1,10 @@
 <script setup lang="ts">
-// v1.25 工作台顶级容器页：双 Tab + Header + AI 占位 + 空态
-// - 项目内 Tab (T04)：场景 / 道具子区段（ScenePropSection）
-// - 全局 Tab (T05)：参考作品库（复用 KCP）+ 改编记录（AdaptationRun 列表）
-// - Header (T06)：P1 AI 占位按钮（disabled + tooltip）
-// - 未选项目空态 (T06)：NEmpty + 前往项目中心 / 新建项目
+// v1.25 工作台顶级容器页：双 Tab + Header + 空态
+// - 项目内 Tab：场景 / 道具子区段（ScenePropSection）
+// - 全局 Tab：参考作品库（复用 KCP）+ 改编记录（AdaptationRun 列表）
+// - 未选项目空态：NEmpty + 前往项目中心 / 新建项目
 import { computed, h } from 'vue'
-import { ChevronLeft, LayoutGrid, Sparkles } from 'lucide-vue-next'
+import { ChevronLeft, LayoutGrid } from 'lucide-vue-next'
 import {
   NAlert,
   NBadge,
@@ -13,7 +12,6 @@ import {
   NEmpty,
   NList,
   NListItem,
-  NPopover,
   NScrollbar,
   NTabPane,
   NTabs,
@@ -147,31 +145,8 @@ function switchProject(projectId: string): void {
         <p class="workbench-subtitle">在「项目内」管场景/道具，在「全局」管拆书知识库与改编记录。</p>
       </div>
       <div class="workbench-header-actions">
-        <!-- v1.25.2 新增：聚合 2 条 FeatureHelp（工作台 + P1 占位） -->
+        <!-- v1.25.2：工作台功能说明 -->
         <FeatureHelp feature-id="workbench" />
-        <FeatureHelp feature-id="p1-placeholder" />
-
-        <NPopover trigger="hover" placement="bottom-end">
-          <template #trigger>
-            <NButton
-              v-if="activeTab === 'project'"
-              disabled
-              size="small"
-              :render-icon="() => h(Sparkles, { size: 14 })"
-            >
-              AI 批量生成
-            </NButton>
-            <NButton
-              v-else
-              disabled
-              size="small"
-              :render-icon="() => h(Sparkles, { size: 14 })"
-            >
-              AI 重跑
-            </NButton>
-          </template>
-          <span>将在 v1.25.1 上线 · 当前为 P1 占位</span>
-        </NPopover>
       </div>
     </header>
 

@@ -2,7 +2,7 @@
  * v1.25.2 功能说明（FeatureHelp）公共类型与查表函数
  * - 数据按模块拆分（v1.23 sceneprop / v1.24 adaptation / v1.25 workbench）
  * - 数据层纯静态常量导出（不接 IPC / 不进 store / 不持久化）
- * - TS 类型严格：FeatureId 联合类型 13 条穷举；新增 featureId 必须 TS 报错
+ * - TS 类型严格：FeatureId 联合类型 12 条穷举；新增 featureId 必须 TS 报错
  */
 
 import { SCENEPROP_HELP } from '@/features/sceneprop/help/sceneprop-help'
@@ -10,10 +10,10 @@ import { ADAPTATION_HELP } from '@/features/adaptation/help/adaptation-help'
 import { WORKBENCH_HELP } from '@/features/workbench/help/workbench-help'
 
 /**
- * 13 条功能 id 的严格联合类型（避免拼写错）
+ * 12 条功能 id 的严格联合类型（避免拼写错）
  * - v1.23 sceneprop（3）
  * - v1.24 adaptation（8）
- * - v1.25 workbench（2）
+ * - v1.25 workbench（1）
  *
  * 新增 featureId 必须 TS 报错（防止漏写 / 拼写错）
  */
@@ -31,9 +31,8 @@ export type FeatureId =
   | 'tag-protocol'
   | 'dialogue-anchors'
   | '18-gates'
-  // v1.25 workbench（2）
+  // v1.25 workbench（1）
   | 'workbench'
-  | 'p1-placeholder'
 
 /**
  * "查看完整文档"链接
@@ -86,7 +85,7 @@ export function getFeatureDescriptions(ids: FeatureId[]): FeatureDescription[] {
 }
 
 /**
- * 13 条 featureId 联合类型的常量元组（用于测试 / 静态校验）
+ * 12 条 featureId 联合类型的常量元组（用于测试 / 静态校验）
  */
 export const ALL_FEATURE_IDS: readonly FeatureId[] = [
   'scene-location',
@@ -100,6 +99,5 @@ export const ALL_FEATURE_IDS: readonly FeatureId[] = [
   'tag-protocol',
   'dialogue-anchors',
   '18-gates',
-  'workbench',
-  'p1-placeholder'
+  'workbench'
 ] as const
