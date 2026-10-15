@@ -37,9 +37,10 @@ test('canEnterStage: 前一阶段 completed 才返回 true', () => {
   const completed = transitionStage('lead', 'completed', '', NOW)(states)
   assert.equal(canEnterStage('stages', completed), true)
   assert.equal(canEnterStage('plot-cards', completed), false)
-  const plotCardsDone = transitionStage('stages', 'completed', '', NOW)(completed)
-  assert.equal(canEnterStage('plot-cards', plotCardsDone), true)
+  const stagesCompleted = transitionStage('stages', 'completed', '', NOW)(completed)
+  assert.equal(canEnterStage('plot-cards', stagesCompleted), true)
   // tone 与 characters 同级：plot-cards.completed 后两者均可进入
+  const plotCardsDone = transitionStage('plot-cards', 'completed', '', NOW)(stagesCompleted)
   assert.equal(canEnterStage('characters', plotCardsDone), true)
   assert.equal(canEnterStage('tone', plotCardsDone), true)
 })
@@ -81,12 +82,18 @@ test('tone 与 characters 同级同步标 stale', () => {
   assert.equal(stale[4].status, 'stale')
 })
 
-test('markDownstreamStagesStale 不会把 locked 阶段提前解锁', () => {
+test('markDownstreamStagesStale 不会影响上游阶段', () => {
   const states = getInitialStageStates(NOW)
-  const stale = markDownstreamStagesStale('lead', states, NOW)
-  for (const state of stale) {
-    assert.notEqual(state.status, 'locked', 'locked 阶段不应被标记为 stale')
-  }
+  // 仅 lead 标完成；stages 起仍为 locked
+  const leadCompleted = transitionStage('lead', 'completed', '', NOW)(states)
+  const stale = markDownstreamStagesStale('stages', leadCompleted, NOW)
+  // lead 不变（idx < fromIndex）
+  assert.equal(stale[0].status, 'completed')
+  // stages 之后（idx >= fromIndex）标 stale
+  assert.equal(stale[1].status, 'stale')
+  assert.equal(stale[2].status, 'stale')
+  assert.equal(stale[3].status, 'stale')
+  assert.equal(stale[4].status, 'stale')
 })
 
 test('unlockStage: locked → running', () => {

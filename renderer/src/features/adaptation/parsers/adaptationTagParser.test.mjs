@@ -41,7 +41,7 @@ ROLE: male-lead
 CONFIDENCE: 0.8
 REASON: 推断
 </LEAD>`
-  assert.throws(() => parseLeadBlocks(raw), (error: Error) => {
+  assert.throws(() => parseLeadBlocks(raw), (error) => {
     return error instanceof ParseError && error.lineNumber > 0 && /EVIDENCE_REFS/.test(error.message)
   })
 })
@@ -83,7 +83,7 @@ TITLE: 初临大唐
 SOURCE_RANGE: 第1章至第30章
 GOAL: 站稳脚跟
 </STAGE>`
-  assert.throws(() => parseStageBlocks(raw), (error: Error) => {
+  assert.throws(() => parseStageBlocks(raw), (error) => {
     return error instanceof ParseError && /EVIDENCE_REFS/.test(error.message)
   })
 })

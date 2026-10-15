@@ -1,6 +1,7 @@
 /**
  * 覆盖率分析单测（PRD T4 验收要求）
  * - 区间合并（含相邻 / 重叠）、缺口合并（含阶段、百分比计算、4 重主线判定 helper
+ * - 纯函数测试，不依赖 store / Vue
  */
 
 import { test } from 'node:test'
@@ -120,13 +121,10 @@ test('analyzeStageCoverage counts only mainline cards and computes gaps', () => 
   const report = analyzeStageCoverage(stage, cards)
   assert.equal(report.mainlineCardCount, 2)
   assert.equal(report.totalChapterCount, 30)
-  // covered = (5-1+1) + (10-7+1) = 5+4 = 9；gap = 21
   assert.equal(report.coveredChapterCount, 9)
   assert.deepEqual(report.gaps, [
     { start: 6, end: 6 },
-    { start: 11, end: 11 },
-    { start: 13, end: 13 },
-    { start: 17, end: 30 }
+    { start: 11, end: 30 }
   ])
 })
 
@@ -179,7 +177,7 @@ test('analyzeAdaptationCardCoverage returns cross-stage gaps and percent', () =>
         obstacle: '',
         personality: '',
         emotionalNeed: '',
-        turningPoint: '',
+        turningTriggerPoint: '',
         stagePayoff: '',
         transitionHook: '',
         protagonistEvents: [],
@@ -204,12 +202,10 @@ test('analyzeAdaptationCardCoverage returns cross-stage gaps and percent', () =>
     updatedAt: ''
   }
   const report = analyzeAdaptationCardCoverage(run)
-  // stage-1 covers 10 chapters (1-10); stage-2 covers 5 chapters (26-30) = 15 total
   assert.equal(report.mainlineCardCount, 3)
   assert.equal(report.totalChapterCount, 50)
   assert.equal(report.coveredChapterCount, 15)
   assert.equal(report.percent, 30)
-  // 缺口跨阶段：stage-1 缺 11-25；stage-2 缺 31-50
   assert.deepEqual(report.gaps, [
     { start: 11, end: 25 },
     { start: 31, end: 50 }

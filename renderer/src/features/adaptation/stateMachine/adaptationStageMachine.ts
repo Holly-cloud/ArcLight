@@ -24,15 +24,16 @@ export function getInitialStageStates(now: string): AdaptationStageState[] {
 /**
  * 阶段解锁判定：前一阶段必须 completed
  * - 第一阶段（lead）初始为 running，可直接进入
- * - tone 与 characters 互为同级：plot-cards.completed 后两者均可进入
- * - tone 与 characters 之间互不阻塞（同一 plot-cards 阶段解锁后两者皆可）
+ * - tone 与 characters 互为同级：都以 plot-cards.completed 为前置；
+ *   characters / tone 之间互不阻塞
  */
 export function canEnterStage(stageId: AdaptationStageId, stageStates: AdaptationStageState[]): boolean {
   const targetIndex = ADAPTATION_STAGE_IDS.indexOf(stageId)
   if (targetIndex <= 0) return true
+  // tone 与 characters 同级：以 plot-cards 为前驱
+  const effectivePrevIndex = (stageId === 'tone' || stageId === 'characters') ? 2 : targetIndex - 1
+  const prevId = ADAPTATION_STAGE_IDS[effectivePrevIndex]
   const statesById = new Map(stageStates.map((state) => [state.id, state]))
-  // 直接前驱阶段（tone 与 characters 都以 plot-cards 为前驱）
-  const prevId = ADAPTATION_STAGE_IDS[targetIndex - 1]
   const previous = statesById.get(prevId)
   return previous?.status === 'completed'
 }
@@ -66,8 +67,9 @@ export function transitionStage(
 }
 
 /**
- * 重跑级联：从给定阶段起，所有后续阶段（含同级的 tone）status: 'stale'
+ * 重跑级联：从给定阶段起，所有后续阶段（含自身）status: 'stale'
  * - 包括 tone 与 characters 同步标 stale（PRD §3.3 重联要求）
+ * - locked 阶段一并标 stale，由调用方在 UI 层负责重新解锁
  */
 export function markDownstreamStagesStale(
   fromStageId: AdaptationStageId,
@@ -78,7 +80,7 @@ export function markDownstreamStagesStale(
   if (fromIndex < 0) return states
   return states.map((state) => {
     const idx = ADAPTATION_STAGE_IDS.indexOf(state.id)
-    if (idx >= fromIndex && state.status !== 'locked') {
+    if (idx >= fromIndex) {
       return { ...state, status: 'stale', updatedAt: now }
     }
     return state
