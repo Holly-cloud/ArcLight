@@ -4,6 +4,25 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.27.0] - 2026-10-16
+
+### 视觉一致性元数据（阶段 C）
+
+为角色 / 场景 / 道具沉淀结构化视觉字段（配色 / 渲染方式 / 光影 / 季相 / 材质），并支持导出资产参考表，让外部生图工具能按字段精准消费。**首次升级 SQLite 表结构（schemaVersion 2 → 3）。**
+
+- **视觉字段（角色）**——`visualStyle`：渲染方式（写实 / 动漫 / 油画 / 水墨 / 低多边形 / 平面插画）+ 调色板 + 氛围词 + 关键参照词
+- **视觉字段（场景 / 道具）**——`visualContext`：配色 + 光影说明 + 季相说明 + 材质说明
+- **视觉预览（C-5）**——应用内 HTML 预览弹窗：调色板色块 + 结构化字段 + 组装后的生图 Prompt 文本（一键复制），不呼叫任何外部服务
+- **renderMode 模板建议（C-6）**——按项目题材 / 简介匹配 8 条固定规则（纯字符串匹配，不调 LLM），新建角色时预填建议（可改）
+- **资产库导出资产参考表（C-4）**——工具栏新增按钮 → 字段勾选 + 格式 Markdown / JSON / CSV + 预览前 3 条 + 前端 Blob 下载；CSV 中 palette 以分号分隔
+- **功能说明**——新增 `visual-consistency` 一条 FeatureHelp 说明（FeatureId 13 → 14）
+
+### 数据库迁移说明（重要）
+
+- `WORKSPACE_SCHEMA_VERSION` 由 **2 升到 3**：新增列 `characters.visual_style_json` / `scene_locations.visual_context_json` / `prop_items.visual_context_json` / `projects.project_visual_style_json`
+- 迁移遵循既有幂等模式（`PRAGMA table_info` 取列 → 缺则 `ALTER TABLE ADD COLUMN`），**不做破坏性重建表**
+- **旧库（schemaVersion 2）启动时先自动备份再迁移**，旧数据视觉字段读为空（null），不抛错；已升级库（schemaVersion 3）跳过迁移
+
 ## [1.26.0] - 2026-10-16
 
 ### 资产库聚合页（阶段 B）
