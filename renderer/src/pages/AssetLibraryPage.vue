@@ -3,8 +3,8 @@
 // - 跨项目浏览 4 类资产（角色 / 道具 / 场景 / 组织）
 // - 「当前项目」可编辑（双击卡片打开抽取出的编辑弹窗）；其余范围只读
 import { computed, ref } from 'vue'
-import { ArrowLeft, Boxes, CheckSquare, Download, RefreshCw, Search, Sparkles } from 'lucide-vue-next'
-import { NButton, NEmpty, NInput, NSelect, NTooltip, useMessage } from 'naive-ui'
+import { ArrowLeft, Boxes, CheckSquare, Download, RefreshCw, Search, Sparkles, Trash2 } from 'lucide-vue-next'
+import { NButton, NEmpty, NInput, NPopconfirm, NSelect, NTooltip, useMessage } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
 import { toIpcPayload } from '@/utils/ipcPayload'
 import AssetLibraryCard from '@/components/assetLibrary/AssetLibraryCard.vue'
@@ -178,6 +178,23 @@ function openWizard(): void {
     return
   }
   wizardVisible.value = true
+}
+
+// --- 一键清空当前项目资产（v1.29.0）---
+/** 非当前项目范围点击时给出明确指引（popconfirm 已禁用，不会弹确认框）。 */
+function onClearAssetsClick(): void {
+  if (scope.value !== 'current') {
+    message.info('请切换到「当前项目」范围后再清空资产')
+  }
+}
+
+/** 清空当前项目的角色 / 场景 / 道具（组织保留）；不可撤销，已由弹窗二次确认。 */
+function handleClearAssets(): void {
+  if (scope.value !== 'current') return
+  appStore.clearProjectAssets()
+  clearSelection()
+  selectedKey.value = ''
+  message.success('已清空当前项目的角色 / 场景 / 道具（组织保留）')
 }
 
 // 再提取建议预览
@@ -421,6 +438,15 @@ const exportDialogVisible = ref(false)
           <template #icon><Download :size="15" /></template>
           导出资产参考表
         </n-button>
+        <n-popconfirm :disabled="scope !== 'current'" @positive-click="handleClearAssets">
+          <template #trigger>
+            <n-button @click="onClearAssetsClick">
+              <template #icon><Trash2 :size="15" /></template>
+              清空资产
+            </n-button>
+          </template>
+          仅清空当前项目的角色 / 场景 / 道具，组织保留，不可撤销。确定继续？
+        </n-popconfirm>
         <FeatureHelp feature-id="asset-library" placement="bottom-end" />
       </div>
     </header>
