@@ -4603,6 +4603,7 @@ export const useAppStore = defineStore('app', () => {
     pendingChapterInsertion,
     plotThreads,
     projects,
+    projectWorkspaces,
     clearAssistantMessages,
     createAssistantSession,
     deleteAssistantSession,
