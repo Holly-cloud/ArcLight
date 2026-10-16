@@ -1670,6 +1670,34 @@ export const useAppStore = defineStore('app', () => {
     return { addedChapters: chapters.length }
   }
 
+  /**
+   * 整本覆盖：以新数据**单次原子替换**当前项目的分卷 / 大纲 / 章节。
+   * 直接替换（**不经过空状态**），避免先清空再追加时被工作区不变式 `ensureVolumeCollections`
+   * 自动补出一个默认空卷「故事开端」，导致覆盖后残留多余空分卷。
+   */
+  function replaceProjectNovelChapters(payload: {
+    volumes: OutlineVolume[]
+    outlineItems: OutlineItem[]
+    chapters: ChapterDraft[]
+  }): { replacedChapters: number } {
+    const volumes = payload?.volumes ?? []
+    const outlineItems = payload?.outlineItems ?? []
+    const chapters = payload?.chapters ?? []
+    if (!selectedProjectId.value || (!volumes.length && !outlineItems.length && !chapters.length)) {
+      return { replacedChapters: 0 }
+    }
+
+    updateCurrentWorkspace((workspace) => ({
+      ...workspace,
+      // 直接以新数据替换三集合；volumes 非空时 ensureVolumeCollections 不会补默认卷
+      outlineVolumes: volumes,
+      outlineItems: reindexOutlineItems(outlineItems),
+      chapters: assignSparseChapterOrder(chapters, chapters.map((chapter) => chapter.id)).items
+    }))
+    schedulePersist('fast')
+    return { replacedChapters: chapters.length }
+  }
+
   /** 删除项目；若删除的是当前项目，自动切到剩余首个项目，删空时停留在项目中心空状态 */
   function deleteProject(projectId: string): void {
     if (!projects.value.some((project) => project.id === projectId)) {
@@ -4652,6 +4680,7 @@ export const useAppStore = defineStore('app', () => {
     clearProjectAssets,
     clearProjectNovelChapters,
     importNovelIntoChapters,
+    replaceProjectNovelChapters,
     deleteInspirationEntry,
     deleteOrganization,
     deleteOrganizationMembership,

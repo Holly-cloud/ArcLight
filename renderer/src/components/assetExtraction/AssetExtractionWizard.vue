@@ -212,13 +212,12 @@ function doAppendImport(): void {
   close()
 }
 
-/** 覆盖写入（整本替换）：先清空当前项目章节，再写入全部章；已由弹窗二次确认。 */
+/** 覆盖写入（整本替换）：单次原子替换当前项目章节，避免残留空分卷；已由弹窗二次确认。 */
 function doOverwriteImport(): void {
   const novel = parsedNovel.value
   if (!novel) return
-  appStore.clearProjectNovelChapters()
   const result = buildNovelChapters({ novel, existingChapterTitles: [], createId })
-  appStore.importNovelIntoChapters(result)
+  appStore.replaceProjectNovelChapters(result)
   message.success(`已替换为 ${result.chapters.length} 章`)
   emit('applied')
   close()
