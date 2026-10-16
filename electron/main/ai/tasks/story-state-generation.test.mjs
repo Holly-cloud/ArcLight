@@ -11,7 +11,7 @@ const appStoreSource = readFileSync(new URL('../../../../renderer/src/stores/app
 const aiTaskCenterSource = readFileSync(new URL('../../../../renderer/src/components/TitlebarAiTaskCenter.vue', import.meta.url), 'utf8')
 const projectIdContextFiles = [
   '../../../../renderer/src/composables/useCatalogBatch.ts',
-  '../../../../renderer/src/components/CharactersPanel.vue',
+  '../../../../renderer/src/components/entityEdit/CharacterEditModal.vue',
   '../../../../renderer/src/components/WorldviewPanel.vue',
   '../../../../renderer/src/components/OutlinePanel.vue'
 ]

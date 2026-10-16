@@ -73,21 +73,17 @@ test('升级场景：空数组 / null / undefined → workbench 在首位且补�
   assert.equal(normalizeWorkbenchMenuOrder(undefined)[0], 'workbench')
 })
 
-test('用户已自定义 workbench 在首位 → 尊重用户位置不重复添加', () => {
+test('用户已自定义 workbench 在首位 → 尊重用户位置，assetLibrary 插到其后且不重复', () => {
   const userOrder = ['workbench', 'overview', 'chapters']
   const normalized = normalizeWorkbenchMenuOrder(userOrder)
   // workbench 仍在首
   assert.equal(normalized[0], 'workbench')
   assert.equal(normalized.indexOf('workbench'), normalized.lastIndexOf('workbench'), '不应重复')
-})
+  // v1.26 新增断言：assetLibrary 缺失时插到 workbench 之后（index 1），且不重复
+  assert.equal(normalized[1], 'assetLibrary', 'assetLibrary 应插入到 index 1')
+  assert.equal(normalized.indexOf('assetLibrary'), normalized.lastIndexOf('assetLibrary'), 'assetLibrary 不应重复')
 
-test('v1.26 新增断言：值缺 assetLibrary 时插到 workbench 之后（index 1）且不重复', () => {
-  const withWorkbench = normalizeWorkbenchMenuOrder(['workbench', 'overview', 'chapters'])
-  assert.equal(withWorkbench[0], 'workbench')
-  assert.equal(withWorkbench[1], 'assetLibrary', 'assetLibrary 应插入到 index 1')
-  assert.equal(withWorkbench.indexOf('assetLibrary'), withWorkbench.lastIndexOf('assetLibrary'), '不应重复')
-
-  // 用户已包含 assetLibrary → 保留用户位置，不重复插入
+  // 用户已包含 assetLibrary → 保留用户自定义位置，且完整菜单集合不变
   const userPlaced = normalizeWorkbenchMenuOrder(['workbench', 'overview', 'assetLibrary', 'chapters'])
   assert.equal(userPlaced.indexOf('assetLibrary'), 2, '尊重用户自定义位置')
   assert.deepEqual(new Set(userPlaced), new Set(DEFAULT_WORKBENCH_MENU_ORDER))
