@@ -45,6 +45,8 @@ import worldviewEnhance from './worldview-enhance'
 import outlineEnhance from './outline-enhance'
 import relationEnhance from './relation-enhance'
 import catalogBatch from './catalog-batch'
+import assetExtract from './asset-extract'
+import assetReextract from './asset-reextract'
 import continuationImportChunk from './continuation-import-chunk'
 import continuationImportAggregate from './continuation-import-aggregate'
 import rankingStyleAnalysis from './ranking-style-analysis'
@@ -109,6 +111,8 @@ register(worldviewEnhance)
 register(outlineEnhance)
 register(relationEnhance)
 register(catalogBatch)
+register(assetExtract)
+register(assetReextract)
 register(continuationImportChunk)
 register(continuationImportAggregate)
 register(rankingStyleAnalysis)

@@ -471,6 +471,40 @@ const taskObjectSchemas: Partial<Record<AiTaskName, z.ZodTypeAny>> = {
       intensity: z.number().optional(),
       tags: z.array(z.union([stringField, z.object({ label: stringField })])).optional()
     }))
+  }),
+  'asset-extract': z.object({
+    characters: z.array(z.object({
+      name: stringField,
+      role: stringField.optional(),
+      description: stringField.optional(),
+      tags: z.array(z.union([stringField, z.object({ label: stringField })])).optional()
+    })),
+    scenes: z.array(z.object({
+      name: stringField,
+      type: stringField.optional(),
+      description: stringField.optional(),
+      tags: z.array(z.union([stringField, z.object({ label: stringField })])).optional()
+    })),
+    props: z.array(z.object({
+      name: stringField,
+      type: stringField.optional(),
+      description: stringField.optional(),
+      tags: z.array(z.union([stringField, z.object({ label: stringField })])).optional()
+    }))
+  }),
+  'asset-reextract': z.object({
+    suggestions: z.array(z.object({
+      kind: z.enum(['character', 'scene', 'prop']),
+      id: stringField,
+      fields: z.object({
+        name: stringField.optional(),
+        role: stringField.optional(),
+        type: stringField.optional(),
+        description: stringField.optional(),
+        tags: z.array(z.union([stringField, z.object({ label: stringField })])).optional()
+      }),
+      evidence: stringField
+    }))
   })
 }
 

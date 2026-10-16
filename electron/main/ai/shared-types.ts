@@ -111,6 +111,8 @@ export type AiTaskName =
   | 'adaptation-plot-cards'
   | 'adaptation-character-bible'
   | 'adaptation-tone-profile'
+  | 'asset-extract'
+  | 'asset-reextract'
 
 /**
  * AI 运行时注入 prompt 的知识条目。
@@ -435,6 +437,33 @@ export type CatalogBatchResult = {
   entries: Array<Record<string, unknown>>
 }
 
+/** asset-extract 结果：从小说原文提取的角色 / 场景 / 道具候选。 */
+export type AssetExtractResult = {
+  characters: Array<{ name: string; role: string; description: string; tags: string[] }>
+  scenes: Array<{ name: string; type: string; description: string; tags: string[] }>
+  props: Array<{ name: string; type: string; description: string; tags: string[] }>
+}
+
+/** 再提取时单个目标的字段建议（仅建议，不直接覆盖用户已填内容）。 */
+export type AssetReextractSuggestion = {
+  kind: 'character' | 'scene' | 'prop'
+  id: string
+  fields: {
+    name?: string
+    role?: string
+    type?: string
+    description?: string
+    tags?: string[]
+  }
+  /** 原文证据（必须引用给定片段中的原句） */
+  evidence: string
+}
+
+/** asset-reextract 结果：逐目标字段建议列表。 */
+export type AssetReextractResult = {
+  suggestions: AssetReextractSuggestion[]
+}
+
 /** 章节场景规划结果 */
 export type ChapterScenePlanResult = {
   scenes: Array<{ focus: string }>
@@ -579,6 +608,8 @@ export type AiTaskResult =
   | ReferenceStyleAnalysisResult
   | InspirationPackResult
   | CatalogBatchResult
+  | AssetExtractResult
+  | AssetReextractResult
   | PlotThreadDetectResult
   | ChapterScenePlanResult
   | ChapterMemoResult
