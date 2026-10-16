@@ -7,13 +7,14 @@ import { computed, ref, watch } from 'vue'
 import { Check, FileText, RotateCcw, Sparkles, Upload } from 'lucide-vue-next'
 import { NAlert, NButton, NInput, NModal, NPopconfirm, NProgress, NRadioButton, NRadioGroup, useMessage } from 'naive-ui'
 import { isCodexCliProvider } from '@shared/ai-provider-catalog'
-import { parseContinuationNovelText, type ContinuationNovelFilePreview } from '@shared/continuation-import'
+import { applySplitPlan, collectSplitCandidates, parseContinuationNovelText, type ContinuationNovelFilePreview } from '@shared/continuation-import'
 import { useAppStore } from '@/stores/app'
 import { toIpcPayload } from '@/utils/ipcPayload'
 import FeatureHelp from '@/components/FeatureHelp.vue'
 import ExtractionCandidateList, { type CandidateDraft } from '@/components/assetExtraction/ExtractionCandidateList.vue'
 import { parseExtractionResult, type ExtractionCandidates } from '@/features/assetExtraction/parseExtractionResult'
 import { mergeExtractionCandidates, normalizeExtractionName } from '@/features/assetExtraction/mergeExtractionCandidates'
+import { resolveNovelSplitWithAi } from '@/features/assetExtraction/novelSplitAi'
 import { chapterContentToPlainText } from '@/features/assetExtraction/chapterText'
 import { loadAllChapterContent } from '@/features/chapters/chapterExport'
 import { buildNovelChapters, type NovelSourceInput } from '@/features/assetExtraction/novelToChapters'
@@ -67,6 +68,10 @@ const progress = ref({ current: 0, total: 0 })
 // import 模式：解析后先出预览（append/overwrite），再确认写入。
 const parsedNovel = ref<NovelSourceInput | null>(null)
 const importMode = ref<ImportMode>('append')
+// 「解析并预览」的异步态（独立于提取的 running）；splitting 仅表此次切分。
+const splitting = ref(false)
+// 切分来源：ai=AI 精准划分；script=按标题规则；script-fallback=AI 失败已回退。
+const splitSource = ref<'ai' | 'script' | 'script-fallback' | null>(null)
 
 const hasAiSettings = computed(() => {
   const settings = appStore.appSettings
@@ -93,6 +98,14 @@ const importPlan = computed<ImportPlan | null>(() => (
 const totalChapterCount = computed(() => appStore.chapters.length)
 const importRangeText = computed(() => (importPlan.value ? formatImportRange(importPlan.value.range) : ''))
 const skippedTitlesText = computed(() => (importPlan.value?.skipped ?? []).map((chapter) => chapter.title).join('、'))
+
+/** 预览区的切分来源提示：AI 精准划分 / 按标题规则 / AI 失败已回退。 */
+const splitSourceText = computed(() => {
+  const count = parsedNovel.value?.chapters.length ?? 0
+  if (splitSource.value === 'ai') return `已用 AI 精准划分（${count} 章）`
+  if (splitSource.value === 'script-fallback') return `AI 精准划分失败，已回退（${count} 章）`
+  return `按标题规则划分（${count} 章）`
+})
 
 /** 序数区间展示：有有效序数时用「第X章~第Y章」，否则回退「共 N 章」。 */
 function formatImportRange(range: ImportPlanRange): string {
@@ -134,6 +147,8 @@ watch(() => props.show, (show) => {
   progress.value = { current: 0, total: 0 }
   parsedNovel.value = null
   importMode.value = 'append'
+  splitSource.value = null
+  splitting.value = false
 })
 
 // 手动改动文本框即视为放弃 TXT 解析结果，改为按粘贴文本重新解析。
@@ -147,7 +162,7 @@ function close(): void {
   emit('update:show', false)
 }
 
-/** 复用既有 IPC：读取 TXT，拿到解析好的 preview（含卷 / 章节），并把正文回填到文本框。 */
+/** 复用既有 IPC：读取 TXT，拿到解析好的 preview（含卷 / 章节）+ 归一化原文，并把原文回填到文本框。 */
 async function importFromTxt(): Promise<void> {
   importing.value = true
   try {
@@ -156,14 +171,8 @@ async function importFromTxt(): Promise<void> {
     if (!result.success || !result.preview) {
       throw new Error(result.error || '读取小说文件失败')
     }
-    const text = result.preview.chapters
-      .map((chapter) => {
-        const title = String(chapter.title ?? '').trim()
-        const body = String(chapter.content ?? '')
-        return title ? `${title}\n${body}` : body
-      })
-      .join('\n\n')
-      .trim()
+    // 直接用主进程归一化后的原文（保留原始行），后续重切以原文为准，不再从 chapters 反拼。
+    const text = result.preview.rawText
     importedPreview.value = result.preview
     importedSnapshot.value = text
     novelText.value = text
@@ -175,8 +184,12 @@ async function importFromTxt(): Promise<void> {
   }
 }
 
-/** 解析正文（或 TXT 解析结果）并进入追加 / 覆盖预览阶段（不写入）。 */
-function buildImportPreview(): void {
+/**
+ * 解析正文（或 TXT 原文）并进入追加 / 覆盖预览阶段（不写入）。
+ * 两段式：先出**脚本基线**（保证不空手）；配置了模型且存在候选行时，用 AI **只在候选行里锁切点**。
+ * AI 失败 / 未配置模型 / 无候选 → 保留脚本切分（永不阻断导入）。
+ */
+async function buildImportPreview(): Promise<void> {
   const text = novelText.value.trim()
   if (!importedPreview.value && !text) {
     message.warning('请粘贴正文或从 TXT 导入小说后再继续')
@@ -184,9 +197,72 @@ function buildImportPreview(): void {
   }
 
   const fallbackTitle = appStore.currentProject?.title || '未命名作品'
-  parsedNovel.value = importedPreview.value
+  // 1) 脚本基线（加固后的标题规则），保证永不空手。
+  const baseline: NovelSourceInput = importedPreview.value
     ? { title: importedPreview.value.title, chapters: importedPreview.value.chapters }
     : { title: fallbackTitle, chapters: parseContinuationNovelText(text, fallbackTitle).chapters }
+
+  let novel: NovelSourceInput = baseline
+  let source: 'ai' | 'script' | 'script-fallback' = 'script'
+
+  // 2) AI 精准划分：仅在有模型且存在候选行时启用。
+  const splitCandidates = hasAiSettings.value ? collectSplitCandidates(text).candidates : []
+  if (hasAiSettings.value && splitCandidates.length > 0) {
+    splitting.value = true
+    message.info('正在用 AI 精准划分…')
+    try {
+      const projectId = appStore.currentProject?.id ?? 'current'
+      const splitTaskKey = `novel-split-locate:${projectId}`
+      const resolution = await resolveNovelSplitWithAi(splitCandidates, {
+        isReady: true,
+        callBatch: async (batch) => {
+          const response = await appStore.runTrackedAiTask(
+            {
+              key: splitTaskKey,
+              kind: 'other',
+              label: 'AI 精准划分章节',
+              panel: 'asset-library'
+            },
+            () => window.characterArc.generateAi(toIpcPayload({
+              task: 'novel-split-locate',
+              clientKey: splitTaskKey,
+              settings: appStore.appSettings,
+              context: {
+                projectId: appStore.currentProject?.id,
+                projectTitle: appStore.currentProject?.title,
+                candidates: batch
+              }
+            }))
+          )
+          if (!response.success || !response.result) return null
+          const result = response.result as { chapters?: unknown; volumes?: unknown }
+          return {
+            chapters: Array.isArray(result.chapters) ? (result.chapters as number[]) : [],
+            volumes: Array.isArray(result.volumes) ? (result.volumes as number[]) : []
+          }
+        }
+      })
+
+      if (resolution) {
+        novel = {
+          title: baseline.title,
+          chapters: applySplitPlan(text, { chapters: resolution.chapters, volumes: resolution.volumes }).chapters
+        }
+        source = 'ai'
+      } else {
+        source = 'script-fallback'
+        message.warning('AI 精准划分失败，已回退按标题规则划分')
+      }
+    } catch {
+      source = 'script-fallback'
+      message.warning('AI 精准划分失败，已回退按标题规则划分')
+    } finally {
+      splitting.value = false
+    }
+  }
+
+  parsedNovel.value = novel
+  splitSource.value = source
   importMode.value = 'append'
 }
 
@@ -458,6 +534,7 @@ function adoptSelected(): void {
           项目「{{ projectName }}」当前「章节创作」共 {{ totalChapterCount }} 章。
           「追加」只新增未存在的章、「覆盖」将整本替换。章节序数取自小说标题，不从第 1 章重排。
         </n-alert>
+        <div class="wizard-hint">{{ splitSourceText }}</div>
 
         <n-radio-group v-model:value="importMode" size="small">
           <n-radio-button value="append">追加</n-radio-button>
@@ -500,7 +577,7 @@ function adoptSelected(): void {
 
         <template v-if="step === 1">
           <template v-if="!parsedNovel">
-            <n-button type="primary" round @click="buildImportPreview">解析并预览</n-button>
+            <n-button type="primary" round :loading="splitting" @click="buildImportPreview">解析并预览</n-button>
           </template>
           <template v-else>
             <n-button round @click="backToImportInput">上一步</n-button>

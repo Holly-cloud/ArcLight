@@ -113,6 +113,7 @@ export type AiTaskName =
   | 'adaptation-tone-profile'
   | 'asset-extract'
   | 'asset-reextract'
+  | 'novel-split-locate'
 
 /**
  * AI 运行时注入 prompt 的知识条目。
@@ -464,6 +465,12 @@ export type AssetReextractResult = {
   suggestions: AssetReextractSuggestion[]
 }
 
+/** novel-split-locate 结果：脚本候选行中被判定为切点的**原始行号**（chapters=章节/集/话级，volumes=卷/部级）。 */
+export type NovelSplitLocateResult = {
+  chapters: number[]
+  volumes: number[]
+}
+
 /** 章节场景规划结果 */
 export type ChapterScenePlanResult = {
   scenes: Array<{ focus: string }>
@@ -610,6 +617,7 @@ export type AiTaskResult =
   | CatalogBatchResult
   | AssetExtractResult
   | AssetReextractResult
+  | NovelSplitLocateResult
   | PlotThreadDetectResult
   | ChapterScenePlanResult
   | ChapterMemoResult

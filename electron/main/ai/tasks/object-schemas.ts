@@ -508,6 +508,10 @@ const taskObjectSchemas: Partial<Record<AiTaskName, z.ZodTypeAny>> = {
       }),
       evidence: stringField
     }))
+  }),
+  'novel-split-locate': z.object({
+    chapters: z.array(z.number()),
+    volumes: z.array(z.number())
   })
 }
 

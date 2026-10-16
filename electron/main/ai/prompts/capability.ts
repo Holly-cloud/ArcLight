@@ -76,6 +76,7 @@ const TASK_DEFAULT_CAPABILITIES: Record<AiTaskName, PromptCapabilityId[]> = {
   'catalog-batch': ['settings', 'worldview', 'characters', 'relations', 'outline', 'inspiration', 'writing-style'],
   'asset-extract': ['settings', 'characters', 'relations', 'worldview', 'writing-style'],
   'asset-reextract': ['settings', 'characters', 'writing-style'],
+  'novel-split-locate': ['settings'],
   'continuation-import-chunk': ['settings', 'analysis', 'characters', 'outline'],
   'continuation-import-aggregate': ['settings', 'analysis', 'characters', 'relations', 'outline', 'worldview'],
   // 封面生成走独立图片通道，不经过 prompt capability 流程；此项仅为满足类型完整性。

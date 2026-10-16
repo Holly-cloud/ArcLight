@@ -3,6 +3,7 @@ import { basename, extname } from 'node:path'
 import { readFile } from 'node:fs/promises'
 
 import {
+  normalizeContinuationNovelText,
   parseContinuationNovelText,
   type ContinuationNovelFilePreview
 } from '@shared/continuation-import'
@@ -59,6 +60,7 @@ export async function inspectContinuationNovelFile(filePath: string): Promise<Co
 
   return {
     ...parsed,
+    rawText: normalizeContinuationNovelText(decoded.text),
     filePath,
     fileName,
     fileSize: bytes.length,

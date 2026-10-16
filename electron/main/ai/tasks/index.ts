@@ -47,6 +47,7 @@ import relationEnhance from './relation-enhance'
 import catalogBatch from './catalog-batch'
 import assetExtract from './asset-extract'
 import assetReextract from './asset-reextract'
+import novelSplitLocate from './novel-split-locate'
 import continuationImportChunk from './continuation-import-chunk'
 import continuationImportAggregate from './continuation-import-aggregate'
 import rankingStyleAnalysis from './ranking-style-analysis'
@@ -113,6 +114,7 @@ register(relationEnhance)
 register(catalogBatch)
 register(assetExtract)
 register(assetReextract)
+register(novelSplitLocate)
 register(continuationImportChunk)
 register(continuationImportAggregate)
 register(rankingStyleAnalysis)

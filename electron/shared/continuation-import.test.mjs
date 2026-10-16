@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 
 import {
+  applySplitPlan,
   buildContinuationChapterTitle,
   inferNextContinuationChapterTitle,
   parseContinuationNovelText,
@@ -63,4 +64,78 @@ test('识别章节编号后没有空格或标点的常见标题', () => {
   assert.equal(parsed.chapterCount, 2)
   assert.equal(parsed.chapters[0].title, '第1章初遇')
   assert.equal(parsed.chapters[1].title, '第二章风波再起')
+})
+
+test('加固后：第X话 标题可切章', () => {
+  const parsed = parseContinuationNovelText(`第1话 开端\n甲出发了。\n第2话 相遇\n乙出现了。\n第3话 分离\n两人告别。`, '话本')
+
+  assert.equal(parsed.chapterCount, 3)
+  assert.equal(parsed.chapters[0].title, '第1话 开端')
+  assert.equal(parsed.chapters[2].content, '两人告别。')
+})
+
+test('加固后：【第X章…】 包裹标题可切章', () => {
+  const parsed = parseContinuationNovelText(`【第1章 初见】\n正文一。\n【第2章 夜雨】\n正文二。`, '包裹标题')
+
+  assert.equal(parsed.chapterCount, 2)
+  assert.equal(parsed.chapters[0].title, '【第1章 初见】')
+  assert.equal(parsed.chapters[0].content, '正文一。')
+})
+
+test('applySplitPlan：按程序化切点切章并按 volumes 归卷', () => {
+  const raw = [
+    '第一卷 风起',
+    '第1章 初见',
+    '甲看见了乙。',
+    '第2章 夜雨',
+    '雨下了一夜。',
+    '第二卷 远行',
+    '第3章 出城',
+    '他们离开故乡。'
+  ].join('\n')
+
+  const doc = applySplitPlan(raw, { chapters: [1, 3, 6], volumes: [0, 5] })
+
+  assert.equal(doc.chapterCount, 3)
+  assert.equal(doc.volumeCount, 2)
+  assert.equal(doc.chapters[0].title, '第1章 初见')
+  assert.equal(doc.chapters[0].volumeTitle, '第一卷 风起')
+  assert.equal(doc.chapters[1].content, '雨下了一夜。')
+  assert.equal(doc.chapters[1].volumeTitle, '第一卷 风起')
+  assert.equal(doc.chapters[2].volumeTitle, '第二卷 远行')
+})
+
+test('applySplitPlan：首个切点前正文 ≥8 字会前置「正文前内容」', () => {
+  const raw = [
+    '作者：某人',
+    '这是一段作品简介。',
+    '第1章 开始',
+    '正文一。',
+    '第2章 继续',
+    '正文二。'
+  ].join('\n')
+
+  const doc = applySplitPlan(raw, { chapters: [2, 4], volumes: [] })
+
+  assert.equal(doc.chapterCount, 3)
+  assert.equal(doc.chapters[0].title, '正文前内容')
+  assert.match(doc.chapters[0].content, /作品简介/)
+  assert.ok(doc.warnings.some((warning) => warning.includes('正文内容')))
+})
+
+test('applySplitPlan：chapters 为空时回退 parseContinuationNovelText', () => {
+  const raw = `第1章 初见\n正文一。\n第2章 夜雨\n正文二。`
+
+  const doc = applySplitPlan(raw, { chapters: [], volumes: [0] })
+  const fallback = parseContinuationNovelText(raw, '未命名作品')
+
+  assert.equal(doc.chapterCount, fallback.chapterCount)
+  assert.deepEqual(doc.chapters.map((chapter) => chapter.title), fallback.chapters.map((chapter) => chapter.title))
+})
+
+test('加固后：收尾引号包裹的对白不会被误当章节标题', () => {
+  const parsed = parseContinuationNovelText('“第1章，他走了。”\n第2章 B\n乙。', '对白')
+
+  assert.equal(parsed.chapterCount, 1)
+  assert.equal(parsed.chapters[0].title, '全文')
 })
