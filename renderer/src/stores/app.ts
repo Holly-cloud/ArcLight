@@ -1692,7 +1692,10 @@ export const useAppStore = defineStore('app', () => {
       // 直接以新数据替换三集合；volumes 非空时 ensureVolumeCollections 不会补默认卷
       outlineVolumes: volumes,
       outlineItems: reindexOutlineItems(outlineItems),
-      chapters: assignSparseChapterOrder(chapters, chapters.map((chapter) => chapter.id)).items
+      chapters: assignSparseChapterOrder(chapters, chapters.map((chapter) => chapter.id)).items,
+      // 章节被整体替换 → 旧章节的历史版本必须一并清掉，否则残留版本会引用已不存在的章节，
+      // 下次保存快照时触发 chapter_versions.chapter_id 外键失败（FOREIGN KEY constraint failed）。
+      chapterVersions: []
     }))
     schedulePersist('fast')
     return { replacedChapters: chapters.length }
@@ -2703,7 +2706,10 @@ export const useAppStore = defineStore('app', () => {
       ...workspace,
       chapters: [],
       outlineItems: [],
-      outlineVolumes: []
+      outlineVolumes: [],
+      // 章节被清空 → 其历史版本必须一并清掉：残留的 chapter_versions 会引用已删除的章节，
+      // 下次保存快照时触发 chapter_versions.chapter_id 外键失败（FOREIGN KEY constraint failed）。
+      chapterVersions: []
     }))
     schedulePersist('fast')
   }
