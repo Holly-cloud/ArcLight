@@ -23,6 +23,7 @@ import {
   type ReextractKind
 } from '@/features/assetExtraction/buildReextractSuggestions'
 import { chapterContentToPlainText, extractEntitySnippet } from '@/features/assetExtraction/chapterText'
+import { loadAllChapterContent } from '@/features/chapters/chapterExport'
 import {
   ASSET_KINDS,
   ASSET_KIND_LABELS,
@@ -279,9 +280,17 @@ async function handleReextract(): Promise<void> {
     return
   }
 
-  const chapterTexts = appStore.chapters
-    .map((chapter) => chapterContentToPlainText(chapter.content))
-    .filter((text) => text.trim())
+  // 章节正文按需懒加载：重启后 / 长篇下 content 可能为空，必须先 ensure 加载完成再组装证据源。
+  let chapterTexts: string[] = []
+  try {
+    const chapters = await loadAllChapterContent(appStore.chapters, (id) => appStore.ensureChapterContent(id))
+    chapterTexts = chapters
+      .map((chapter) => chapterContentToPlainText(chapter.content))
+      .filter((text) => text.trim())
+  } catch {
+    message.error('章节正文加载失败，请重试后再提取')
+    return
+  }
   if (!chapterTexts.length) {
     message.warning('请先在「章节创作」中导入/准备小说章节')
     return

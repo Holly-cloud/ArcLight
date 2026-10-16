@@ -16,6 +16,7 @@ import ExtractionCandidateList, { type CandidateDraft } from '@/components/asset
 import { parseExtractionResult, type ExtractionCandidates } from '@/features/assetExtraction/parseExtractionResult'
 import { mergeExtractionCandidates, normalizeExtractionName } from '@/features/assetExtraction/mergeExtractionCandidates'
 import { chapterContentToPlainText } from '@/features/assetExtraction/chapterText'
+import { loadAllChapterContent } from '@/features/chapters/chapterExport'
 import { buildNovelChapters, type NovelSourceInput } from '@/features/assetExtraction/novelToChapters'
 
 const props = defineProps<{ show: boolean }>()
@@ -56,11 +57,8 @@ const hasAiSettings = computed(() => {
 })
 
 const projectName = computed(() => appStore.currentProject?.title || '当前项目')
+// 章节正文为按需懒加载，未加载时直接统计字数会得到错误的 0 字，故这里只展示始终准确的章节数。
 const projectChapterCount = computed(() => appStore.chapters.length)
-const projectChapterChars = computed(() => appStore.chapters.reduce(
-  (sum, chapter) => sum + chapterContentToPlainText(chapter.content).replace(/\s+/g, '').length,
-  0
-))
 
 const existingNames = computed(() => ({
   characters: appStore.characters.map((character) => character.name),
@@ -228,13 +226,27 @@ function buildDrafts(list: ExtractionCandidates): CandidateDraft[] {
   return result
 }
 
+/** 组装提取源：先把所有章节正文 ensure 加载完成（懒加载），再拼成纯文本。加载失败返回 null。 */
+async function loadExtractionSource(): Promise<string | null> {
+  try {
+    const chapters = await loadAllChapterContent(appStore.chapters, (id) => appStore.ensureChapterContent(id))
+    return chapters
+      .map((chapter) => chapterContentToPlainText(chapter.content).trim())
+      .filter(Boolean)
+      .join('\n\n')
+  } catch {
+    message.error('章节正文加载失败，请重试后再提取')
+    return null
+  }
+}
+
 /** 运行提取：把当前项目章节正文合并后分段分批调 asset-extract，本地按 name 去重累积。 */
 async function runExtraction(): Promise<void> {
   if (isBusy.value) return
-  const sourceText = appStore.chapters
-    .map((chapter) => chapterContentToPlainText(chapter.content).trim())
-    .filter(Boolean)
-    .join('\n\n')
+  // 章节正文按需懒加载：重启后 / 长篇下 content 可能为空（contentLoaded:false），
+  // 必须先把所有章节正文 ensure 加载完成，再组装提取源，否则会拿到空正文导致提取失效。
+  const sourceText = await loadExtractionSource()
+  if (sourceText === null) return
   if (!sourceText) {
     message.warning('当前项目「章节创作」暂无正文，请先返回第一步导入')
     step.value = 1
@@ -349,7 +361,7 @@ function adoptSelected(): void {
     <!-- 第一步：导入 / 补录小说 -->
     <section v-if="step === 1" class="wizard-body">
       <n-alert type="info" :show-icon="false" class="wizard-alert">
-        项目「{{ projectName }}」当前「章节创作」共 {{ projectChapterCount }} 章、约 {{ projectChapterChars }} 字。
+        项目「{{ projectName }}」当前「章节创作」共 {{ projectChapterCount }} 章。
         {{ projectChapterCount > 0 ? '再次导入将追加新章节，同名章节自动跳过。' : '尚未导入章节，请粘贴正文或从 TXT 导入。' }}
       </n-alert>
 
