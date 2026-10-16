@@ -378,7 +378,7 @@ const exportDialogVisible = ref(false)
   <section class="asset-library-page arc-scrollbar">
     <header class="library-header">
       <div class="header-left">
-        <n-button quaternary circle title="返回" @click="appStore.backToProjects()">
+        <n-button quaternary circle title="返回项目工作台" @click="appStore.backToWorkbench()">
           <template #icon><ArrowLeft :size="18" /></template>
         </n-button>
         <h1 class="header-title"><Boxes :size="22" />资产库</h1>
