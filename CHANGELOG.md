@@ -4,6 +4,19 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.26.0] - 2026-10-16
+
+### 资产库聚合页（阶段 B）
+
+把散落在角色图鉴 / 关系组织 / 工作台的 4 类资产沉淀为一个跨项目聚合页，支持浏览 / 检索 / 只读跨项目 / 就地编辑。**零 IPC / 零持久化 / 零 schemaVersion / 零实体模型改动。**
+
+- **双入口**——项目工作台侧栏新增置顶项「资产库」（lucide `Boxes`，固定排在「工作台」之后）+ 首页 `HomepageHero` 工具按钮，双入口一键进入
+- **资产库聚合页（三栏）**——左栏分类（全部 / 角色 / 道具 / 场景 / 组织，带计数）+ 中栏卡片网格 + 右栏详情侧栏；顶部返回 + 项目选择器（全部项目 / 当前项目 / 各项目）+ 搜索框 + 功能说明
+- **资产卡片**——大封面（取资产自身 `color`，缺省回退 `--arc-primary` 渐变）+ 类型徽标 + 名称 + 标签 chip（≤3）+ 描述摘要（80 字）+ 关联计数
+- **抽取 3 个可复用编辑弹窗**——从 CharactersPanel / ScenePropSection 抽取 `CharacterEditModal` / `SceneLocationEditModal` / `PropItemEditModal`，面板与资产库共用（不新增第 4 个弹窗）
+- **功能说明**——新增 `asset-library` 一条 FeatureHelp 说明（FeatureId 12 → 13）
+- **只读跨项目**——「全部项目」或非当前项目为只读（编辑入口禁用 +「只读模式」tooltip）；「当前项目」双击卡片即可编辑，保存后卡片自动刷新
+
 ## [1.25.3] - 2026-10-16
 
 ### 工作台 P1 占位清算（阶段 A）
