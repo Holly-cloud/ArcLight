@@ -1,16 +1,14 @@
 <script setup lang="ts">
-import { computed, nextTick, reactive, ref, watch, type CSSProperties } from 'vue'
+import { computed, nextTick, ref, watch, type CSSProperties } from 'vue'
 import { BookOpenText, LayoutGrid, Link2, MoreVertical, Network, Plus, Rows3, Search, Sparkles } from 'lucide-vue-next'
-import { NButton, NCheckbox, NDropdown, NDynamicTags, NForm, NFormItem, NInput, NModal, NSelect, useDialog, useMessage } from 'naive-ui'
+import { NButton, NCheckbox, NDropdown, NInput, NSelect, useDialog, useMessage } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
 import { buildProjectWritingStyleContext } from '@/features/writingStyles/presets'
 import { resolveAccentColor, resolveReadableTextColor } from '@/features/relations/graph'
-import { toIpcPayload } from '@/utils/ipcPayload'
 import type { CharacterCard } from '@/types/app'
 import type { DropdownOption } from 'naive-ui'
-import AiEnhancePreview from './AiEnhancePreview.vue'
+import CharacterEditModal from './entityEdit/CharacterEditModal.vue'
 import BatchGenerateDialog from './BatchGenerateDialog.vue'
-import type { EnhanceFieldDiff } from './AiEnhancePreview.vue'
 import { normalizeCatalogTags, useCatalogBatch } from '@/composables/useCatalogBatch'
 import { useIncrementalList } from '@/composables/useIncrementalList'
 import { useBatchSelection } from '@/composables/useBatchSelection'
@@ -131,15 +129,8 @@ const batchVisible = ref(false)
 const batchProgress = ref(0)
 const { generateCatalogBatch } = useCatalogBatch()
 const editorVisible = ref(false) // 控制角色编辑弹窗的显示
-const editingCharacterId = ref<string | null>(null) // 当前正在编辑的角色 ID，null 表示新建模式
+const editingCharacter = ref<CharacterCard | null>(null) // 当前正在编辑的角色，null 表示新建模式
 const focusedCharacterId = ref<string>('')
-// 角色编辑表单数据
-const form = reactive({
-  name: '',
-  role: '',
-  description: '',
-  tags: [] as string[]
-})
 // 角色卡片的右键菜单选项
 const menuOptions: DropdownOption[] = [
   { key: 'edit', label: '编辑角色' },
@@ -162,13 +153,9 @@ function buildAiWorldviewContext() {
   }))
 }
 
-// 打开新建角色弹窗，重置表单为空白状态
+// 打开新建角色弹窗（表单状态由 CharacterEditModal 自持）
 function handleCreateCharacter(): void {
-  editingCharacterId.value = null
-  form.name = ''
-  form.role = ''
-  form.description = ''
-  form.tags = []
+  editingCharacter.value = null
   editorVisible.value = true
 }
 
@@ -224,38 +211,10 @@ async function handleGenerateCharacter(payload: { count: number; prompt: string;
   }
 }
 
-// 打开角色编辑弹窗，传入角色数据时为编辑模式，不传则为新建模式
+// 打开角色编辑弹窗：传入角色数据时为编辑模式，不传则为新建模式（表单状态由 CharacterEditModal 自持）
 function openEditor(character?: CharacterCard): void {
-  editingCharacterId.value = character?.id ?? null
-  form.name = character?.name ?? ''
-  form.role = character?.role ?? ''
-  form.description = character?.description ?? ''
-  form.tags = character?.tags.map((tag) => tag.label) ?? []
+  editingCharacter.value = character ?? null
   editorVisible.value = true
-}
-
-// 提交角色表单：校验必填项，将标签字符串数组转为对象数组后保存
-function submitCharacter(): void {
-  if (!form.name.trim() || !form.description.trim()) {
-    message.warning('请完整填写角色名称和角色简介')
-    return
-  }
-
-  if (editingCharacterId.value) {
-    appStore.updateCharacter(editingCharacterId.value, {
-      ...form,
-      tags: form.tags.map((label) => ({ label }))
-    })
-    message.success('角色信息已更新')
-  } else {
-    appStore.createCharacter({
-      ...form,
-      tags: form.tags.map((label) => ({ label }))
-    })
-    message.success('已新增角色草稿')
-  }
-
-  editorVisible.value = false
 }
 
 // 处理角色卡片的下拉菜单操作：编辑或删除角色（删除前弹出二次确认）
@@ -311,72 +270,6 @@ function confirmBatchDeleteCharacters(): void {
       message.success(`已删除 ${ids.length} 个角色`)
     }
   })
-}
-
-const ENHANCE_TASK_KEY = 'character-enhance'
-const enhanceLoading = computed(() => appStore.isAiTaskRunning(ENHANCE_TASK_KEY))
-const enhanceVisible = ref(false)
-const enhanceFields = ref<EnhanceFieldDiff[]>([])
-
-async function handleAiEnhance(): Promise<void> {
-  if (enhanceLoading.value) return
-
-  try {
-    const result = await appStore.runTrackedAiTask(
-      {
-        key: ENHANCE_TASK_KEY,
-        kind: 'character',
-        label: 'AI 补充角色',
-        description: '正在根据上下文补充角色信息',
-        panel: 'characters'
-      },
-      () =>
-        window.characterArc.generateAi(toIpcPayload({
-          task: 'character-enhance',
-          settings: appStore.appSettings,
-          context: {
-            projectId: appStore.currentProject?.id,
-            currentForm: { name: form.name, role: form.role, description: form.description, tags: form.tags },
-            projectTitle: appStore.currentProject?.title,
-            projectGenre: appStore.currentProject?.genre,
-            writingStyleLabel: writingStyle.value.label,
-            writingStylePrompt: writingStyle.value.prompt,
-            characterNames: appStore.characters.map((c) => c.name),
-            worldviewTitles: appStore.worldviewEntries.map((e) => e.title),
-            worldviewEntries: buildAiWorldviewContext(),
-            organizations: appStore.organizations,
-            characterRelationships: appStore.characterRelationships,
-            organizationMemberships: appStore.organizationMemberships,
-            characters: appStore.characters.map((c) => ({ id: c.id, name: c.name, role: c.role, description: c.description }))
-          }
-        }))
-    )
-
-    if (!result.success || !result.result) {
-      throw new Error(result.error ?? 'AI 补充失败，请检查模型配置')
-    }
-
-    const suggested = result.result as { name?: string; role?: string; description?: string; tags?: string[] }
-    const suggestedTags = Array.isArray(suggested.tags) ? suggested.tags : []
-
-    enhanceFields.value = [
-      { key: 'name', label: '角色名称', type: 'text', original: form.name, suggested: suggested.name ?? '', changed: (suggested.name ?? '') !== form.name && Boolean(suggested.name?.trim()) },
-      { key: 'role', label: '角色定位', type: 'text', original: form.role, suggested: suggested.role ?? '', changed: (suggested.role ?? '') !== form.role && Boolean(suggested.role?.trim()) },
-      { key: 'description', label: '角色简介', type: 'textarea', original: form.description, suggested: suggested.description ?? '', changed: (suggested.description ?? '') !== form.description && Boolean(suggested.description?.trim()) },
-      { key: 'tags', label: '角色标签', type: 'tags', original: form.tags, suggested: suggestedTags, changed: JSON.stringify(suggestedTags) !== JSON.stringify(form.tags) && suggestedTags.length > 0 }
-    ]
-    enhanceVisible.value = true
-  } catch (error) {
-    message.error(error instanceof Error ? error.message : 'AI 补充失败，请检查模型配置')
-  }
-}
-
-function handleEnhanceApply(accepted: Record<string, string | string[]>): void {
-  if (accepted.name != null) form.name = accepted.name as string
-  if (accepted.role != null) form.role = accepted.role as string
-  if (accepted.description != null) form.description = accepted.description as string
-  if (accepted.tags != null) form.tags = accepted.tags as string[]
-  enhanceVisible.value = false
 }
 
 watch(
@@ -578,68 +471,10 @@ watch(
       @submit="handleGenerateCharacter"
     />
 
-    <n-modal
+    <CharacterEditModal
       :show="editorVisible"
-      preset="card"
-      class="arc-editor-modal-wide"
-      :title="editingCharacterId ? '编辑角色' : '新建角色'"
-      :bordered="false"
-      @close="editorVisible = false"
-    >
-      <div class="arc-split-body">
-        <div class="arc-split-left">
-          <n-form label-placement="top">
-            <n-form-item label="角色名称">
-              <n-input v-model:value="form.name" placeholder="例如：李雷 / 艾达" />
-            </n-form-item>
-            <n-form-item label="角色定位">
-              <n-input v-model:value="form.role" placeholder="例如：男主 / 情报中间人" />
-            </n-form-item>
-            <n-form-item label="角色标签">
-              <n-dynamic-tags v-model:value="form.tags" />
-            </n-form-item>
-          </n-form>
-        </div>
-        <div class="arc-split-right">
-          <div class="arc-split-right-header">角色简介</div>
-          <div class="arc-split-right-body">
-            <n-input
-              v-model:value="form.description"
-              type="textarea"
-              placeholder="补充角色背景、动机和冲突..."
-              :show-count="true"
-            />
-          </div>
-        </div>
-      </div>
-      <div class="arc-modal-footer">
-        <div class="arc-modal-footer-left">
-          <span>{{ form.description.length }} 字</span>
-          <span>{{ form.tags.length }} 个标签</span>
-        </div>
-        <div class="arc-modal-footer-right">
-          <n-button round strong @click="editorVisible = false">取消</n-button>
-          <n-button round strong :loading="enhanceLoading" @click="handleAiEnhance">
-            <template #icon><Sparkles :size="14" /></template>
-            AI 补充
-          </n-button>
-          <n-button type="primary" round strong @click="submitCharacter">
-            {{ editingCharacterId ? '保存修改' : '创建角色' }}
-          </n-button>
-        </div>
-      </div>
-
-      <template #footer>
-        <span />
-      </template>
-    </n-modal>
-
-    <AiEnhancePreview
-      :show="enhanceVisible"
-      :fields="enhanceFields"
-      :loading="enhanceLoading"
-      @apply="handleEnhanceApply"
-      @close="enhanceVisible = false"
+      :character="editingCharacter"
+      @update:show="editorVisible = $event"
     />
   </section>
 </template>

@@ -3,7 +3,7 @@
 // - 由 v1.23 sceneprop 阶段在 RelationsPanel.vue 落地的场景/道具编辑器、列表、图谱等代码完整提取
 // - 仅接受项目内场景/道具的 CRUD + 视图切换 + 跨实体图谱
 // - 不再保留与角色图谱其他段（组织 / 关系 / 归属）的耦合
-import { computed, reactive, ref } from 'vue'
+import { computed, ref } from 'vue'
 import {
   Building2,
   ChevronDown,
@@ -19,15 +19,15 @@ import {
   UserRoundCog,
   Users
 } from 'lucide-vue-next'
-import { NButton, NCheckbox, NDropdown, NDynamicTags, NForm, NFormItem, NInput, NModal, NSelect, useDialog, useMessage } from 'naive-ui'
-import type { DropdownOption, SelectOption } from 'naive-ui'
+import { NButton, NInput, useDialog, useMessage } from 'naive-ui'
 import RelationsGraphView from '@/components/RelationsGraphView.vue'
 import ScenePropCard from '@/components/ScenePropCard.vue'
+import SceneLocationEditModal from '@/components/entityEdit/SceneLocationEditModal.vue'
+import PropItemEditModal from '@/components/entityEdit/PropItemEditModal.vue'
 import FeatureHelp from '@/components/FeatureHelp.vue'
 import { buildRelationsGraphData } from '@/features/relations/graph'
-import { themePresets } from '@/theme/presets'
 import { useAppStore } from '@/stores/app'
-import type { CharacterTag, PropItem, SceneLocation } from '@/types/app'
+import type { PropItem, SceneLocation } from '@/types/app'
 import { useBatchSelection } from '@/composables/useBatchSelection'
 import { useIncrementalList } from '@/composables/useIncrementalList'
 import BatchSelectionBar from './BatchSelectionBar.vue'
@@ -59,27 +59,8 @@ const relationsGraph = computed(() =>
   })
 )
 
-const sceneOptions = computed(() =>
-  appStore.sceneLocations.map((scene) => ({ label: scene.name, value: scene.id }))
-)
-const propOptions = computed(() =>
-  appStore.propItems.map((prop) => ({ label: prop.name, value: prop.id }))
-)
 const sceneMap = computed(() => new Map(appStore.sceneLocations.map((scene) => [scene.id, scene])))
 const propMap = computed(() => new Map(appStore.propItems.map((prop) => [prop.id, prop])))
-const characterOptions = computed(() =>
-  appStore.characters.map((character) => ({
-    label: character.name,
-    value: character.id
-  }))
-)
-
-const SCENE_TYPE_OPTIONS: SelectOption[] = ['城市', '建筑', '自然地形', '室内', '异空间'].map((type) => ({ label: type, value: type }))
-const PROP_TYPE_OPTIONS: SelectOption[] = ['武器', '信物', '法器', '消耗品', '线索物'].map((type) => ({ label: type, value: type }))
-const ENTITY_COLOR_OPTIONS: SelectOption[] = [
-  { label: '跟随主题（默认）', value: '' },
-  ...themePresets.map((preset) => ({ label: preset.label, value: preset.primary }))
-]
 
 const listSections = computed(() => [
   {
@@ -148,40 +129,11 @@ const relationListResetKey = computed(() => `${mergedQuery.value}\u0000${activeL
 const visibleScenes = useIncrementalList(filteredScenes, relationListResetKey)
 const visibleProps = useIncrementalList(filteredProps, relationListResetKey)
 
-// --- 场景编辑器状态 ---
+// --- 场景 / 道具编辑器状态（表单与保存逻辑由抽取出的可复用弹窗自持） ---
 const sceneEditorVisible = ref(false)
-const editingSceneId = ref<string | null>(null)
-const sceneForm = reactive({
-  name: '',
-  type: '',
-  description: '',
-  tags: [] as string[],
-  color: '',
-  relatedCharacterIds: [] as string[],
-  relatedPropIds: [] as string[]
-})
-
-// --- 道具编辑器状态 ---
+const editingScene = ref<SceneLocation | null>(null)
 const propEditorVisible = ref(false)
-const editingPropId = ref<string | null>(null)
-const propForm = reactive({
-  name: '',
-  type: '',
-  description: '',
-  ownerCharacterId: '',
-  tags: [] as string[],
-  color: '',
-  relatedSceneIds: [] as string[],
-  relatedCharacterIds: [] as string[]
-})
-
-/** 将 NDynamicTags 的字符串标签转为 CharacterTag 结构 */
-function toEntityTags(labels: string[]): CharacterTag[] {
-  return labels
-    .map((label) => String(label).trim())
-    .filter(Boolean)
-    .map((label) => ({ label }))
-}
+const editingProp = ref<PropItem | null>(null)
 
 /** 场景卡片的关联摘要文案 */
 function sceneRelationSummary(scene: { characterNames: string[]; propNames: string[] }): string {
@@ -199,74 +151,10 @@ function propRelationSummary(prop: { sceneNames: string[]; characterNames: strin
   return parts.join(' · ')
 }
 
-/** 保存道具时将关联场景写入对应场景的 relatedPropIds（双侧镜像同步） */
-function syncPropScenes(propId: string, sceneIds: string[]): void {
-  const nextSceneIds = new Set(sceneIds)
-  appStore.sceneLocations.forEach((scene) => {
-    const linked = scene.relatedPropIds.includes(propId)
-    const shouldLink = nextSceneIds.has(scene.id)
-    if (shouldLink && !linked) {
-      appStore.updateSceneLocation(scene.id, { relatedPropIds: [...scene.relatedPropIds, propId] })
-    } else if (!shouldLink && linked) {
-      appStore.updateSceneLocation(scene.id, { relatedPropIds: scene.relatedPropIds.filter((id) => id !== propId) })
-    }
-  })
-}
-
-/** 保存场景时将关联道具写入对应道具的 relatedSceneIds（双侧镜像同步） */
-function syncSceneProps(sceneId: string, propIds: string[]): void {
-  const nextPropIds = new Set(propIds)
-  appStore.propItems.forEach((prop) => {
-    const linked = prop.relatedSceneIds.includes(sceneId)
-    const shouldLink = nextPropIds.has(prop.id)
-    if (shouldLink && !linked) {
-      appStore.updatePropItem(prop.id, { relatedSceneIds: [...prop.relatedSceneIds, sceneId] })
-    } else if (!shouldLink && linked) {
-      appStore.updatePropItem(prop.id, { relatedSceneIds: prop.relatedSceneIds.filter((id) => id !== sceneId) })
-    }
-  })
-}
-
+/** 打开场景编辑弹窗：传入场景为编辑，不传为新建（表单状态由弹窗自持） */
 function openSceneEditor(scene?: SceneLocation): void {
-  editingSceneId.value = scene?.id ?? null
-  sceneForm.name = scene?.name ?? ''
-  sceneForm.type = scene?.type ?? '城市'
-  sceneForm.description = scene?.description ?? ''
-  sceneForm.tags = scene?.tags.map((tag) => tag.label) ?? []
-  sceneForm.color = scene?.color ?? ''
-  sceneForm.relatedCharacterIds = [...(scene?.relatedCharacterIds ?? [])]
-  sceneForm.relatedPropIds = [...(scene?.relatedPropIds ?? [])]
+  editingScene.value = scene ?? null
   sceneEditorVisible.value = true
-}
-
-function submitScene(): void {
-  const name = sceneForm.name.trim()
-  if (!name) {
-    message.warning('请填写场景名称')
-    return
-  }
-
-  const payload: Partial<SceneLocation> = {
-    name,
-    type: sceneForm.type.trim() || '城市',
-    description: sceneForm.description.trim(),
-    tags: toEntityTags(sceneForm.tags),
-    color: sceneForm.color,
-    relatedCharacterIds: sceneForm.relatedCharacterIds,
-    relatedPropIds: sceneForm.relatedPropIds
-  }
-
-  if (editingSceneId.value) {
-    appStore.updateSceneLocation(editingSceneId.value, payload)
-    syncSceneProps(editingSceneId.value, sceneForm.relatedPropIds)
-    message.success('场景信息已更新')
-  } else {
-    const sceneId = appStore.createSceneLocation(payload)
-    syncSceneProps(sceneId, sceneForm.relatedPropIds)
-    message.success('已新增场景')
-  }
-
-  sceneEditorVisible.value = false
 }
 
 function confirmDeleteScene(scene: { id: string; name: string }): void {
@@ -284,48 +172,10 @@ function confirmDeleteScene(scene: { id: string; name: string }): void {
   })
 }
 
+/** 打开道具编辑弹窗：传入道具为编辑，不传为新建（表单状态由弹窗自持） */
 function openPropEditor(prop?: PropItem): void {
-  editingPropId.value = prop?.id ?? null
-  propForm.name = prop?.name ?? ''
-  propForm.type = prop?.type ?? '信物'
-  propForm.description = prop?.description ?? ''
-  propForm.ownerCharacterId = prop?.ownerCharacterId ?? ''
-  propForm.tags = prop?.tags.map((tag) => tag.label) ?? []
-  propForm.color = prop?.color ?? ''
-  propForm.relatedSceneIds = [...(prop?.relatedSceneIds ?? [])]
-  propForm.relatedCharacterIds = [...(prop?.relatedCharacterIds ?? [])]
+  editingProp.value = prop ?? null
   propEditorVisible.value = true
-}
-
-function submitProp(): void {
-  const name = propForm.name.trim()
-  if (!name) {
-    message.warning('请填写道具名称')
-    return
-  }
-
-  const payload: Partial<PropItem> = {
-    name,
-    type: propForm.type.trim() || '信物',
-    description: propForm.description.trim(),
-    ownerCharacterId: propForm.ownerCharacterId,
-    tags: toEntityTags(propForm.tags),
-    color: propForm.color,
-    relatedSceneIds: propForm.relatedSceneIds,
-    relatedCharacterIds: propForm.relatedCharacterIds
-  }
-
-  if (editingPropId.value) {
-    appStore.updatePropItem(editingPropId.value, payload)
-    syncPropScenes(editingPropId.value, propForm.relatedSceneIds)
-    message.success('道具信息已更新')
-  } else {
-    const propId = appStore.createPropItem(payload)
-    syncPropScenes(propId, propForm.relatedSceneIds)
-    message.success('已新增道具')
-  }
-
-  propEditorVisible.value = false
 }
 
 function confirmDeleteProp(prop: { id: string; name: string }): void {
@@ -535,106 +385,17 @@ function openGraphNodeEditor(payload: { kind: 'character' | 'organization' | 'sc
       />
     </section>
 
-    <n-modal
+    <SceneLocationEditModal
       :show="sceneEditorVisible"
-      preset="card"
-      class="arc-editor-modal-wide"
-      :title="editingSceneId ? '编辑场景' : '新建场景'"
-      :bordered="false"
-      @close="sceneEditorVisible = false"
-    >
-      <n-form label-placement="top">
-        <div class="form-grid">
-          <n-form-item label="场景名称">
-            <n-input v-model:value="sceneForm.name" placeholder="例如：云顶城 / 落雪谷 / 第七码头" />
-          </n-form-item>
-          <n-form-item label="场景类型">
-            <n-select v-model:value="sceneForm.type" filterable tag :options="SCENE_TYPE_OPTIONS" placeholder="选择或输入场景类型" />
-          </n-form-item>
-        </div>
-        <n-form-item label="场景描述">
-          <n-input
-            v-model:value="sceneForm.description"
-            type="textarea"
-            :autosize="{ minRows: 3, maxRows: 6 }"
-            placeholder="补充地理特征、氛围、势力分布与故事作用..."
-          />
-        </n-form-item>
-        <n-form-item label="关联角色">
-          <n-select v-model:value="sceneForm.relatedCharacterIds" multiple filterable :options="characterOptions" placeholder="选择出现在该场景的角色" />
-        </n-form-item>
-        <n-form-item label="关联道具">
-          <n-select v-model:value="sceneForm.relatedPropIds" multiple filterable :options="propOptions" placeholder="选择位于该场景的重要道具" />
-        </n-form-item>
-        <n-form-item label="标签">
-          <n-dynamic-tags v-model:value="sceneForm.tags" />
-        </n-form-item>
-        <n-form-item label="主色">
-          <n-select v-model:value="sceneForm.color" :options="ENTITY_COLOR_OPTIONS" />
-        </n-form-item>
-      </n-form>
+      :scene="editingScene"
+      @update:show="sceneEditorVisible = $event"
+    />
 
-      <template #footer>
-        <div class="arc-modal-actions">
-          <n-button round strong @click="sceneEditorVisible = false">取消</n-button>
-          <n-button type="primary" round strong @click="submitScene">
-            {{ editingSceneId ? '保存修改' : '创建场景' }}
-          </n-button>
-        </div>
-      </template>
-    </n-modal>
-
-    <n-modal
+    <PropItemEditModal
       :show="propEditorVisible"
-      preset="card"
-      class="arc-editor-modal-wide"
-      :title="editingPropId ? '编辑道具' : '新建道具'"
-      :bordered="false"
-      @close="propEditorVisible = false"
-    >
-      <n-form label-placement="top">
-        <div class="form-grid">
-          <n-form-item label="道具名称">
-            <n-input v-model:value="propForm.name" placeholder="例如：断魂剑 / 传国玉玺 / 引魂灯" />
-          </n-form-item>
-          <n-form-item label="道具类型">
-            <n-select v-model:value="propForm.type" filterable tag :options="PROP_TYPE_OPTIONS" placeholder="选择或输入道具类型" />
-          </n-form-item>
-        </div>
-        <n-form-item label="道具描述">
-          <n-input
-            v-model:value="propForm.description"
-            type="textarea"
-            :autosize="{ minRows: 3, maxRows: 6 }"
-            placeholder="补充道具外观、用途、来源与剧情中的作用..."
-          />
-        </n-form-item>
-        <n-form-item label="持有者">
-          <n-select v-model:value="propForm.ownerCharacterId" clearable filterable :options="characterOptions" placeholder="选择主要持有者" />
-        </n-form-item>
-        <n-form-item label="关联场景">
-          <n-select v-model:value="propForm.relatedSceneIds" multiple filterable :options="sceneOptions" placeholder="选择道具位于/出现于的场景" />
-        </n-form-item>
-        <n-form-item label="关联角色">
-          <n-select v-model:value="propForm.relatedCharacterIds" multiple filterable :options="characterOptions" placeholder="选择其他关联角色（不含持有者）" />
-        </n-form-item>
-        <n-form-item label="标签">
-          <n-dynamic-tags v-model:value="propForm.tags" />
-        </n-form-item>
-        <n-form-item label="主色">
-          <n-select v-model:value="propForm.color" :options="ENTITY_COLOR_OPTIONS" />
-        </n-form-item>
-      </n-form>
-
-      <template #footer>
-        <div class="arc-modal-actions">
-          <n-button round strong @click="propEditorVisible = false">取消</n-button>
-          <n-button type="primary" round strong @click="submitProp">
-            {{ editingPropId ? '保存修改' : '创建道具' }}
-          </n-button>
-        </div>
-      </template>
-    </n-modal>
+      :prop="editingProp"
+      @update:show="propEditorVisible = $event"
+    />
   </section>
 </template>
 
@@ -753,23 +514,7 @@ function openGraphNodeEditor(payload: { kind: 'character' | 'organization' | 'sc
   background: var(--arc-bg-surface);
 }
 
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
-.arc-modal-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
 @media (max-width: 720px) {
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
   .section-tools {
     flex-wrap: wrap;
   }
