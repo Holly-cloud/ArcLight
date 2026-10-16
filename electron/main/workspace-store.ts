@@ -460,6 +460,7 @@ export async function ensureWorkspaceDb(options: {
       editor_font TEXT NOT NULL DEFAULT 'clear-mono',
       ui_scale REAL NOT NULL DEFAULT 1,
       workspace_menu_order_json TEXT NOT NULL DEFAULT '[]',
+      hidden_workbench_modules_json TEXT NOT NULL DEFAULT '[]',
       dark_mode INTEGER NOT NULL DEFAULT 0,
       dark_mode_style TEXT NOT NULL DEFAULT 'standard'
     ) STRICT;
@@ -644,6 +645,10 @@ function ensureAppSettingsColumns(db: DatabaseSync): void {
 
   if (!columnNames.has('workspace_menu_order_json')) {
     db.exec(`ALTER TABLE app_settings ADD COLUMN workspace_menu_order_json TEXT NOT NULL DEFAULT '[]';`)
+  }
+
+  if (!columnNames.has('hidden_workbench_modules_json')) {
+    db.exec(`ALTER TABLE app_settings ADD COLUMN hidden_workbench_modules_json TEXT NOT NULL DEFAULT '[]';`)
   }
 }
 
@@ -969,7 +974,7 @@ export function readWorkspaceSnapshot(
   if (projects.length === 0) {
     const settings = db.prepare(`
       SELECT theme, selected_project_id AS selectedProjectId, provider, api_key AS apiKey, base_url AS baseUrl, proxy_url AS proxyUrl, temperature, top_p AS topP, presence_penalty AS presencePenalty, frequency_penalty AS frequencyPenalty, auto_save_interval AS autoSaveInterval, editor_font AS editorFont
-      , model, ai_profiles_json AS aiProfilesJson, active_ai_profile_id AS activeAiProfileId, image_provider AS imageProvider, image_model AS imageModel, image_api_key AS imageApiKey, image_base_url AS imageBaseUrl, ui_scale AS uiScale, workspace_menu_order_json AS workspaceMenuOrderJson, dark_mode AS darkMode, dark_mode_style AS darkModeStyle
+      , model, ai_profiles_json AS aiProfilesJson, active_ai_profile_id AS activeAiProfileId, image_provider AS imageProvider, image_model AS imageModel, image_api_key AS imageApiKey, image_base_url AS imageBaseUrl, ui_scale AS uiScale, workspace_menu_order_json AS workspaceMenuOrderJson, hidden_workbench_modules_json AS hiddenWorkbenchModulesJson, dark_mode AS darkMode, dark_mode_style AS darkModeStyle
       FROM app_settings
       WHERE id = 1
     `).get() as
@@ -995,6 +1000,7 @@ export function readWorkspaceSnapshot(
           editorFont: string
           uiScale: number
           workspaceMenuOrderJson: string
+          hiddenWorkbenchModulesJson: string
           darkMode: number
           darkModeStyle: string
         }
@@ -1112,6 +1118,7 @@ export function readWorkspaceSnapshot(
               editorFont: settings.editorFont,
               uiScale: settings.uiScale,
               workspaceMenuOrder: parseJson(settings.workspaceMenuOrderJson, [] as string[]),
+              hiddenWorkbenchModules: parseJson(settings.hiddenWorkbenchModulesJson, [] as string[]),
               darkMode: Boolean(settings.darkMode)
             })
           }
@@ -1515,7 +1522,7 @@ export function readWorkspaceSnapshot(
 
   const settings = db.prepare(`
     SELECT theme, selected_project_id AS selectedProjectId, provider, api_key AS apiKey, base_url AS baseUrl, proxy_url AS proxyUrl, temperature, top_p AS topP, presence_penalty AS presencePenalty, frequency_penalty AS frequencyPenalty, auto_save_interval AS autoSaveInterval, editor_font AS editorFont
-    , model, ai_profiles_json AS aiProfilesJson, active_ai_profile_id AS activeAiProfileId, image_provider AS imageProvider, image_model AS imageModel, image_api_key AS imageApiKey, image_base_url AS imageBaseUrl, ui_scale AS uiScale, workspace_menu_order_json AS workspaceMenuOrderJson, dark_mode AS darkMode, dark_mode_style AS darkModeStyle
+    , model, ai_profiles_json AS aiProfilesJson, active_ai_profile_id AS activeAiProfileId, image_provider AS imageProvider, image_model AS imageModel, image_api_key AS imageApiKey, image_base_url AS imageBaseUrl, ui_scale AS uiScale, workspace_menu_order_json AS workspaceMenuOrderJson, hidden_workbench_modules_json AS hiddenWorkbenchModulesJson, dark_mode AS darkMode, dark_mode_style AS darkModeStyle
     FROM app_settings
     WHERE id = 1
   `).get() as
@@ -1541,6 +1548,7 @@ export function readWorkspaceSnapshot(
         editorFont: string
         uiScale: number
         workspaceMenuOrderJson: string
+        hiddenWorkbenchModulesJson: string
         darkMode: number
         darkModeStyle: string
       }
@@ -1677,6 +1685,7 @@ export function readWorkspaceSnapshot(
         editorFont: settings.editorFont,
         uiScale: settings.uiScale,
         workspaceMenuOrder: parseJson(settings.workspaceMenuOrderJson, [] as string[]),
+        hiddenWorkbenchModules: parseJson(settings.hiddenWorkbenchModulesJson, [] as string[]),
         darkMode: Boolean(settings.darkMode)
       })
     },
@@ -2305,8 +2314,8 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
     }
 
     db.prepare(`
-    INSERT OR REPLACE INTO app_settings (id, theme, selected_project_id, provider, model, api_key, base_url, proxy_url, temperature, top_p, presence_penalty, frequency_penalty, ai_profiles_json, active_ai_profile_id, image_provider, image_model, image_api_key, image_base_url, auto_save_interval, editor_font, ui_scale, workspace_menu_order_json, dark_mode, dark_mode_style)
-    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR REPLACE INTO app_settings (id, theme, selected_project_id, provider, model, api_key, base_url, proxy_url, temperature, top_p, presence_penalty, frequency_penalty, ai_profiles_json, active_ai_profile_id, image_provider, image_model, image_api_key, image_base_url, auto_save_interval, editor_font, ui_scale, workspace_menu_order_json, hidden_workbench_modules_json, dark_mode, dark_mode_style)
+    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       payload.theme,
       payload.selectedProjectId,
@@ -2329,6 +2338,7 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
       normalizedAppSettings.editorFont,
       normalizedAppSettings.uiScale,
       JSON.stringify(normalizedAppSettings.workspaceMenuOrder),
+      JSON.stringify(normalizedAppSettings.hiddenWorkbenchModules ?? []),
       normalizedAppSettings.darkMode ? 1 : 0,
       normalizedAppSettings.darkModeStyle
     )
@@ -2386,8 +2396,8 @@ export function writeAppSettingsRow(
 ): void {
   const normalized = normalizeAppSettings(settings)
   db.prepare(`
-    INSERT INTO app_settings (id, theme, selected_project_id, provider, model, api_key, base_url, proxy_url, temperature, top_p, presence_penalty, frequency_penalty, ai_profiles_json, active_ai_profile_id, image_provider, image_model, image_api_key, image_base_url, auto_save_interval, editor_font, ui_scale, workspace_menu_order_json, dark_mode, dark_mode_style)
-    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO app_settings (id, theme, selected_project_id, provider, model, api_key, base_url, proxy_url, temperature, top_p, presence_penalty, frequency_penalty, ai_profiles_json, active_ai_profile_id, image_provider, image_model, image_api_key, image_base_url, auto_save_interval, editor_font, ui_scale, workspace_menu_order_json, hidden_workbench_modules_json, dark_mode, dark_mode_style)
+    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       theme = excluded.theme,
       selected_project_id = excluded.selected_project_id,
@@ -2410,6 +2420,7 @@ export function writeAppSettingsRow(
       editor_font = excluded.editor_font,
       ui_scale = excluded.ui_scale,
       workspace_menu_order_json = excluded.workspace_menu_order_json,
+      hidden_workbench_modules_json = excluded.hidden_workbench_modules_json,
       dark_mode = excluded.dark_mode,
       dark_mode_style = excluded.dark_mode_style
   `).run(
@@ -2434,6 +2445,7 @@ export function writeAppSettingsRow(
     normalized.editorFont,
     normalized.uiScale,
     JSON.stringify(normalized.workspaceMenuOrder),
+    JSON.stringify(normalized.hiddenWorkbenchModules ?? []),
     normalized.darkMode ? 1 : 0,
     normalized.darkModeStyle
   )

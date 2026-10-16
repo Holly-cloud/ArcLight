@@ -254,6 +254,7 @@ export const defaultAppSettings: AppSettings = {
   editorFont: DEFAULT_EDITOR_FONT,
   uiScale: 1,
   workspaceMenuOrder: normalizeWorkbenchMenuOrder(),
+  hiddenWorkbenchModules: [],
   darkMode: false,
   darkModeStyle: 'nord',
   aiTimeoutSeconds: 180
@@ -434,6 +435,12 @@ export function normalizeAppSettings(settings?: Partial<AppSettings> | null): Ap
         ? Math.min(1.75, Math.max(0.75, source.uiScale))
         : defaultAppSettings.uiScale,
     workspaceMenuOrder: normalizeWorkbenchMenuOrder(source.workspaceMenuOrder),
+    hiddenWorkbenchModules: Array.isArray(source.hiddenWorkbenchModules)
+      ? Array.from(new Set(source.hiddenWorkbenchModules
+          .filter((id): id is string => typeof id === 'string')
+          .map((id) => id.trim())
+          .filter(Boolean)))
+      : [],
     darkMode: typeof source.darkMode === 'boolean' ? source.darkMode : defaultAppSettings.darkMode,
     darkModeStyle: source.darkModeStyle === 'nord' ? 'nord' : defaultAppSettings.darkModeStyle,
     aiTimeoutSeconds:

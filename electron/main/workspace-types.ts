@@ -421,6 +421,8 @@ export type WorkspacePayload = {
     editorFont: string
     uiScale: number
     workspaceMenuOrder: string[]
+    /** 侧栏隐藏的创作模块 ID 列表（全局设置，所有项目同步） */
+    hiddenWorkbenchModules: string[]
     darkMode: boolean
     darkModeStyle: string
   }
@@ -657,6 +659,12 @@ export function normalizeAppSettings(
     uiScale,
     workspaceMenuOrder: Array.isArray(settings?.workspaceMenuOrder)
       ? [...new Set(settings.workspaceMenuOrder
+          .filter((item): item is string => typeof item === 'string')
+          .map((item) => item.trim())
+          .filter(Boolean))]
+      : [],
+    hiddenWorkbenchModules: Array.isArray(settings?.hiddenWorkbenchModules)
+      ? [...new Set(settings.hiddenWorkbenchModules
           .filter((item): item is string => typeof item === 'string')
           .map((item) => item.trim())
           .filter(Boolean))]

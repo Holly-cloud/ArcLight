@@ -99,9 +99,16 @@ const sidebarItemCatalog = WORKBENCH_MENU_DEFINITIONS.map((item) => ({
   ...sidebarItemPresentation[item.id]
 }))
 
+// 当前被隐藏的创作模块 ID 集合（全局设置；顺序与隐藏是两回事，仅用于过滤渲染）
+const hiddenWorkbenchModuleIds = computed(
+  () => new Set(appStore.appSettings.hiddenWorkbenchModules ?? [])
+)
+
 const sidebarItems = computed(() => {
   const itemById = new Map(sidebarItemCatalog.map((item) => [item.id, item]))
+  const hidden = hiddenWorkbenchModuleIds.value
   return normalizeWorkbenchMenuOrder(appStore.appSettings.workspaceMenuOrder)
+    .filter((id) => !hidden.has(id))
     .map((id) => itemById.get(id))
     .filter((item): item is typeof sidebarItemCatalog[number] => Boolean(item))
 })

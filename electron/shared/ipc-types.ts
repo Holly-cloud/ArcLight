@@ -32,6 +32,8 @@ export interface AppSettingsPayload {
   autoSaveInterval: string
   uiScale: number
   workspaceMenuOrder: string[]
+  /** 侧栏隐藏的创作模块 ID 列表（全局设置） */
+  hiddenWorkbenchModules?: string[]
   darkMode: boolean
   darkModeStyle: string
 }

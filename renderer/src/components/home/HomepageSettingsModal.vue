@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { ArrowDown, ArrowUp, Copy, Cpu, DatabaseBackup, Download, GripVertical, Image, MonitorCog, Moon, Network, Palette, PlugZap, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-vue-next'
-import { NButton, NFormItem, NInput, NInputNumber, NModal, NSelect, NSwitch, useMessage } from 'naive-ui'
+import { NButton, NCheckbox, NFormItem, NInput, NInputNumber, NModal, NSelect, NSwitch, useMessage } from 'naive-ui'
 import { autoSaveOptions } from '@/features/settings/autoSave'
 import { getProviderPreset, providerOptions, resolveProviderDefaults } from '@/features/settings/providerPresets'
 import { imageProviderOptions, resolveImageProviderDefaults } from '@/features/settings/imageProviderPresets'
@@ -88,6 +88,7 @@ const draftSettings = reactive<AppSettings>({
   editorFont: 'clear-mono',
   uiScale: 1,
   workspaceMenuOrder: [...DEFAULT_WORKBENCH_MENU_ORDER],
+  hiddenWorkbenchModules: [],
   darkMode: false,
   darkModeStyle: 'nord',
   aiTimeoutSeconds: 180
@@ -193,6 +194,7 @@ const hasPendingChanges = computed(() =>
   || draftSettings.editorFont !== appStore.appSettings.editorFont
   || draftSettings.uiScale !== appStore.appSettings.uiScale
   || JSON.stringify(draftSettings.workspaceMenuOrder) !== JSON.stringify(appStore.appSettings.workspaceMenuOrder)
+  || JSON.stringify([...draftSettings.hiddenWorkbenchModules].sort()) !== JSON.stringify([...appStore.appSettings.hiddenWorkbenchModules].sort())
   || draftSettings.darkMode !== appStore.appSettings.darkMode
   || draftSettings.darkModeStyle !== appStore.appSettings.darkModeStyle
   || draftSettings.aiTimeoutSeconds !== appStore.appSettings.aiTimeoutSeconds
@@ -222,6 +224,7 @@ function syncDraftFromStore(): void {
   draftSettings.editorFont = appStore.appSettings.editorFont
   draftSettings.uiScale = appStore.appSettings.uiScale
   draftSettings.workspaceMenuOrder = normalizeWorkbenchMenuOrder(appStore.appSettings.workspaceMenuOrder)
+  draftSettings.hiddenWorkbenchModules = [...appStore.appSettings.hiddenWorkbenchModules]
   draftSettings.darkMode = appStore.appSettings.darkMode
   draftSettings.darkModeStyle = appStore.appSettings.darkModeStyle
   draftSettings.aiTimeoutSeconds = appStore.appSettings.aiTimeoutSeconds
@@ -251,6 +254,19 @@ function shiftMenuItem(menuId: WorkbenchMenuId, offset: -1 | 1): void {
 function resetMenuOrder(): void {
   draftSettings.workspaceMenuOrder = [...DEFAULT_WORKBENCH_MENU_ORDER]
   menuOrderAnnouncement.value = '已恢复默认菜单顺序'
+}
+
+/** 切换草稿中某个创作模块的显隐（勾选=显示）；隐藏写入 hiddenWorkbenchModules。 */
+function toggleDraftModuleVisibility(menuId: WorkbenchMenuId, visible: boolean): void {
+  const hidden = new Set(draftSettings.hiddenWorkbenchModules ?? [])
+  if (visible) hidden.delete(menuId)
+  else hidden.add(menuId)
+  draftSettings.hiddenWorkbenchModules = [...hidden]
+}
+
+/** 一键恢复为全部可见（清空隐藏清单）。 */
+function resetModuleVisibility(): void {
+  draftSettings.hiddenWorkbenchModules = []
 }
 
 function handleMenuDragStart(event: DragEvent, menuId: WorkbenchMenuId): void {
@@ -1016,6 +1032,34 @@ async function saveSettings(): Promise<void> {
             </ol>
             <span class="menu-order-announcement" aria-live="polite">{{ menuOrderAnnouncement }}</span>
           </div>
+          <div class="module-visibility-block">
+            <div class="menu-order-heading">
+              <div class="menu-order-title">
+                <span>创作模块可见性</span>
+                <span class="menu-order-count">已隐藏 {{ draftSettings.hiddenWorkbenchModules.length }} / {{ orderedWorkbenchMenuItems.length }}</span>
+              </div>
+              <button
+                type="button"
+                class="menu-order-reset"
+                title="全部显示"
+                aria-label="恢复全部创作模块可见"
+                @click="resetModuleVisibility"
+              >
+                <RotateCcw :size="15" />
+              </button>
+            </div>
+            <p class="module-visibility-hint">取消勾选即可隐藏侧栏中的创作模块；隐藏为全局设置，对所有项目生效。</p>
+            <div class="module-visibility-grid">
+              <n-checkbox
+                v-for="item in orderedWorkbenchMenuItems"
+                :key="item.id"
+                :checked="!draftSettings.hiddenWorkbenchModules.includes(item.id)"
+                @update:checked="(value) => toggleDraftModuleVisibility(item.id, value)"
+              >
+                {{ item.label }}
+              </n-checkbox>
+            </div>
+          </div>
           <div class="dark-mode-row">
             <div class="dark-mode-label">
               <Moon :size="15" />
@@ -1201,6 +1245,31 @@ async function saveSettings(): Promise<void> {
   margin-top: 18px;
   padding-top: 18px;
   border-top: 1px solid var(--arc-border);
+}
+
+.module-visibility-block {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--arc-border);
+}
+
+.module-visibility-hint {
+  margin: -2px 0 10px;
+  color: var(--arc-text-hint);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.module-visibility-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+}
+
+@media (max-width: 640px) {
+  .module-visibility-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .menu-order-heading {

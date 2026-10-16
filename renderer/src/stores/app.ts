@@ -3944,6 +3944,28 @@ export const useAppStore = defineStore('app', () => {
     scheduleSettingsPersist(options)
   }
 
+  /**
+   * 设置侧栏隐藏的创作模块 ID 列表（全局设置，所有项目同步），并触发设置持久化。
+   * 传入的 id 会去重与去空；隐藏是「顺序」之外的另一维，不影响 workspaceMenuOrder。
+   */
+  function setHiddenWorkbenchModules(ids: string[]): void {
+    const next = Array.isArray(ids)
+      ? Array.from(new Set(ids.map((id) => String(id).trim()).filter(Boolean)))
+      : []
+    appSettings.value.hiddenWorkbenchModules = next
+    scheduleSettingsPersist({ flushWorkspace: false })
+  }
+
+  /** 切换单个创作模块的显隐：hidden=true 隐藏，hidden=false 显示。 */
+  function toggleWorkbenchModuleVisibility(id: string, hidden: boolean): void {
+    const key = String(id ?? '').trim()
+    if (!key) return
+    const current = new Set(appSettings.value.hiddenWorkbenchModules ?? [])
+    if (hidden) current.add(key)
+    else current.delete(key)
+    setHiddenWorkbenchModules([...current])
+  }
+
   async function saveAppSettingsDraft(nextSettings: AppSettings, nextTheme: ThemeName = theme.value): Promise<boolean> {
     theme.value = nextTheme
     appSettings.value = normalizeAppSettings(nextSettings)
@@ -4750,6 +4772,8 @@ export const useAppStore = defineStore('app', () => {
     setTheme,
     theme,
     updateAppSetting,
+    setHiddenWorkbenchModules,
+    toggleWorkbenchModuleVisibility,
     saveAppSettingsDraft,
     flushAppSettings,
     switchAiProfile,

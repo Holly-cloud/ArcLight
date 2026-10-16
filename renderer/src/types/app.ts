@@ -1034,6 +1034,8 @@ export interface AppSettings {
   uiScale: number
   /** 工作台创作模块的全局菜单顺序，使用稳定菜单 ID */
   workspaceMenuOrder: string[]
+  /** 侧栏隐藏的创作模块 ID 列表（全局设置，所有项目同步） */
+  hiddenWorkbenchModules: string[]
   /**
    * 工作台 Tab 状态（v1.25 新增）
    * - 持久化到 appSettings（走 scheduleSettingsPersist）
