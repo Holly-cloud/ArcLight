@@ -1,7 +1,7 @@
 /**
  * v1.26.0 资产库聚合页 · 纯函数模型单测
  * - collectAssets：4 类聚合 / key 防冲突 / 关系计数 / 组织只读 color / 缺字段兜底
- * - filterAssets：类型 + 项目范围 + 关键字筛选
+ * - filterAssets：类型 + 关键字筛选（v1.30.0 取消 scope 维度）
  *
  * 运行方式：
  *   $env:ELECTRON_RUN_AS_NODE=1; corepack pnpm exec electron --test renderer/src/features/assetLibrary/assetLibraryModel.test.mjs
@@ -87,34 +87,28 @@ test('collectAssets workspaces 中未登记的项目也会被聚合（title 兜�
   assert.equal(extra.projectName, '')
 })
 
-test('filterAssets 按项目范围筛选：全部 / 当前 / 指定项目', () => {
+test('filterAssets 按类型筛选（v1.30.0 取消 scope 维度）', () => {
   const entries = collectAssets(workspaces, projects, 'p1')
-  assert.equal(filterAssets(entries, { kind: 'all', scope: 'all', query: '' }, 'p1').length, 5)
-  assert.equal(filterAssets(entries, { kind: 'all', scope: 'current', query: '' }, 'p1').length, 4)
-  assert.equal(filterAssets(entries, { kind: 'all', scope: 'p2', query: '' }, 'p1').length, 1)
-})
-
-test('filterAssets 按类型筛选', () => {
-  const entries = collectAssets(workspaces, projects, 'p1')
-  assert.equal(filterAssets(entries, { kind: 'character', scope: 'all', query: '' }, 'p1').length, 2)
-  assert.equal(filterAssets(entries, { kind: 'scene', scope: 'all', query: '' }, 'p1').length, 1)
-  assert.equal(filterAssets(entries, { kind: 'organization', scope: 'all', query: '' }, 'p1').length, 1)
+  assert.equal(filterAssets(entries, { kind: 'all', query: '' }).length, 5)
+  assert.equal(filterAssets(entries, { kind: 'character', query: '' }).length, 2)
+  assert.equal(filterAssets(entries, { kind: 'scene', query: '' }).length, 1)
+  assert.equal(filterAssets(entries, { kind: 'organization', query: '' }).length, 1)
 })
 
 test('filterAssets 关键字命中 name / typeLabel / description / tags（大小写不敏感）', () => {
   const entries = collectAssets(workspaces, projects, 'p1')
-  assert.equal(filterAssets(entries, { kind: 'all', scope: 'all', query: '云顶' }, 'p1').length, 1)
-  assert.equal(filterAssets(entries, { kind: 'all', scope: 'all', query: '武器' }, 'p1').length, 1, '命中 typeLabel')
-  assert.equal(filterAssets(entries, { kind: 'all', scope: 'all', query: '热血' }, 'p1').length, 1, '命中 tags')
-  assert.equal(filterAssets(entries, { kind: 'all', scope: 'all', query: '神器' }, 'p1').length, 1, '命中 tags')
+  assert.equal(filterAssets(entries, { kind: 'all', query: '云顶' }).length, 1)
+  assert.equal(filterAssets(entries, { kind: 'all', query: '武器' }).length, 1, '命中 typeLabel')
+  assert.equal(filterAssets(entries, { kind: 'all', query: '热血' }).length, 1, '命中 tags')
+  assert.equal(filterAssets(entries, { kind: 'all', query: '神器' }).length, 1, '命中 tags')
 })
 
-test('filterAssets 组合：类型 + 范围 + 关键字', () => {
+test('filterAssets 组合：类型 + 关键字', () => {
   const entries = collectAssets(workspaces, projects, 'p1')
-  const result = filterAssets(entries, { kind: 'scene', scope: 'p1', query: '城市' }, 'p1')
+  const result = filterAssets(entries, { kind: 'scene', query: '城市' })
   assert.equal(result.length, 1)
   assert.equal(result[0].key, 'p1:scene:s1')
-  assert.equal(filterAssets(entries, { kind: 'scene', scope: 'p2', query: '' }, 'p1').length, 0)
+  assert.equal(filterAssets(entries, { kind: 'scene', query: '不存在' }).length, 0)
 })
 
 test('countAssetsByKind 分类计数 + ASSET_KIND_LABELS 4 类齐全', () => {

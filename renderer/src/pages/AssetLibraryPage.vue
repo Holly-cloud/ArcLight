@@ -1,10 +1,11 @@
 <script setup lang="ts">
-// v1.26.0 资产库聚合页：三栏（左分类 / 中卡片网格 / 右详情）
-// - 跨项目浏览 4 类资产（角色 / 道具 / 场景 / 组织）
-// - 「当前项目」可编辑（双击卡片打开抽取出的编辑弹窗）；其余范围只读
+// v1.30.0 资产库聚合页：三栏（左分类 / 中卡片网格 / 右详情）
+// - 只在项目内、唯一入口：仅展示**当前项目**的角色 / 场景 / 道具 / 组织（已废弃跨项目浏览）
+// - 左栏只保留分类（角色 / 场景 / 道具 / 组织），默认落在「角色」，已移除「全部资产」分类
+// - 当前项目资产可编辑（双击卡片打开抽取出的编辑弹窗）
 import { computed, ref } from 'vue'
 import { ArrowLeft, Boxes, CheckSquare, Download, RefreshCw, Search, Sparkles, Trash2 } from 'lucide-vue-next'
-import { NButton, NEmpty, NInput, NPopconfirm, NSelect, NTooltip, useMessage } from 'naive-ui'
+import { NButton, NEmpty, NInput, NPopconfirm, useMessage } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
 import { toIpcPayload } from '@/utils/ipcPayload'
 import AssetLibraryCard from '@/components/assetLibrary/AssetLibraryCard.vue'
@@ -38,60 +39,44 @@ import type { CharacterCard, PropItem, SceneLocation } from '@/types/app'
 const appStore = useAppStore()
 const message = useMessage()
 
-const kind = ref<AssetKind | 'all'>('all')
-const scope = ref<string>(appStore.selectedProjectId ? 'current' : 'all')
+const kind = ref<AssetKind>('character')
 const query = ref('')
 const selectedKey = ref('')
 
+// 聚合当前项目资产（跨项目浏览已废弃，只保留当前项目）
 const allEntries = computed(() =>
   collectAssets(appStore.projectWorkspaces, appStore.projects, appStore.selectedProjectId)
 )
 
-const projectOptions = computed(() => [
-  { label: '全部项目', value: 'all' },
-  { label: '当前项目', value: 'current' },
-  ...appStore.projects.map((project) => ({ label: project.title, value: project.id }))
-])
-
-// 当前项目范围下的全部资产（用于空态判断）
-const currentProjectAssets = computed(() =>
+const currentProjectEntries = computed(() =>
   allEntries.value.filter((entry) => entry.projectId === appStore.selectedProjectId)
 )
 
-// 应用项目范围 + 关键字后的资产（忽略类型筛选，供左栏分类计数）
-const scopedEntries = computed(() =>
-  filterAssets(allEntries.value, { kind: 'all', scope: scope.value, query: query.value }, appStore.selectedProjectId)
+// 应用关键字后的当前项目资产（忽略类型筛选，供左栏分类计数）
+const queryMatched = computed(() =>
+  filterAssets(currentProjectEntries.value, { kind: 'all', query: query.value })
 )
 
-const counts = computed(() => countAssetsByKind(scopedEntries.value))
+const counts = computed(() => countAssetsByKind(queryMatched.value))
 
-const categoryItems = computed(() => [
-  { key: 'all' as const, label: '全部资产', count: counts.value.all },
-  ...ASSET_KINDS.map((assetKind) => ({
-    key: assetKind,
-    label: ASSET_KIND_LABELS[assetKind],
-    count: counts.value[assetKind]
-  }))
-])
+const categoryItems = computed(() => ASSET_KINDS.map((assetKind) => ({
+  key: assetKind,
+  label: ASSET_KIND_LABELS[assetKind],
+  count: counts.value[assetKind]
+})))
 
 const visibleEntries = computed(() =>
-  kind.value === 'all'
-    ? scopedEntries.value
-    : scopedEntries.value.filter((entry) => entry.kind === kind.value)
+  queryMatched.value.filter((entry) => entry.kind === kind.value)
 )
 
 const selectedEntry = computed<AssetEntry | null>(
-  () => allEntries.value.find((entry) => entry.key === selectedKey.value) ?? null
+  () => currentProjectEntries.value.find((entry) => entry.key === selectedKey.value) ?? null
 )
 
-const readOnly = computed(() => scope.value !== 'current')
-const canEdit = computed(() => !readOnly.value)
-
-const hasAnyAssets = computed(() => allEntries.value.length > 0)
 const emptyDescription = computed(() =>
-  hasAnyAssets.value ? '当前筛选下没有匹配的资产' : '还没有可浏览的资产'
+  currentProjectEntries.value.length ? '当前筛选下没有匹配的资产' : '当前项目还没有资产'
 )
-const showCreateAction = computed(() => scope.value === 'current' && currentProjectAssets.value.length === 0)
+const showCreateAction = computed(() => currentProjectEntries.value.length === 0)
 
 // --- 编辑弹窗 ---
 const characterModalVisible = ref(false)
@@ -101,16 +86,8 @@ const editingScene = ref<SceneLocation | null>(null)
 const propModalVisible = ref(false)
 const editingProp = ref<PropItem | null>(null)
 
-function canEditEntry(entry: AssetEntry): boolean {
-  return !readOnly.value && entry.projectId === appStore.selectedProjectId
-}
-
 function handleOpen(entry: AssetEntry): void {
   if (selectionMode.value) return
-  if (!canEditEntry(entry)) {
-    message.info('只读模式：切换到「当前项目」后可编辑')
-    return
-  }
   if (entry.kind === 'character') {
     const character = appStore.characters.find((item) => item.id === entry.id)
     if (!character) return
@@ -133,8 +110,8 @@ function handleOpen(entry: AssetEntry): void {
 
 function handleSelect(entry: AssetEntry): void {
   if (selectionMode.value) {
-    if (entry.projectId !== appStore.selectedProjectId || entry.kind === 'organization') {
-      message.info('仅当前项目的角色 / 场景 / 道具支持「再次提取」')
+    if (entry.kind === 'organization') {
+      message.info('仅角色 / 场景 / 道具支持「再次提取」')
       return
     }
     toggleSelection(entry.key)
@@ -145,7 +122,7 @@ function handleSelect(entry: AssetEntry): void {
 
 // --- 多选 + 再次提取（v1.28.0）---
 const selectableKeys = computed(() => visibleEntries.value
-  .filter((entry) => entry.projectId === appStore.selectedProjectId && entry.kind !== 'organization')
+  .filter((entry) => entry.kind !== 'organization')
   .map((entry) => entry.key))
 
 const {
@@ -163,10 +140,6 @@ const selectedCount = computed(() => selectedEntries.value.length)
 const canReextract = computed(() => selectedCount.value > 0)
 
 function toggleMultiSelect(): void {
-  if (!selectionMode.value && readOnly.value) {
-    message.info('只读模式：切换到「当前项目」后可多选再提取')
-    return
-  }
   toggleSelectionMode()
 }
 
@@ -174,24 +147,12 @@ function toggleMultiSelect(): void {
 const wizardVisible = ref(false)
 
 function openWizard(): void {
-  if (scope.value !== 'current') {
-    message.info('请切换到「当前项目」范围后使用「从小说提取资产」')
-    return
-  }
   wizardVisible.value = true
 }
 
 // --- 一键清空当前项目资产（v1.29.0）---
-/** 非当前项目范围点击时给出明确指引（popconfirm 已禁用，不会弹确认框）。 */
-function onClearAssetsClick(): void {
-  if (scope.value !== 'current') {
-    message.info('请切换到「当前项目」范围后再清空资产')
-  }
-}
-
 /** 清空当前项目的角色 / 场景 / 道具（组织保留）；不可撤销，已由弹窗二次确认。 */
 function handleClearAssets(): void {
-  if (scope.value !== 'current') return
   appStore.clearProjectAssets()
   clearSelection()
   selectedKey.value = ''
@@ -276,7 +237,7 @@ async function handleReextract(): Promise<void> {
     .map(buildTarget)
     .filter((target): target is ReextractTarget => target !== null)
   if (!targets.length) {
-    message.warning('请选择当前项目的角色 / 场景 / 道具后再试')
+    message.warning('请选择角色 / 场景 / 道具后再试')
     return
   }
 
@@ -412,19 +373,13 @@ const exportDialogVisible = ref(false)
         <h1 class="header-title"><Boxes :size="22" />资产库</h1>
       </div>
       <div class="header-tools">
-        <n-select v-model:value="scope" class="scope-select" :options="projectOptions" />
         <n-input v-model:value="query" class="library-search" placeholder="搜索名称、标签或描述" clearable>
           <template #prefix><Search :size="16" /></template>
         </n-input>
-        <n-tooltip :disabled="scope === 'current'" trigger="hover">
-          <template #trigger>
-            <n-button :disabled="scope !== 'current'" @click="openWizard">
-              <template #icon><Sparkles :size="15" /></template>
-              从小说提取资产
-            </n-button>
-          </template>
-          仅在「当前项目」范围可用，请先切换范围
-        </n-tooltip>
+        <n-button @click="openWizard">
+          <template #icon><Sparkles :size="15" /></template>
+          从小说提取资产
+        </n-button>
         <n-button v-if="!selectionMode" :disabled="selectableKeys.length === 0" @click="toggleMultiSelect">
           <template #icon><CheckSquare :size="15" /></template>
           多选
@@ -447,9 +402,9 @@ const exportDialogVisible = ref(false)
           <template #icon><Download :size="15" /></template>
           导出资产参考表
         </n-button>
-        <n-popconfirm :disabled="scope !== 'current'" @positive-click="handleClearAssets">
+        <n-popconfirm @positive-click="handleClearAssets">
           <template #trigger>
-            <n-button @click="onClearAssetsClick">
+            <n-button>
               <template #icon><Trash2 :size="15" /></template>
               清空资产
             </n-button>
@@ -480,7 +435,7 @@ const exportDialogVisible = ref(false)
       <main class="library-grid-wrapper">
         <div v-if="selectionMode" class="selection-hint">
           <CheckSquare :size="14" />
-          <span>多选模式：点击卡片切换选中（仅当前项目的角色 / 场景 / 道具），已选 {{ selectedCount }} 张</span>
+          <span>多选模式：点击卡片切换选中（仅角色 / 场景 / 道具），已选 {{ selectedCount }} 张</span>
         </div>
         <div v-if="visibleEntries.length" class="asset-grid">
           <AssetLibraryCard
@@ -488,7 +443,6 @@ const exportDialogVisible = ref(false)
             :key="entry.key"
             :entry="entry"
             :selected="entry.key === selectedKey"
-            :readonly="readOnly"
             :multi-select="selectionMode"
             :checked="selectedIds.has(entry.key)"
             @select="handleSelect(entry)"
@@ -546,11 +500,10 @@ const exportDialogVisible = ref(false)
             class="detail-edit-btn"
             type="primary"
             block
-            :disabled="!canEdit"
-            :title="canEdit ? '编辑资产' : '只读模式'"
+            title="编辑资产"
             @click="handleOpen(selectedEntry)"
           >
-            {{ canEdit ? '编辑资产' : '只读模式' }}
+            编辑资产
           </n-button>
         </template>
         <div v-else class="detail-empty">
@@ -630,10 +583,6 @@ const exportDialogVisible = ref(false)
   align-items: center;
   gap: 10px;
   flex-wrap: wrap;
-}
-
-.scope-select {
-  width: 180px;
 }
 
 .library-search {

@@ -63,11 +63,13 @@ export interface AssetEntry {
   visualContext?: VisualContext | null
 }
 
-/** 筛选参数：类型 + 项目范围 + 关键字 */
+/**
+ * 筛选参数：类型 + 关键字。
+ * v1.30.0 收敛为「项目内资产库」，取消跨项目范围维度；资产库页面只对当前项目资产筛选。
+ */
 export interface AssetLibraryFilter {
+  /** 'all' 仅用于内部分类计数；页面分类视图只传具体 AssetKind */
   kind: AssetKind | 'all'
-  /** 'all'=全部项目；'current'=当前项目；其他值=指定 projectId */
-  scope: string
   query: string
 }
 
@@ -231,25 +233,15 @@ export function collectAssets(
 }
 
 /**
- * 按类型 + 项目范围 + 关键字筛选资产。
+ * 按类型 + 关键字筛选资产。
  * - kind: 'all' 或具体 AssetKind
- * - scope: 'all'=全部项目；'current'=当前项目；其他=指定 projectId
  * - query: name / typeLabel / description / tags 全文（不区分大小写）
  */
-export function filterAssets(
-  entries: AssetEntry[],
-  filter: AssetLibraryFilter,
-  currentProjectId: string
-): AssetEntry[] {
+export function filterAssets(entries: AssetEntry[], filter: AssetLibraryFilter): AssetEntry[] {
   const query = filter.query.trim().toLowerCase()
 
   return entries.filter((entry) => {
     if (filter.kind !== 'all' && entry.kind !== filter.kind) return false
-    if (filter.scope === 'current') {
-      if (entry.projectId !== currentProjectId) return false
-    } else if (filter.scope !== 'all') {
-      if (entry.projectId !== filter.scope) return false
-    }
     if (!query) return true
     const haystack = [entry.name, entry.typeLabel, entry.description, entry.tags.join(' ')].join(' ').toLowerCase()
     return haystack.includes(query)
