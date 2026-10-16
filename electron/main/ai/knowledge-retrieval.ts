@@ -20,7 +20,7 @@ import { filterProjectKnowledgeDocuments } from './knowledge-document-scope'
 // ─────────────────────────────────────────────────────────────
 
 /** 知识文档来源类型 */
-type KnowledgeDocumentSourceType = 'reference-summary' | 'reference-chunk' | 'workflow-document' | 'canon-fact' | 'chapter-summary'
+type KnowledgeDocumentSourceType = 'reference-summary' | 'reference-chunk' | 'workflow-document' | 'canon-fact' | 'chapter-summary' | 'novel-source'
 
 /** 工作区知识文档在 SQLite 中的完整结构 */
 type WorkspaceKnowledgeDocument = {
@@ -148,7 +148,9 @@ export function retrieveKnowledgeContext(
   // 知识文档统一存放在快照顶层，而非 workspaces[projectId] 下。
   const allDocuments = Array.isArray(latestWorkspaceSnapshot.knowledgeDocuments) ? latestWorkspaceSnapshot.knowledgeDocuments : []
   // 参考资料只在用户显式选择参考书时注入；项目知识必须严格匹配当前项目。
+  // 原始小说正文（novel-source）体量大且属于「提取来源」，不得注入其它 AI 任务的 prompt，显式排除。
   const documents = filterProjectKnowledgeDocuments(allDocuments, projectId)
+    .filter((document) => document.sourceType !== 'novel-source')
   if (!documents.length) {
     return { usedKnowledge: [] }
   }
