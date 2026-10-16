@@ -1,18 +1,26 @@
 <script setup lang="ts">
-// v1.30.0 章节创作：顶部工具栏新增「导入小说」入口（打开向导 mode='import'，只负责导入落章节）。
+// v1.30.0 章节创作：顶部工具栏新增「导入小说」（打开向导 mode='import'，只负责导入落章节）
+// 与「清空小说」（清空当前项目章节 / 小说正文，二次确认，破坏性）。
 import { ref } from 'vue'
-import { Upload } from 'lucide-vue-next'
-import { NButton } from 'naive-ui'
+import { Trash2, Upload } from 'lucide-vue-next'
+import { NButton, NPopconfirm, useMessage } from 'naive-ui'
 import ChapterWorkspace from '@/components/chapterWorkspace/ChapterWorkspace.vue'
 import AssetExtractionWizard from '@/components/assetExtraction/AssetExtractionWizard.vue'
 import { useAppStore } from '@/stores/app'
 
 const appStore = useAppStore()
+const message = useMessage()
 
 const importVisible = ref(false)
 
 function openImport(): void {
   importVisible.value = true
+}
+
+/** 清空当前项目的章节 / 小说正文（保留角色 / 场景 / 道具等资产）；已由弹窗二次确认。 */
+function handleClearNovel(): void {
+  appStore.clearProjectNovelChapters()
+  message.success('已清空当前项目的章节 / 小说正文')
 }
 </script>
 
@@ -25,6 +33,15 @@ function openImport(): void {
           <template #icon><Upload :size="15" /></template>
           导入小说
         </n-button>
+        <n-popconfirm @positive-click="handleClearNovel">
+          <template #trigger>
+            <n-button>
+              <template #icon><Trash2 :size="15" /></template>
+              清空小说
+            </n-button>
+          </template>
+          仅清空当前项目的章节 / 小说正文，不可撤销。确定继续？
+        </n-popconfirm>
       </div>
     </header>
 

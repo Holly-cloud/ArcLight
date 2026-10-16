@@ -2663,6 +2663,23 @@ export const useAppStore = defineStore('app', () => {
     persistPropItemsIncrementally()
   }
 
+  /**
+   * 清空当前项目的「小说正文」（章节创作）：chapters / outlineItems / outlineVolumes。
+   * **保留** 角色 / 场景 / 道具 / 组织等资产（与资产库「清空资产」是两回事，互不影响）。
+   * 清空后分卷会被工作区标准化补回一个默认空卷（既有不变式），章节为空；不可撤销，UI 侧需二次确认。
+   */
+  function clearProjectNovelChapters(): void {
+    if (!selectedProjectId.value) return
+
+    updateCurrentWorkspace((workspace) => ({
+      ...workspace,
+      chapters: [],
+      outlineItems: [],
+      outlineVolumes: []
+    }))
+    schedulePersist('fast')
+  }
+
   // ── 角色关系 CRUD ──
   /** 创建角色关系，自动选择默认的角色对 */
   function createCharacterRelationship(payload?: Partial<CharacterRelationship>): void {
@@ -4633,6 +4650,7 @@ export const useAppStore = defineStore('app', () => {
     deleteCharacter,
     deleteCharacterRelationship,
     clearProjectAssets,
+    clearProjectNovelChapters,
     importNovelIntoChapters,
     deleteInspirationEntry,
     deleteOrganization,
