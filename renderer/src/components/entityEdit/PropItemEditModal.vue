@@ -7,7 +7,8 @@ import { NButton, NDynamicTags, NForm, NFormItem, NInput, NModal, NSelect, useMe
 import type { SelectOption } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
 import { themePresets } from '@/theme/presets'
-import type { CharacterTag, PropItem } from '@/types/app'
+import type { CharacterTag, PropItem, VisualContext } from '@/types/app'
+import VisualContextSection from '@/components/visualStyle/VisualContextSection.vue'
 
 const props = defineProps<{
   show: boolean
@@ -43,7 +44,8 @@ const propForm = reactive({
   tags: [] as string[],
   color: '',
   relatedSceneIds: [] as string[],
-  relatedCharacterIds: [] as string[]
+  relatedCharacterIds: [] as string[],
+  visualContext: null as VisualContext | null
 })
 
 watch(() => props.show, (show) => {
@@ -57,6 +59,7 @@ watch(() => props.show, (show) => {
   propForm.color = prop?.color ?? ''
   propForm.relatedSceneIds = [...(prop?.relatedSceneIds ?? [])]
   propForm.relatedCharacterIds = [...(prop?.relatedCharacterIds ?? [])]
+  propForm.visualContext = prop?.visualContext ?? null
 }, { immediate: true })
 
 /** 将 NDynamicTags 的字符串标签转为 CharacterTag 结构 */
@@ -100,7 +103,8 @@ function submitProp(): void {
     tags: toEntityTags(propForm.tags),
     color: propForm.color,
     relatedSceneIds: propForm.relatedSceneIds,
-    relatedCharacterIds: propForm.relatedCharacterIds
+    relatedCharacterIds: propForm.relatedCharacterIds,
+    visualContext: propForm.visualContext
   }
 
   if (props.prop) {
@@ -159,6 +163,12 @@ function submitProp(): void {
       <n-form-item label="主色">
         <n-select v-model:value="propForm.color" :options="ENTITY_COLOR_OPTIONS" />
       </n-form-item>
+      <VisualContextSection
+        v-model="propForm.visualContext"
+        :name="propForm.name"
+        :type-label="propForm.type"
+        :description="propForm.description"
+      />
     </n-form>
 
     <template #footer>

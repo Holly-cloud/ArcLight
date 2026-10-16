@@ -7,8 +7,10 @@ import { NButton, NDynamicTags, NForm, NFormItem, NInput, NModal, useMessage } f
 import { Sparkles } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { buildProjectWritingStyleContext } from '@/features/writingStyles/presets'
+import { suggestRenderMode } from '@/features/visualStyle/visualStyleTemplates'
 import { toIpcPayload } from '@/utils/ipcPayload'
-import type { CharacterCard } from '@/types/app'
+import type { CharacterCard, VisualStyleProfile } from '@/types/app'
+import VisualStyleSection from '@/components/visualStyle/VisualStyleSection.vue'
 import AiEnhancePreview from '@/components/AiEnhancePreview.vue'
 import type { EnhanceFieldDiff } from '@/components/AiEnhancePreview.vue'
 
@@ -31,10 +33,11 @@ const form = reactive({
   name: '',
   role: '',
   description: '',
-  tags: [] as string[]
+  tags: [] as string[],
+  visualStyle: null as VisualStyleProfile | null
 })
 
-// 打开弹窗时把目标角色灌入表单（character 为 null → 重置为空白）
+// 打开弹窗时把目标角色灌入表单（character 为 null → 重置为空白 + renderMode 模板建议）
 watch(() => props.show, (show) => {
   if (!show) return
   const character = props.character
@@ -42,6 +45,18 @@ watch(() => props.show, (show) => {
   form.role = character?.role ?? ''
   form.description = character?.description ?? ''
   form.tags = character?.tags.map((tag) => tag.label) ?? []
+  if (character) {
+    form.visualStyle = character.visualStyle ?? null
+  } else {
+    // 新建：按项目 genre / premise 给出 renderMode 模板建议（仅建议，可改）
+    const suggested = suggestRenderMode({
+      genre: appStore.currentProject?.genre,
+      premise: appStore.currentProject?.premise
+    })
+    form.visualStyle = suggested
+      ? { renderMode: suggested, palette: [], moodWords: [], keyReferences: [] }
+      : null
+  }
 }, { immediate: true })
 
 function close(): void {
@@ -169,6 +184,12 @@ function handleEnhanceApply(accepted: Record<string, string | string[]>): void {
           <n-form-item label="角色标签">
             <n-dynamic-tags v-model:value="form.tags" />
           </n-form-item>
+          <VisualStyleSection
+            v-model="form.visualStyle"
+            :name="form.name"
+            :type-label="form.role"
+            :description="form.description"
+          />
         </n-form>
       </div>
       <div class="arc-split-right">
