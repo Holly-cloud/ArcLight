@@ -4,6 +4,24 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.29.0] - 2026-10-16
+
+### 小说入「章节创作」+ 资产提取升级 + 一键清空（阶段 E）
+
+小说导入不再落知识文档，而是直接写入当前项目「章节创作」；提取只保留实际登场实体；资产库新增一键清空。**零新 IPC / 零新表 / 零新列。**
+
+- **小说 → 章节创作**——粘贴正文或从 TXT 导入，按「卷 / 第X章·第X话」解析后追加进当前项目的分卷 / 大纲 / 章节；同名章节自动跳过（只追加、不删除）
+- **提取源改为章节正文**——「从小说提取资产」第二步直接读取当前项目章节正文，分段分批调用 `asset-extract`（保留原有分批与进度、按名称去重）
+- **只提取实际登场**——`asset-extract` 只保留在正文中确有出场 / 戏份的角色 / 场景 / 道具；每条候选必须附原文证据，无证据的候选被剔除
+- **再提取证据迁移**——「再次提取」改为从项目章节正文抽取含目标实体名的相关片段（`extractEntitySnippet`）；当前项目没有章节时提示先准备章节
+- **资产库一键清空**——工具栏新增「清空资产」（仅「当前项目」范围可用）：`NPopconfirm` 二次确认后清空当前项目的角色 / 场景 / 道具，**组织保留**，不可撤销
+- **退役 novel-source 存储**——移除 `knowledge_documents(source_type='novel-source')` 的读写链路（`novelSource.ts` / `projectNovel.ts`），知识文档来源类型回归 5 类；旧数据（已导入的 novel-source 文档）保留不删除
+- **功能说明**——`novel-extraction` 文案更新为「入章节创作 / 只提取实际登场 / 一键清空」
+
+### patch 级变更
+
+- `test:asset-extraction` 移除已退役的 `novelSource.test.mjs`；`chapterText.test.mjs` 新增 `extractEntitySnippet` 用例
+
 ## [1.28.0] - 2026-10-16
 
 ### 小说资产提取（阶段 D）
