@@ -1511,7 +1511,7 @@ export const useAppStore = defineStore('app', () => {
     currentView.value = 'deconstruction-adaptation'
   }
 
-  /** 打开资产库聚合页（跨项目浏览/检索 4 类资产；全局可进，不依赖是否已选项目） */
+  /** 打开资产库聚合页（v1.30.0 起仅服务「当前项目」，按分类浏览与编辑 4 类资产） */
   function openAssetLibrary(): void {
     pendingChapterInsertion.value = null
     currentView.value = 'asset-library'

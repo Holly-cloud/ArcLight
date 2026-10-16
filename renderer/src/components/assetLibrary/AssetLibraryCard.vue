@@ -3,13 +3,12 @@
 // v1.28.0 增加多选态：multiSelect 时封面显示勾选框，选中由父级控制
 import { computed, type CSSProperties } from 'vue'
 import { Link2, PencilLine } from 'lucide-vue-next'
-import { NButton, NCheckbox, NTooltip } from 'naive-ui'
+import { NButton, NCheckbox } from 'naive-ui'
 import { ASSET_KIND_LABELS, type AssetEntry } from '@/features/assetLibrary/assetLibraryModel'
 
 const props = defineProps<{
   entry: AssetEntry
   selected?: boolean
-  readonly?: boolean
   /** 多选态：显示勾选框 */
   multiSelect?: boolean
   /** 多选态下是否已勾选 */
@@ -62,22 +61,16 @@ const coverStyle = computed<CSSProperties>(() => ({ background: buildCover(props
         />
         <span class="asset-kind-badge">{{ kindLabel }}</span>
       </div>
-      <n-tooltip :disabled="!props.readonly" trigger="hover" placement="top">
-        <template #trigger>
-          <n-button
-            class="asset-edit-btn"
-            quaternary
-            circle
-            size="small"
-            :disabled="props.readonly"
-            title="编辑"
-            @click.stop="emit('open')"
-          >
-            <template #icon><PencilLine :size="14" /></template>
-          </n-button>
-        </template>
-        只读模式
-      </n-tooltip>
+      <n-button
+        class="asset-edit-btn"
+        quaternary
+        circle
+        size="small"
+        title="编辑"
+        @click.stop="emit('open')"
+      >
+        <template #icon><PencilLine :size="14" /></template>
+      </n-button>
     </div>
 
     <div class="asset-body">
