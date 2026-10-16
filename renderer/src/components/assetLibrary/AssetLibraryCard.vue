@@ -1,14 +1,19 @@
 <script setup lang="ts">
 // v1.26.0 资产库资产卡片（大封面 + 类型徽标 + 名称 + 标签 chip + 描述摘要 + 关联计数）
+// v1.28.0 增加多选态：multiSelect 时封面显示勾选框，选中由父级控制
 import { computed, type CSSProperties } from 'vue'
 import { Link2, PencilLine } from 'lucide-vue-next'
-import { NButton, NTooltip } from 'naive-ui'
+import { NButton, NCheckbox, NTooltip } from 'naive-ui'
 import { ASSET_KIND_LABELS, type AssetEntry } from '@/features/assetLibrary/assetLibraryModel'
 
 const props = defineProps<{
   entry: AssetEntry
   selected?: boolean
   readonly?: boolean
+  /** 多选态：显示勾选框 */
+  multiSelect?: boolean
+  /** 多选态下是否已勾选 */
+  checked?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -18,6 +23,7 @@ const emit = defineEmits<{
 }>()
 
 const kindLabel = computed(() => ASSET_KIND_LABELS[props.entry.kind])
+const activeHighlight = computed(() => (props.multiSelect ? props.checked : props.selected))
 const visibleTags = computed(() => props.entry.tags.slice(0, 3))
 const overflowTagCount = computed(() => Math.max(0, props.entry.tags.length - 3))
 const descriptionSnippet = computed(() => {
@@ -41,12 +47,21 @@ const coverStyle = computed<CSSProperties>(() => ({ background: buildCover(props
 <template>
   <article
     class="asset-card"
-    :class="{ selected: props.selected }"
+    :class="{ selected: activeHighlight }"
     @click="emit('select')"
     @dblclick="emit('dblclick')"
   >
     <div class="asset-cover" :style="coverStyle">
-      <span class="asset-kind-badge">{{ kindLabel }}</span>
+      <div class="cover-left">
+        <n-checkbox
+          v-if="props.multiSelect"
+          class="asset-check"
+          :checked="Boolean(props.checked)"
+          size="small"
+          @click.stop="emit('select')"
+        />
+        <span class="asset-kind-badge">{{ kindLabel }}</span>
+      </div>
       <n-tooltip :disabled="!props.readonly" trigger="hover" placement="top">
         <template #trigger>
           <n-button
@@ -115,6 +130,20 @@ const coverStyle = computed<CSSProperties>(() => ({ background: buildCover(props
   align-items: flex-start;
   justify-content: space-between;
   padding: 10px 12px;
+}
+
+.cover-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.asset-check {
+  --n-size: 18px;
+}
+
+.asset-check :deep(.n-checkbox-box) {
+  background: var(--arc-bg-surface);
 }
 
 .asset-kind-badge {

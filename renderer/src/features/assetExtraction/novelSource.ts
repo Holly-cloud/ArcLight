@@ -131,6 +131,34 @@ export function buildNovelDocumentMetadata(extra: Record<string, unknown> = {}):
   return { sourceTitle: NOVEL_SOURCE_TITLE, ...extra }
 }
 
+/** 再提取证据片段的默认长度上限（字符）。 */
+export const NOVEL_SNIPPET_MAX_CHARS = 1200
+
+/**
+ * 从项目小说原文中抽取「包含目标实体名」的段落片段，供再提取作为唯一证据。
+ * - 命中含任一名称的段落优先取用；一条都没命中时回退到原文开头；
+ * - 片段按长度上限做头截断保护（避免提示词超长）。
+ */
+export function extractNovelSnippet(
+  content: unknown,
+  names: readonly string[],
+  options: { maxChars?: number } = {}
+): string {
+  const text = normalizeNovelText(content)
+  if (!text) return ''
+  const maxChars = options.maxChars ?? NOVEL_SNIPPET_MAX_CHARS
+  const keywords = (names ?? []).map((name) => normalizeNovelText(name)).filter(Boolean)
+  if (!keywords.length) return applyCap(text, maxChars)
+
+  const paragraphs = text
+    .split(/\n{2,}/)
+    .map((paragraph) => paragraph.trim())
+    .filter(Boolean)
+  const matched = paragraphs.filter((paragraph) => keywords.some((keyword) => paragraph.includes(keyword)))
+  const chosen = matched.length ? matched : paragraphs
+  return applyCap(chosen.join('\n\n'), maxChars)
+}
+
 export interface BuildNovelDocumentInput {
   projectId: string
   content: string

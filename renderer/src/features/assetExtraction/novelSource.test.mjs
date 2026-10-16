@@ -6,6 +6,7 @@ import {
   NOVEL_SOURCE_TYPE,
   appendNovelText,
   buildNovelDocument,
+  extractNovelSnippet,
   locateProjectNovel,
   readProjectNovelContent
 } from './novelSource.ts'
@@ -63,4 +64,19 @@ test('构建项目小说文档：固定来源标题、来源类型与摘要', ()
   assert.equal(doc.content, '正文内容')
   assert.equal(doc.projectId, 'project-a')
   assert.equal(doc.id, 'novel-source-project-a')
+})
+
+test('抽取证据片段：优先命中含实体名的段落', () => {
+  const content = '无关段落一\n\n李雷走进酒馆，他是一名剑客。\n\n韩梅梅在窗边等他。'
+  const snippet = extractNovelSnippet(content, ['李雷'])
+  assert.ok(snippet.includes('李雷走进酒馆'))
+  assert.ok(!snippet.includes('韩梅梅'))
+})
+
+test('抽取证据片段：无命中回退开头，并受长度上限保护', () => {
+  const content = '第一段内容\n\n第二段内容'
+  assert.equal(extractNovelSnippet(content, ['不存在的人']), content)
+  const capped = extractNovelSnippet('a'.repeat(20), ['a'], { maxChars: 8 })
+  assert.equal(capped.length, 8)
+  assert.equal(extractNovelSnippet('', ['李雷']), '')
 })

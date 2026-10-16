@@ -3,15 +3,27 @@
 // - 跨项目浏览 4 类资产（角色 / 道具 / 场景 / 组织）
 // - 「当前项目」可编辑（双击卡片打开抽取出的编辑弹窗）；其余范围只读
 import { computed, ref } from 'vue'
-import { ArrowLeft, Boxes, Download, Search } from 'lucide-vue-next'
-import { NButton, NEmpty, NInput, NSelect, useMessage } from 'naive-ui'
+import { ArrowLeft, Boxes, CheckSquare, Download, RefreshCw, Search, Sparkles } from 'lucide-vue-next'
+import { NButton, NEmpty, NInput, NSelect, NTooltip, useMessage } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
+import { toIpcPayload } from '@/utils/ipcPayload'
 import AssetLibraryCard from '@/components/assetLibrary/AssetLibraryCard.vue'
 import AssetReferenceExportDialog from '@/components/assetLibrary/AssetReferenceExportDialog.vue'
+import AssetExtractionWizard from '@/components/assetExtraction/AssetExtractionWizard.vue'
+import AiEnhancePreview from '@/components/AiEnhancePreview.vue'
+import type { EnhanceFieldDiff } from '@/components/AiEnhancePreview.vue'
 import FeatureHelp from '@/components/FeatureHelp.vue'
 import CharacterEditModal from '@/components/entityEdit/CharacterEditModal.vue'
 import SceneLocationEditModal from '@/components/entityEdit/SceneLocationEditModal.vue'
 import PropItemEditModal from '@/components/entityEdit/PropItemEditModal.vue'
+import { useBatchSelection } from '@/composables/useBatchSelection'
+import {
+  buildReextractSuggestions,
+  type ExtractionFieldDiff,
+  type ReextractKind
+} from '@/features/assetExtraction/buildReextractSuggestions'
+import { extractNovelSnippet } from '@/features/assetExtraction/novelSource'
+import { readProjectNovel } from '@/features/assetExtraction/projectNovel'
 import {
   ASSET_KINDS,
   ASSET_KIND_LABELS,
@@ -94,6 +106,7 @@ function canEditEntry(entry: AssetEntry): boolean {
 }
 
 function handleOpen(entry: AssetEntry): void {
+  if (selectionMode.value) return
   if (!canEditEntry(entry)) {
     message.info('只读模式：切换到「当前项目」后可编辑')
     return
@@ -119,7 +132,243 @@ function handleOpen(entry: AssetEntry): void {
 }
 
 function handleSelect(entry: AssetEntry): void {
+  if (selectionMode.value) {
+    if (entry.projectId !== appStore.selectedProjectId || entry.kind === 'organization') {
+      message.info('仅当前项目的角色 / 场景 / 道具支持「再次提取」')
+      return
+    }
+    toggleSelection(entry.key)
+    return
+  }
   selectedKey.value = entry.key
+}
+
+// --- 多选 + 再次提取（v1.28.0）---
+const selectableKeys = computed(() => visibleEntries.value
+  .filter((entry) => entry.projectId === appStore.selectedProjectId && entry.kind !== 'organization')
+  .map((entry) => entry.key))
+
+const {
+  selectionMode,
+  selectedIds,
+  toggleSelectionMode,
+  toggleSelection,
+  toggleSelectAll,
+  clearSelection,
+  finishSelection
+} = useBatchSelection(selectableKeys)
+
+const selectedEntries = computed(() => visibleEntries.value.filter((entry) => selectedIds.value.has(entry.key)))
+const selectedCount = computed(() => selectedEntries.value.length)
+const canReextract = computed(() => selectedCount.value > 0)
+
+function toggleMultiSelect(): void {
+  if (!selectionMode.value && readOnly.value) {
+    message.info('只读模式：切换到「当前项目」后可多选再提取')
+    return
+  }
+  toggleSelectionMode()
+}
+
+// 提取向导
+const wizardVisible = ref(false)
+
+function openWizard(): void {
+  if (scope.value !== 'current') {
+    message.info('请切换到「当前项目」范围后使用「从小说提取资产」')
+    return
+  }
+  wizardVisible.value = true
+}
+
+// 再提取建议预览
+interface ReextractTarget {
+  kind: ReextractKind
+  id: string
+  name: string
+  currentFields: Record<string, unknown>
+}
+
+interface ReextractSuggestion {
+  kind: ReextractKind
+  id: string
+  fields: { name?: string; role?: string; type?: string; description?: string; tags?: string[] }
+  evidence: string
+}
+
+const REEXTRACT_TASK_KEY = 'asset-reextract'
+const reextractRunning = computed(() => appStore.isAiTaskRunning(REEXTRACT_TASK_KEY))
+const previewVisible = ref(false)
+const previewFields = ref<EnhanceFieldDiff[]>([])
+let previewQueue: Array<{ target: ReextractTarget; fields: ExtractionFieldDiff[] }> = []
+let previewIndex = 0
+let appliedCount = 0
+
+function buildTarget(entry: AssetEntry): ReextractTarget | null {
+  if (entry.kind === 'character') {
+    const character = appStore.characters.find((item) => item.id === entry.id)
+    if (!character) return null
+    return {
+      kind: 'character',
+      id: entry.id,
+      name: character.name,
+      currentFields: {
+        name: character.name,
+        role: character.role,
+        description: character.description,
+        tags: character.tags.map((tag) => tag.label)
+      }
+    }
+  }
+  if (entry.kind === 'scene') {
+    const scene = appStore.sceneLocations.find((item) => item.id === entry.id)
+    if (!scene) return null
+    return {
+      kind: 'scene',
+      id: entry.id,
+      name: scene.name,
+      currentFields: {
+        name: scene.name,
+        type: scene.type,
+        description: scene.description,
+        tags: scene.tags.map((tag) => tag.label)
+      }
+    }
+  }
+  if (entry.kind === 'prop') {
+    const prop = appStore.propItems.find((item) => item.id === entry.id)
+    if (!prop) return null
+    return {
+      kind: 'prop',
+      id: entry.id,
+      name: prop.name,
+      currentFields: {
+        name: prop.name,
+        type: prop.type,
+        description: prop.description,
+        tags: prop.tags.map((tag) => tag.label)
+      }
+    }
+  }
+  return null
+}
+
+async function handleReextract(): Promise<void> {
+  if (reextractRunning.value) return
+  const targets = selectedEntries.value
+    .map(buildTarget)
+    .filter((target): target is ReextractTarget => target !== null)
+  if (!targets.length) {
+    message.warning('请选择当前项目的角色 / 场景 / 道具后再试')
+    return
+  }
+
+  const novel = readProjectNovel(appStore)
+  if (!novel.trim()) {
+    message.warning('请先导入小说原文，再进行「再次提取」')
+    return
+  }
+
+  const snippet = extractNovelSnippet(novel, targets.map((target) => target.name))
+
+  try {
+    const response = await appStore.runTrackedAiTask(
+      {
+        key: REEXTRACT_TASK_KEY,
+        kind: 'other',
+        label: 'AI 再次提取资产',
+        description: `正在为 ${targets.length} 张资产卡提取建议`,
+        panel: 'asset-library'
+      },
+      () => window.characterArc.generateAi(toIpcPayload({
+        task: 'asset-reextract',
+        clientKey: REEXTRACT_TASK_KEY,
+        settings: appStore.appSettings,
+        context: {
+          projectId: appStore.currentProject?.id,
+          targets,
+          novelSnippet: snippet,
+          projectGenre: appStore.currentProject?.genre
+        }
+      }))
+    )
+
+    if (!response.success || !response.result) {
+      throw new Error(response.error ?? '再次提取失败，请检查模型配置')
+    }
+
+    const suggestions = (response.result as { suggestions?: ReextractSuggestion[] }).suggestions ?? []
+    const suggestionById = new Map(suggestions.map((suggestion) => [suggestion.id, suggestion]))
+    previewQueue = targets.map((target) => ({
+      target,
+      fields: buildReextractSuggestions({
+        kind: target.kind,
+        currentFields: target.currentFields,
+        suggestedFields: suggestionById.get(target.id)?.fields ?? null
+      })
+    }))
+    previewIndex = 0
+    appliedCount = 0
+    openPreview(0)
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '再次提取失败，请检查模型配置')
+  }
+}
+
+/** 逐张弹预览：用户逐项采纳后才写回（绝不自动覆盖）。 */
+function openPreview(index: number): void {
+  if (index >= previewQueue.length) {
+    previewVisible.value = false
+    if (appliedCount > 0) message.success(`已采纳 ${appliedCount} 张卡的字段建议`)
+    else message.info('未采纳任何建议')
+    finishSelection()
+    return
+  }
+  previewIndex = index
+  previewFields.value = previewQueue[index].fields
+  previewVisible.value = true
+}
+
+function applyReextract(target: ReextractTarget, accepted: Record<string, string | string[]>): void {
+  const tags = Array.isArray(accepted.tags) ? accepted.tags.map((label) => ({ label })) : undefined
+  const name = typeof accepted.name === 'string' ? accepted.name : undefined
+  const description = typeof accepted.description === 'string' ? accepted.description : undefined
+
+  if (target.kind === 'character') {
+    appStore.updateCharacter(target.id, {
+      name,
+      role: typeof accepted.role === 'string' ? accepted.role : undefined,
+      description,
+      tags
+    })
+  } else if (target.kind === 'scene') {
+    appStore.updateSceneLocation(target.id, {
+      name,
+      type: typeof accepted.type === 'string' ? accepted.type : undefined,
+      description,
+      tags
+    })
+  } else {
+    appStore.updatePropItem(target.id, {
+      name,
+      type: typeof accepted.type === 'string' ? accepted.type : undefined,
+      description,
+      tags
+    })
+  }
+}
+
+function handlePreviewApply(accepted: Record<string, string | string[]>): void {
+  const current = previewQueue[previewIndex]
+  if (current) {
+    applyReextract(current.target, accepted)
+    appliedCount += 1
+  }
+  openPreview(previewIndex + 1)
+}
+
+function handlePreviewClose(): void {
+  openPreview(previewIndex + 1)
 }
 
 // --- 导出资产参考表 ---
@@ -140,6 +389,34 @@ const exportDialogVisible = ref(false)
         <n-input v-model:value="query" class="library-search" placeholder="搜索名称、标签或描述" clearable>
           <template #prefix><Search :size="16" /></template>
         </n-input>
+        <n-tooltip :disabled="scope === 'current'" trigger="hover">
+          <template #trigger>
+            <n-button :disabled="scope !== 'current'" @click="openWizard">
+              <template #icon><Sparkles :size="15" /></template>
+              从小说提取资产
+            </n-button>
+          </template>
+          仅在「当前项目」范围可用，请先切换范围
+        </n-tooltip>
+        <n-button v-if="!selectionMode" :disabled="selectableKeys.length === 0" @click="toggleMultiSelect">
+          <template #icon><CheckSquare :size="15" /></template>
+          多选
+        </n-button>
+        <template v-else>
+          <n-button :disabled="selectableKeys.length === 0" @click="toggleSelectAll">全选</n-button>
+          <n-button :disabled="selectedCount === 0" @click="clearSelection">清空</n-button>
+          <n-button @click="toggleMultiSelect">退出多选</n-button>
+        </template>
+        <n-button
+          v-if="selectionMode"
+          type="primary"
+          :disabled="!canReextract"
+          :loading="reextractRunning"
+          @click="handleReextract"
+        >
+          <template #icon><RefreshCw :size="15" /></template>
+          再次提取（{{ selectedCount }}）
+        </n-button>
         <n-button :disabled="visibleEntries.length === 0" @click="exportDialogVisible = true">
           <template #icon><Download :size="15" /></template>
           导出资产参考表
@@ -166,6 +443,10 @@ const exportDialogVisible = ref(false)
       </aside>
 
       <main class="library-grid-wrapper">
+        <div v-if="selectionMode" class="selection-hint">
+          <CheckSquare :size="14" />
+          <span>多选模式：点击卡片切换选中（仅当前项目的角色 / 场景 / 道具），已选 {{ selectedCount }} 张</span>
+        </div>
         <div v-if="visibleEntries.length" class="asset-grid">
           <AssetLibraryCard
             v-for="entry in visibleEntries"
@@ -173,6 +454,8 @@ const exportDialogVisible = ref(false)
             :entry="entry"
             :selected="entry.key === selectedKey"
             :readonly="readOnly"
+            :multi-select="selectionMode"
+            :checked="selectedIds.has(entry.key)"
             @select="handleSelect(entry)"
             @open="handleOpen(entry)"
             @dblclick="handleOpen(entry)"
@@ -260,6 +543,14 @@ const exportDialogVisible = ref(false)
       :show="exportDialogVisible"
       :entries="visibleEntries"
       @update:show="exportDialogVisible = $event"
+    />
+    <AssetExtractionWizard :show="wizardVisible" @update:show="wizardVisible = $event" />
+    <AiEnhancePreview
+      :show="previewVisible"
+      :fields="previewFields"
+      :loading="reextractRunning"
+      @apply="handlePreviewApply"
+      @close="handlePreviewClose"
     />
   </section>
 </template>
@@ -374,6 +665,19 @@ const exportDialogVisible = ref(false)
   min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
+}
+
+.selection-hint {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid var(--arc-primary);
+  border-radius: var(--arc-radius-md);
+  background: var(--arc-primary-soft);
+  color: var(--arc-primary);
+  padding: 6px 10px;
+  font-size: 12px;
+  margin-bottom: 10px;
 }
 
 .asset-grid {
