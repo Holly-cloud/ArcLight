@@ -26,7 +26,7 @@ export { readChapterMutationPayload, writeChapterOrder, writeChapterRows } from 
 
 const WORKSPACE_DB = 'workspace.db'
 const WORKSPACE_FILE = 'workspace.json'
-export const WORKSPACE_SCHEMA_VERSION = 2
+export const WORKSPACE_SCHEMA_VERSION = 3
 
 export type WorkspaceUpgradeProgress = {
   phase: 'schema' | 'chapters' | 'chapter-versions' | 'validation'
@@ -534,6 +534,7 @@ export async function ensureWorkspaceDb(options: {
   ensureProjectScopedColumns(db)
   ensureVolumeColumns(db)
   ensureOutlineItemColumns(db)
+  ensureEntityVisualColumns(db)
   ensureWorkflowDocumentColumns(db)
   ensureKnowledgeDocumentSchema(db)
   initStoryStateSchema(db)
@@ -758,6 +759,31 @@ function ensureOutlineItemColumns(db: DatabaseSync): void {
   }
 }
 
+/**
+ * v1.27.0 视觉一致性元数据列迁移守卫（幂等）。
+ * - characters / scene_locations / prop_items / projects 缺视觉列时守卫式补列。
+ * - 只用 `PRAGMA table_info` 取列 → 缺则 `ALTER TABLE ADD COLUMN ... TEXT NOT NULL DEFAULT ''`；
+ *   绝不做破坏性重建表（DROP / RENAME）。
+ * - 旧库旧行的视觉列值默认为空串，读取侧统一回退为 null（向后兼容）。
+ */
+export function ensureEntityVisualColumns(db: DatabaseSync): void {
+  const tables: Array<{ table: string; column: string }> = [
+    { table: 'characters', column: 'visual_style_json' },
+    { table: 'scene_locations', column: 'visual_context_json' },
+    { table: 'prop_items', column: 'visual_context_json' },
+    { table: 'projects', column: 'project_visual_style_json' }
+  ]
+
+  for (const { table, column } of tables) {
+    const columns = db.prepare(`PRAGMA table_info('${table}')`).all() as Array<{ name: string }>
+    const columnNames = new Set(columns.map((item) => item.name))
+
+    if (!columnNames.has(column)) {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${column} TEXT NOT NULL DEFAULT '';`)
+    }
+  }
+}
+
 function ensureKnowledgeDocumentSchema(db: DatabaseSync): void {
   const columns = db.prepare(`PRAGMA table_info('knowledge_documents')`).all() as Array<{ name: string }>
   const columnNames = new Set(columns.map((column) => column.name))
@@ -911,7 +937,8 @@ export function readWorkspaceSnapshot(
       novel_workflow_stages_json AS novelWorkflowStagesJson,
       project_skills_json AS projectSkillsJson,
       skill_policy_json AS skillPolicyJson,
-      chapter_assistant_templates_json AS chapterAssistantTemplatesJson
+      chapter_assistant_templates_json AS chapterAssistantTemplatesJson,
+      project_visual_style_json AS projectVisualStyleJson
     FROM projects
     ORDER BY rowid ASC
   `).all() as Array<
@@ -922,6 +949,7 @@ export function readWorkspaceSnapshot(
       novelWorkflowStagesJson?: string
       projectSkillsJson?: string
       skillPolicyJson?: string
+      projectVisualStyleJson?: string
     }
   >
 
@@ -933,7 +961,8 @@ export function readWorkspaceSnapshot(
       novelWorkflowStages: parseJson(project.novelWorkflowStagesJson, []),
       projectSkills: parseJson(project.projectSkillsJson, []),
       skillPolicy: parseJson(project.skillPolicyJson, { mode: 'auto', skillIds: [] }),
-      chapterAssistantTemplates: parseJson(project.chapterAssistantTemplatesJson, [])
+      chapterAssistantTemplates: parseJson(project.chapterAssistantTemplatesJson, []),
+      projectVisualStyle: parseJson(project.projectVisualStyleJson, null)
     })
   )
 
@@ -1110,7 +1139,8 @@ export function readWorkspaceSnapshot(
   `).all() as Array<WorkspacePayload['workspaces'][string]['worldviewEntries'][number] & { projectId: string }>
 
   const characters = db.prepare(`
-    SELECT project_id AS projectId, id, name, role, description, avatar, tags_json AS tagsJson
+    SELECT project_id AS projectId, id, name, role, description, avatar, tags_json AS tagsJson,
+      visual_style_json AS visualStyleJson
     FROM characters
     ORDER BY project_id ASC, rowid ASC
   `).all().map((row) => ({
@@ -1120,7 +1150,8 @@ export function readWorkspaceSnapshot(
     role: row.role as string,
     description: row.description as string,
     avatar: row.avatar as string,
-    tags: parseJson(row.tagsJson as string, [] as Array<{ label: string; tone?: string }>)
+    tags: parseJson(row.tagsJson as string, [] as Array<{ label: string; tone?: string }>),
+    visualStyle: parseJson(row.visualStyleJson as string, null)
   })) as Array<WorkspacePayload['workspaces'][string]['characters'][number] & { projectId: string }>
 
   const organizations = db.prepare(`
@@ -1146,6 +1177,7 @@ export function readWorkspaceSnapshot(
       sort_order AS sortOrder,
       related_character_ids_json AS relatedCharacterIdsJson,
       related_prop_ids_json AS relatedPropIdsJson,
+      visual_context_json AS visualContextJson,
       created_at AS createdAt, updated_at AS updatedAt
     FROM scene_locations
     ORDER BY project_id ASC, sort_order ASC
@@ -1160,6 +1192,7 @@ export function readWorkspaceSnapshot(
     sortOrder: row.sortOrder as number,
     relatedCharacterIds: parseJson(row.relatedCharacterIdsJson as string, [] as string[]),
     relatedPropIds: parseJson(row.relatedPropIdsJson as string, [] as string[]),
+    visualContext: parseJson(row.visualContextJson as string, null),
     createdAt: row.createdAt as string,
     updatedAt: row.updatedAt as string
   })) as Array<WorkspacePayload['workspaces'][string]['sceneLocations'][number] & { projectId: string }>
@@ -1169,6 +1202,7 @@ export function readWorkspaceSnapshot(
       tags_json AS tagsJson, color, sort_order AS sortOrder,
       related_scene_ids_json AS relatedSceneIdsJson,
       related_character_ids_json AS relatedCharacterIdsJson,
+      visual_context_json AS visualContextJson,
       created_at AS createdAt, updated_at AS updatedAt
     FROM prop_items
     ORDER BY project_id ASC, sort_order ASC
@@ -1184,6 +1218,7 @@ export function readWorkspaceSnapshot(
     sortOrder: row.sortOrder as number,
     relatedSceneIds: parseJson(row.relatedSceneIdsJson as string, [] as string[]),
     relatedCharacterIds: parseJson(row.relatedCharacterIdsJson as string, [] as string[]),
+    visualContext: parseJson(row.visualContextJson as string, null),
     createdAt: row.createdAt as string,
     updatedAt: row.updatedAt as string
   })) as Array<WorkspacePayload['workspaces'][string]['propItems'][number] & { projectId: string }>
@@ -1689,8 +1724,8 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
     }
 
     const insertProject = db.prepare(`
-      INSERT INTO projects (id, title, premise, genre, novel_length, word_count, last_edited, cover, target_platform, cover_history_json, reference_works_json, writing_style_preset_id, writing_style_prompt, novel_workflow_stages_json, project_skills_json, skill_policy_json, chapter_assistant_templates_json)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO projects (id, title, premise, genre, novel_length, word_count, last_edited, cover, target_platform, cover_history_json, reference_works_json, writing_style_preset_id, writing_style_prompt, novel_workflow_stages_json, project_skills_json, skill_policy_json, chapter_assistant_templates_json, project_visual_style_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         title = excluded.title,
         premise = excluded.premise,
@@ -1707,7 +1742,8 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
         novel_workflow_stages_json = excluded.novel_workflow_stages_json,
         project_skills_json = excluded.project_skills_json,
         skill_policy_json = excluded.skill_policy_json,
-        chapter_assistant_templates_json = excluded.chapter_assistant_templates_json
+        chapter_assistant_templates_json = excluded.chapter_assistant_templates_json,
+        project_visual_style_json = excluded.project_visual_style_json
     `)
     for (const project of payload.projects) {
       allIds.projects.add(project.id)
@@ -1728,7 +1764,8 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
         JSON.stringify(project.novelWorkflowStages ?? []),
         JSON.stringify(project.projectSkills ?? []),
         JSON.stringify(project.skillPolicy ?? { mode: 'auto', skillIds: [] }),
-        JSON.stringify(project.chapterAssistantTemplates ?? [])
+        JSON.stringify(project.chapterAssistantTemplates ?? []),
+        project.projectVisualStyle ? JSON.stringify(project.projectVisualStyle) : ''
       )
     }
 
@@ -1738,8 +1775,8 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
     `)
 
     const insertCharacter = db.prepare(`
-      INSERT OR REPLACE INTO characters (id, project_id, name, role, description, avatar, tags_json)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
+      INSERT OR REPLACE INTO characters (id, project_id, name, role, description, avatar, tags_json, visual_style_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `)
 
     const insertOrganization = db.prepare(`
@@ -1750,17 +1787,17 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
     const insertSceneLocation = db.prepare(`
       INSERT OR REPLACE INTO scene_locations (
         id, project_id, name, type, description, tags_json, color, sort_order,
-        related_character_ids_json, related_prop_ids_json, created_at, updated_at
+        related_character_ids_json, related_prop_ids_json, created_at, updated_at, visual_context_json
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
 
     const insertPropItem = db.prepare(`
       INSERT OR REPLACE INTO prop_items (
         id, project_id, name, type, description, owner_character_id, tags_json, color, sort_order,
-        related_scene_ids_json, related_character_ids_json, created_at, updated_at
+        related_scene_ids_json, related_character_ids_json, created_at, updated_at, visual_context_json
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
 
     const insertCharacterRelationship = db.prepare(`
@@ -1890,7 +1927,8 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
           character.role,
           character.description,
           character.avatar,
-          JSON.stringify(character.tags)
+          JSON.stringify(character.tags),
+          character.visualStyle ? JSON.stringify(character.visualStyle) : ''
         )
       })
 
@@ -1924,7 +1962,8 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
           JSON.stringify(scene.relatedCharacterIds ?? []),
           JSON.stringify(scene.relatedPropIds ?? []),
           scene.createdAt,
-          scene.updatedAt
+          scene.updatedAt,
+          scene.visualContext ? JSON.stringify(scene.visualContext) : ''
         )
       })
 
@@ -1943,7 +1982,8 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
           JSON.stringify(prop.relatedSceneIds ?? []),
           JSON.stringify(prop.relatedCharacterIds ?? []),
           prop.createdAt,
-          prop.updatedAt
+          prop.updatedAt,
+          prop.visualContext ? JSON.stringify(prop.visualContext) : ''
         )
       })
 

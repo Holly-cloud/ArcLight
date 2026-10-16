@@ -228,15 +228,16 @@ export function writeWorkspaceEntities(db: DatabaseSync, request: SaveWorkspaceE
 
     if (request.characters) {
       const upsert = db.prepare(`
-        INSERT INTO characters (id, project_id, name, role, description, avatar, tags_json)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
+        INSERT INTO characters (id, project_id, name, role, description, avatar, tags_json, visual_style_json)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           project_id = excluded.project_id,
           name = excluded.name,
           role = excluded.role,
           description = excluded.description,
           avatar = excluded.avatar,
-          tags_json = excluded.tags_json
+          tags_json = excluded.tags_json,
+          visual_style_json = excluded.visual_style_json
       `)
       const activeIds = new Set<string>()
       for (const character of request.characters) {
@@ -248,7 +249,8 @@ export function writeWorkspaceEntities(db: DatabaseSync, request: SaveWorkspaceE
           character.role,
           character.description,
           character.avatar,
-          JSON.stringify(character.tags ?? [])
+          JSON.stringify(character.tags ?? []),
+          character.visualStyle ? JSON.stringify(character.visualStyle) : ''
         )
       }
       deleteMissingRows(db, 'characters', request.projectId, activeIds)
@@ -295,9 +297,9 @@ export function writeWorkspaceEntities(db: DatabaseSync, request: SaveWorkspaceE
       const upsert = db.prepare(`
         INSERT INTO scene_locations (
           id, project_id, name, type, description, tags_json, color, sort_order,
-          related_character_ids_json, related_prop_ids_json, created_at, updated_at
+          related_character_ids_json, related_prop_ids_json, created_at, updated_at, visual_context_json
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           project_id = excluded.project_id,
           name = excluded.name,
@@ -309,7 +311,8 @@ export function writeWorkspaceEntities(db: DatabaseSync, request: SaveWorkspaceE
           related_character_ids_json = excluded.related_character_ids_json,
           related_prop_ids_json = excluded.related_prop_ids_json,
           created_at = excluded.created_at,
-          updated_at = excluded.updated_at
+          updated_at = excluded.updated_at,
+          visual_context_json = excluded.visual_context_json
       `)
       const activeIds = new Set<string>()
       for (const scene of request.sceneLocations) {
@@ -326,7 +329,8 @@ export function writeWorkspaceEntities(db: DatabaseSync, request: SaveWorkspaceE
           JSON.stringify(scene.relatedCharacterIds ?? []),
           JSON.stringify(scene.relatedPropIds ?? []),
           scene.createdAt,
-          scene.updatedAt
+          scene.updatedAt,
+          scene.visualContext ? JSON.stringify(scene.visualContext) : ''
         )
       }
       deleteMissingRows(db, 'scene_locations', request.projectId, activeIds)
@@ -337,9 +341,9 @@ export function writeWorkspaceEntities(db: DatabaseSync, request: SaveWorkspaceE
       const upsert = db.prepare(`
         INSERT INTO prop_items (
           id, project_id, name, type, description, owner_character_id, tags_json, color, sort_order,
-          related_scene_ids_json, related_character_ids_json, created_at, updated_at
+          related_scene_ids_json, related_character_ids_json, created_at, updated_at, visual_context_json
         )
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         ON CONFLICT(id) DO UPDATE SET
           project_id = excluded.project_id,
           name = excluded.name,
@@ -352,7 +356,8 @@ export function writeWorkspaceEntities(db: DatabaseSync, request: SaveWorkspaceE
           related_scene_ids_json = excluded.related_scene_ids_json,
           related_character_ids_json = excluded.related_character_ids_json,
           created_at = excluded.created_at,
-          updated_at = excluded.updated_at
+          updated_at = excluded.updated_at,
+          visual_context_json = excluded.visual_context_json
       `)
       const activeIds = new Set<string>()
       for (const prop of request.propItems) {
@@ -370,7 +375,8 @@ export function writeWorkspaceEntities(db: DatabaseSync, request: SaveWorkspaceE
           JSON.stringify(prop.relatedSceneIds ?? []),
           JSON.stringify(prop.relatedCharacterIds ?? []),
           prop.createdAt,
-          prop.updatedAt
+          prop.updatedAt,
+          prop.visualContext ? JSON.stringify(prop.visualContext) : ''
         )
       }
       deleteMissingRows(db, 'prop_items', request.projectId, activeIds)

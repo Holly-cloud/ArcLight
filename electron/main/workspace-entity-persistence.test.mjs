@@ -12,7 +12,8 @@ function createDb() {
     ) STRICT;
     CREATE TABLE characters (
       id TEXT PRIMARY KEY, project_id TEXT NOT NULL, name TEXT NOT NULL, role TEXT NOT NULL,
-      description TEXT NOT NULL, avatar TEXT NOT NULL, tags_json TEXT NOT NULL
+      description TEXT NOT NULL, avatar TEXT NOT NULL, tags_json TEXT NOT NULL,
+      visual_style_json TEXT NOT NULL DEFAULT ''
     ) STRICT;
     CREATE TABLE inspiration_entries (
       id TEXT PRIMARY KEY, project_id TEXT NOT NULL, type TEXT NOT NULL, title TEXT NOT NULL,
@@ -30,13 +31,15 @@ function createDb() {
       id TEXT PRIMARY KEY, project_id TEXT NOT NULL, name TEXT NOT NULL, type TEXT NOT NULL,
       description TEXT NOT NULL, tags_json TEXT NOT NULL DEFAULT '[]', color TEXT NOT NULL,
       sort_order INTEGER NOT NULL, related_character_ids_json TEXT NOT NULL DEFAULT '[]',
-      related_prop_ids_json TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      related_prop_ids_json TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+      visual_context_json TEXT NOT NULL DEFAULT ''
     ) STRICT;
     CREATE TABLE prop_items (
       id TEXT PRIMARY KEY, project_id TEXT NOT NULL, name TEXT NOT NULL, type TEXT NOT NULL,
       description TEXT NOT NULL, owner_character_id TEXT NOT NULL DEFAULT '', tags_json TEXT NOT NULL DEFAULT '[]',
       color TEXT NOT NULL, sort_order INTEGER NOT NULL, related_scene_ids_json TEXT NOT NULL DEFAULT '[]',
-      related_character_ids_json TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL, updated_at TEXT NOT NULL
+      related_character_ids_json TEXT NOT NULL DEFAULT '[]', created_at TEXT NOT NULL, updated_at TEXT NOT NULL,
+      visual_context_json TEXT NOT NULL DEFAULT ''
     ) STRICT;
     CREATE TABLE adaptation_runs (
       id TEXT PRIMARY KEY, project_id TEXT NOT NULL, reference_work_id TEXT NOT NULL,
@@ -79,9 +82,9 @@ test('实体增量保存会更新排序并删除当前项目中的旧行', () =>
 
 test('删除角色时会在同一事务清理关系和组织归属', () => {
   const db = createDb()
-  const insertCharacter = db.prepare(`INSERT INTO characters VALUES (?, ?, ?, ?, ?, ?, ?)`)
-  insertCharacter.run('char-keep', 'project-1', '保留角色', '', '', '', '[]')
-  insertCharacter.run('char-delete', 'project-1', '删除角色', '', '', '', '[]')
+  const insertCharacter = db.prepare(`INSERT INTO characters VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+  insertCharacter.run('char-keep', 'project-1', '保留角色', '', '', '', '[]', '')
+  insertCharacter.run('char-delete', 'project-1', '删除角色', '', '', '', '[]', '')
   db.prepare(`INSERT INTO character_relationships VALUES (?, ?, ?, ?)`).run(
     'rel-delete', 'project-1', 'char-keep', 'char-delete'
   )
@@ -216,14 +219,14 @@ test('场景与道具可增量保存并在重启后完整读回', () => {
 
 test('删除角色会重写场景/道具的悬空引用，持有者置空', () => {
   const db = createDb()
-  const insertCharacter = db.prepare(`INSERT INTO characters VALUES (?, ?, ?, ?, ?, ?, ?)`)
-  insertCharacter.run('char-keep', 'project-1', '保留角色', '', '', '', '[]')
-  insertCharacter.run('char-gone', 'project-1', '删除角色', '', '', '', '[]')
-  db.prepare(`INSERT INTO scene_locations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-    'scene-1', 'project-1', '场景', '城市', '', '[]', '', 0, '["char-keep","char-gone"]', '[]', '2026-10-01', '2026-10-01'
+  const insertCharacter = db.prepare(`INSERT INTO characters VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+  insertCharacter.run('char-keep', 'project-1', '保留角色', '', '', '', '[]', '')
+  insertCharacter.run('char-gone', 'project-1', '删除角色', '', '', '', '[]', '')
+  db.prepare(`INSERT INTO scene_locations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    'scene-1', 'project-1', '场景', '城市', '', '[]', '', 0, '["char-keep","char-gone"]', '[]', '2026-10-01', '2026-10-01', ''
   )
-  db.prepare(`INSERT INTO prop_items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-    'prop-1', 'project-1', '道具', '武器', '', 'char-gone', '[]', '', 0, '[]', '["char-keep","char-gone"]', '2026-10-01', '2026-10-01'
+  db.prepare(`INSERT INTO prop_items VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    'prop-1', 'project-1', '道具', '武器', '', 'char-gone', '[]', '', 0, '[]', '["char-keep","char-gone"]', '2026-10-01', '2026-10-01', ''
   )
 
   writeWorkspaceEntities(db, {
@@ -248,8 +251,8 @@ test('删除角色会重写场景/道具的悬空引用，持有者置空', () =
 
 test('删除道具会清理场景侧 related_prop_ids 悬空引用', () => {
   const db = createDb()
-  db.prepare(`INSERT INTO scene_locations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
-    'scene-1', 'project-1', '场景', '城市', '', '[]', '', 0, '[]', '["prop-keep","prop-gone"]', '2026-10-01', '2026-10-01'
+  db.prepare(`INSERT INTO scene_locations VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+    'scene-1', 'project-1', '场景', '城市', '', '[]', '', 0, '[]', '["prop-keep","prop-gone"]', '2026-10-01', '2026-10-01', ''
   )
 
   writeWorkspaceEntities(db, {
@@ -379,4 +382,86 @@ test('删除参考作品时关联 adaptation_runs 标 archived 而非真删（�
   assert.equal(remaining[0].status, 'archived')
   assert.equal(remaining[1].id, 'adapt-run-2')
   assert.equal(remaining[1].status, 'running')
+})
+
+test('角色视觉风格 / 场景·道具视觉上下文可增量保存并完整读回（空值默认空串）', () => {
+  const db = createDb()
+
+  writeWorkspaceEntities(db, {
+    projectId: 'project-1',
+    characters: [{
+      id: 'char-1',
+      name: '云澈',
+      role: '主角',
+      description: '',
+      avatar: '',
+      tags: [],
+      visualStyle: {
+        renderMode: 'anime',
+        palette: ['#1b3a5b', '#f2d9a0'],
+        moodWords: ['冷峻', '坚定'],
+        keyReferences: ['水墨青绿']
+      }
+    }],
+    sceneLocations: [{
+      id: 'scene-1',
+      name: '云顶城',
+      type: '城市',
+      description: '',
+      tags: [],
+      color: '',
+      sortOrder: 0,
+      relatedCharacterIds: [],
+      relatedPropIds: [],
+      createdAt: '2026-10-01',
+      updatedAt: '2026-10-01',
+      visualContext: {
+        colorPalette: ['#334455'],
+        lightingNote: '晨光斜射',
+        seasonNote: '初春',
+        materialityNote: '青石'
+      }
+    }],
+    propItems: [{
+      id: 'prop-1',
+      name: '断魂剑',
+      type: '武器',
+      description: '',
+      ownerCharacterId: '',
+      tags: [],
+      color: '',
+      sortOrder: 0,
+      relatedSceneIds: [],
+      relatedCharacterIds: [],
+      createdAt: '2026-10-01',
+      updatedAt: '2026-10-01',
+      visualContext: {
+        colorPalette: ['#9c9c9c'],
+        lightingNote: '冷光',
+        seasonNote: '',
+        materialityNote: '寒铁'
+      }
+    }]
+  })
+
+  const character = JSON.parse(db.prepare(`SELECT visual_style_json AS v FROM characters`).get().v)
+  assert.equal(character.renderMode, 'anime')
+  assert.deepEqual(character.palette, ['#1b3a5b', '#f2d9a0'])
+  assert.deepEqual(character.moodWords, ['冷峻', '坚定'])
+
+  const scene = JSON.parse(db.prepare(`SELECT visual_context_json AS v FROM scene_locations`).get().v)
+  assert.equal(scene.lightingNote, '晨光斜射')
+  assert.deepEqual(scene.colorPalette, ['#334455'])
+
+  const prop = JSON.parse(db.prepare(`SELECT visual_context_json AS v FROM prop_items`).get().v)
+  assert.equal(prop.materialityNote, '寒铁')
+
+  // 视觉字段为 null / 缺省时写回空串（向后兼容，不抛错）
+  writeWorkspaceEntities(db, {
+    projectId: 'project-1',
+    characters: [{
+      id: 'char-1', name: '云澈', role: '主角', description: '', avatar: '', tags: [], visualStyle: null
+    }]
+  })
+  assert.equal(db.prepare(`SELECT visual_style_json AS v FROM characters`).get().v, '')
 })

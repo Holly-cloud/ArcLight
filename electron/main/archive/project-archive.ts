@@ -1041,7 +1041,8 @@ export async function importProjectArchive(options: ImportProjectArchiveOptions)
               novelWorkflowStages: incoming.project.novelWorkflowStages,
               projectSkills: incoming.project.projectSkills,
               chapterAssistantTemplates: incoming.project.chapterAssistantTemplates,
-              coverHistory: incoming.project.coverHistory
+              coverHistory: incoming.project.coverHistory,
+              projectVisualStyle: incoming.project.projectVisualStyle
             }
           : {}),
         ...(modules.has('referenceWorks') ? { selectedReferenceWorkIds: incoming.project.selectedReferenceWorkIds } : {}),

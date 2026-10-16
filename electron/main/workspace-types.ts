@@ -1,5 +1,6 @@
 import type { ReferenceStyleMetric } from './referenceAnalysis'
 import type { SkillUsePolicy } from '../shared/assistant-runtime'
+import type { ProjectVisualStyle, VisualContext, VisualStyleProfile } from '../shared/ipc-types'
 
 export type KnowledgeDocumentSourceType =
   | 'reference-summary'
@@ -199,6 +200,8 @@ export type WorkspacePayload = {
       requiresSelection: boolean
     }>
     selectedReferenceWorkIds: string[]
+    /** 项目级视觉风格；仅人工填写，缺省为 null（v1.27.0） */
+    projectVisualStyle?: ProjectVisualStyle | null
   }>
   workspaces: Record<
     string,
@@ -219,6 +222,8 @@ export type WorkspacePayload = {
         description: string
         avatar: string
         tags: Array<{ label: string; tone?: string }>
+        /** 角色视觉风格档案；缺省为 null（v1.27.0） */
+        visualStyle?: VisualStyleProfile | null
       }>
       organizations: Array<{
         id: string
@@ -243,6 +248,8 @@ export type WorkspacePayload = {
         relatedPropIds: string[]
         createdAt: string
         updatedAt: string
+        /** 场景视觉上下文；缺省为 null（v1.27.0） */
+        visualContext?: VisualContext | null
       }>
       propItems: Array<{
         id: string
@@ -257,6 +264,8 @@ export type WorkspacePayload = {
         relatedCharacterIds: string[]
         createdAt: string
         updatedAt: string
+        /** 道具视觉上下文；缺省为 null（v1.27.0） */
+        visualContext?: VisualContext | null
       }>
       characterRelationships: Array<{
         id: string
@@ -706,7 +715,8 @@ export function normalizeProjectRecord(
     chapterAssistantTemplates: Array.isArray(project.chapterAssistantTemplates) ? project.chapterAssistantTemplates : [],
     selectedReferenceWorkIds: Array.isArray(project.selectedReferenceWorkIds)
       ? project.selectedReferenceWorkIds.map((id) => String(id).trim()).filter(Boolean)
-      : []
+      : [],
+    projectVisualStyle: project.projectVisualStyle ?? null
   }
 }
 

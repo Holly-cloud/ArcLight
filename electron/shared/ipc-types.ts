@@ -85,6 +85,39 @@ export interface PersistedWorldviewEntryRecord {
   updatedAt: string
 }
 
+/** 生图渲染方式（v1.27.0 视觉一致性元数据，可空） */
+export type VisualRenderMode =
+  | 'realistic'
+  | 'anime'
+  | 'oil-paint'
+  | 'ink-wash'
+  | 'low-poly'
+  | 'flat-illustration'
+
+/** 角色视觉风格档案（v1.27.0，可空） */
+export interface VisualStyleProfile {
+  renderMode: VisualRenderMode
+  palette: string[]
+  moodWords: string[]
+  keyReferences: string[]
+}
+
+/** 场景 / 道具视觉上下文（v1.27.0，可空） */
+export interface VisualContext {
+  colorPalette: string[]
+  lightingNote: string
+  seasonNote: string
+  materialityNote: string
+}
+
+/** 项目级视觉风格（v1.27.0，可空；仅人工填写） */
+export interface ProjectVisualStyle {
+  palette: string[]
+  lightingRules: string
+  seasonPalette: string[]
+  moodWords: string[]
+}
+
 export interface PersistedCharacterRecord {
   id: string
   name: string
@@ -95,6 +128,8 @@ export interface PersistedCharacterRecord {
     label: string
     tone?: 'default' | 'danger' | 'success' | 'warning'
   }>
+  /** 角色视觉风格档案；旧数据缺省为 null（v1.27.0） */
+  visualStyle?: VisualStyleProfile | null
 }
 
 export interface PersistedInspirationEntryRecord {
@@ -121,6 +156,8 @@ export interface PersistedSceneLocationRecord {
   relatedPropIds: string[]
   createdAt: string
   updatedAt: string
+  /** 场景视觉上下文；旧数据缺省为 null（v1.27.0） */
+  visualContext?: VisualContext | null
 }
 
 export interface PersistedPropRecord {
@@ -136,6 +173,8 @@ export interface PersistedPropRecord {
   relatedCharacterIds: string[]
   createdAt: string
   updatedAt: string
+  /** 道具视觉上下文；旧数据缺省为 null（v1.27.0） */
+  visualContext?: VisualContext | null
 }
 
 /** 单表 JSON blob：顶层冗余字段便于查询，其余内嵌字段统一存入 payloadJson */

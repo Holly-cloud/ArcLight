@@ -2,6 +2,15 @@ import type { SkillUsePolicy } from '@shared/assistant-runtime'
 
 export type { SkillUsePolicy } from '@shared/assistant-runtime'
 
+/** v1.27.0 视觉一致性元数据类型（沿用 @shared/ipc-types 契约，单一定义源） */
+export type {
+  VisualRenderMode,
+  VisualStyleProfile,
+  VisualContext,
+  ProjectVisualStyle
+} from '@shared/ipc-types'
+import type { ProjectVisualStyle, VisualContext, VisualStyleProfile } from '@shared/ipc-types'
+
 /** 主题名称，决定应用的视觉色调 */
 export type ThemeName = 'ocean' | 'jade' | 'amber' | 'rose'
 
@@ -343,6 +352,8 @@ export interface ProjectSummary {
   selectedReferenceWorkIds: string[]
   /** 封面生成历史记录 */
   coverHistory: CoverGenerationHistoryItem[]
+  /** 项目级视觉风格；仅人工填写，缺省为 null（v1.27.0） */
+  projectVisualStyle?: ProjectVisualStyle | null
 }
 
 /** 世界观设定条目 */
@@ -385,6 +396,8 @@ export interface CharacterCard {
   avatar: string
   /** 角色标签列表 */
   tags: CharacterTag[]
+  /** 角色视觉风格档案；缺省为 null（v1.27.0） */
+  visualStyle?: VisualStyleProfile | null
 }
 
 /** 组织/势力条目 */
@@ -433,6 +446,8 @@ export interface SceneLocation {
   createdAt: string
   /** 最后更新时间 ISO 时间戳 */
   updatedAt: string
+  /** 场景视觉上下文；缺省为 null（v1.27.0） */
+  visualContext?: VisualContext | null
 }
 
 /** 道具条目（结构化实体） */
@@ -461,6 +476,8 @@ export interface PropItem {
   createdAt: string
   /** 最后更新时间 ISO 时间戳 */
   updatedAt: string
+  /** 道具视觉上下文；缺省为 null（v1.27.0） */
+  visualContext?: VisualContext | null
 }
 
 /** 角色之间的关系条目 */

@@ -92,6 +92,7 @@ import type {
   PlotThread,
   ProjectImportPayload,
   ProjectSummary,
+  ProjectVisualStyle,
   ProjectWorkspaceData,
   PropItem,
   ReferenceWorkItem,
@@ -1689,11 +1690,19 @@ export const useAppStore = defineStore('app', () => {
             selectedReferenceWorkIds: payload.selectedReferenceWorkIds !== undefined
               ? payload.selectedReferenceWorkIds
               : project.selectedReferenceWorkIds,
-            coverHistory: payload.coverHistory !== undefined ? payload.coverHistory : project.coverHistory
+            coverHistory: payload.coverHistory !== undefined ? payload.coverHistory : project.coverHistory,
+            projectVisualStyle:
+              payload.projectVisualStyle !== undefined ? payload.projectVisualStyle : project.projectVisualStyle
           }
         : project
     )
     schedulePersist('fast')
+  }
+
+  /** 更新项目级视觉风格（仅人工填写；null 表示清空） */
+  function updateProjectVisualStyle(payload: ProjectVisualStyle | null): void {
+    if (!selectedProjectId.value) return
+    updateProject(selectedProjectId.value, { projectVisualStyle: payload })
   }
   function updateWorkflowDocument(volumeId: string, documentKey: string, content: string): void {
     updateCurrentWorkspace((workspace) => ({
@@ -2317,7 +2326,8 @@ export const useAppStore = defineStore('app', () => {
         tags:
           payload?.tags?.length
             ? payload.tags
-            : [{ label: '待完善', tone: 'warning' }]
+            : [{ label: '待完善', tone: 'warning' }],
+        visualStyle: payload?.visualStyle ?? null
       }
       return {
         ...workspace,
@@ -2342,7 +2352,8 @@ export const useAppStore = defineStore('app', () => {
               role: payload.role?.trim() ?? character.role,
               avatar: payload.avatar || character.avatar,
               description: payload.description?.trim() || character.description,
-              tags: payload.tags?.length ? payload.tags : character.tags
+              tags: payload.tags?.length ? payload.tags : character.tags,
+              visualStyle: payload.visualStyle !== undefined ? payload.visualStyle : character.visualStyle
             }
           : character
       )
@@ -2463,7 +2474,8 @@ export const useAppStore = defineStore('app', () => {
           relatedCharacterIds: normalizeEntityReferenceIds(payload?.relatedCharacterIds),
           relatedPropIds: normalizeEntityReferenceIds(payload?.relatedPropIds),
           createdAt,
-          updatedAt
+          updatedAt,
+          visualContext: payload?.visualContext ?? null
         },
         ...workspace.sceneLocations
       ])
@@ -2491,6 +2503,7 @@ export const useAppStore = defineStore('app', () => {
                 relatedPropIds: payload.relatedPropIds
                   ? normalizeEntityReferenceIds(payload.relatedPropIds)
                   : scene.relatedPropIds,
+                visualContext: payload.visualContext !== undefined ? payload.visualContext : scene.visualContext,
                 updatedAt: toIsoTimestamp(payload.updatedAt || new Date().toISOString())
               }
             : scene
@@ -2539,7 +2552,8 @@ export const useAppStore = defineStore('app', () => {
           relatedSceneIds: normalizeEntityReferenceIds(payload?.relatedSceneIds),
           relatedCharacterIds: normalizeEntityReferenceIds(payload?.relatedCharacterIds),
           createdAt,
-          updatedAt
+          updatedAt,
+          visualContext: payload?.visualContext ?? null
         },
         ...workspace.propItems
       ])
@@ -2570,6 +2584,7 @@ export const useAppStore = defineStore('app', () => {
                 relatedCharacterIds: payload.relatedCharacterIds
                   ? normalizeEntityReferenceIds(payload.relatedCharacterIds)
                   : prop.relatedCharacterIds,
+                visualContext: payload.visualContext !== undefined ? payload.visualContext : prop.visualContext,
                 updatedAt: toIsoTimestamp(payload.updatedAt || new Date().toISOString())
               }
             : prop
@@ -4648,6 +4663,7 @@ export const useAppStore = defineStore('app', () => {
     updateAssistantSessionProposal,
     updateCoverWorkbenchHistory,
     updateProject,
+    updateProjectVisualStyle,
     activeWorkflowVolumeId,
     activeWorkflowVolume,
     setActiveWorkflowVolumeId,
