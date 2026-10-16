@@ -205,7 +205,8 @@ function buildDrafts(list: ExtractionCandidates): CandidateDraft[] {
     name: string,
     typeLabel: string,
     description: string,
-    tags: string[]
+    tags: string[],
+    evidence: string
   ): void => {
     const normalized = normalizeExtractionName(name)
     const conflict = existing.has(normalized)
@@ -216,13 +217,14 @@ function buildDrafts(list: ExtractionCandidates): CandidateDraft[] {
       typeLabel,
       description,
       tags,
+      evidence,
       checked: !conflict,
       conflict
     })
   }
-  for (const candidate of list.characters) push('character', candidate.name, candidate.role, candidate.description, [...candidate.tags])
-  for (const candidate of list.scenes) push('scene', candidate.name, candidate.type, candidate.description, [...candidate.tags])
-  for (const candidate of list.props) push('prop', candidate.name, candidate.type, candidate.description, [...candidate.tags])
+  for (const candidate of list.characters) push('character', candidate.name, candidate.role, candidate.description, [...candidate.tags], candidate.evidence ?? '')
+  for (const candidate of list.scenes) push('scene', candidate.name, candidate.type, candidate.description, [...candidate.tags], candidate.evidence ?? '')
+  for (const candidate of list.props) push('prop', candidate.name, candidate.type, candidate.description, [...candidate.tags], candidate.evidence ?? '')
   return result
 }
 

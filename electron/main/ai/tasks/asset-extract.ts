@@ -62,12 +62,15 @@ function normalizeEntries(raw: unknown, typeField: 'role' | 'type'): Array<Recor
       const entry = item && typeof item === 'object' ? item as Record<string, unknown> : {}
       const name = normalizeText(entry.name, MAX_NAME_LENGTH)
       if (!name) return null
+      const evidence = normalizeText(entry.evidence)
+      // 逐条剔除无证据候选：证据为空视为「仅被提及 / 编造」，不符合「只提取实际登场」，不进入结果集。
+      if (!evidence) return null
       const normalized: Record<string, unknown> = {
         name,
         [typeField]: normalizeText(entry[typeField] ?? entry.role ?? entry.type, MAX_NAME_LENGTH),
         description: normalizeText(entry.description ?? entry.desc),
         tags: normalizeTags(entry.tags),
-        evidence: normalizeText(entry.evidence)
+        evidence
       }
       return normalized
     })
@@ -124,19 +127,17 @@ ${novelText || '（未提供章节正文——请告诉用户需要先在「章�
   validate(result: AiTaskResult): boolean {
     const extracted = result as AssetExtractResult
     const entries = [...(extracted.characters ?? []), ...(extracted.scenes ?? []), ...(extracted.props ?? [])]
+    // normalize 已逐条剔除无证据候选，这里只需「剩余至少 1 条有证据实体」即通过；
+    // 某类为空不影响，只要本批整体仍有命中（避免任一条缺证据就整批判失败）。
     return entries.length > 0
-      && entries.every((entry) => Boolean(String(entry.name ?? '').trim())
-        && Boolean(String(entry.description ?? '').trim())
-        && Boolean(String(entry.evidence ?? '').trim()))
   },
   describeValidationErrors(result: AiTaskResult): string[] {
     const extracted = result as AssetExtractResult
     const entries = [...(extracted.characters ?? []), ...(extracted.scenes ?? []), ...(extracted.props ?? [])]
-    if (!entries.length) return ['未提取到任何实体，characters / scenes / props 不能同时为空。']
-    if (entries.some((entry) => !String(entry.evidence ?? '').trim())) {
-      return ['存在缺少 evidence 的实体：每条候选都必须引用本段正文的原句作为出场证据，仅被提及的实体应直接剔除。']
+    if (!entries.length) {
+      return ['本批未提取到有证据的实体：每条候选都必须引用本段正文的原句作为出场证据，仅被提及的实体应直接剔除。']
     }
-    return ['存在缺少 name 或 description 的实体，每个实体都必须有名称与描述。']
+    return []
   },
   resolveMaxTokens(input: PromptBuildInput): number {
     const text = collectNovelText(input.context)

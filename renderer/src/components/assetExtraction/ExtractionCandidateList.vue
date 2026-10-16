@@ -10,6 +10,8 @@ export interface CandidateDraft {
   typeLabel: string
   description: string
   tags: string[]
+  /** 原文出场证据（引用原句）；缺失时为空串 */
+  evidence: string
   /** 是否勾选（默认勾选「未与已有实体重名」的项） */
   checked: boolean
   /** 是否与项目已有实体重名 */
@@ -134,6 +136,10 @@ function updateTag(index: number, tags: string[]): void {
                 @update:value="(val: string) => patch(item.index, { description: val })"
               />
             </label>
+            <div v-if="item.draft.evidence" class="row-field row-field--stack">
+              <span class="field-label">证据</span>
+              <span class="row-evidence">{{ item.draft.evidence }}</span>
+            </div>
           </div>
         </article>
       </div>
@@ -231,5 +237,12 @@ function updateTag(index: number, tags: string[]): void {
   min-width: 42px;
   color: var(--arc-text-hint);
   font-size: 12px;
+}
+
+.row-evidence {
+  color: var(--arc-text-hint);
+  font-size: 12px;
+  line-height: 1.5;
+  word-break: break-word;
 }
 </style>

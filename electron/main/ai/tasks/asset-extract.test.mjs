@@ -1,7 +1,7 @@
 /**
  * asset-extract handler 单测
- * - normalize：容忍字段缺失，过滤 tags 中的对象项与 [object Object]，无名称条目丢弃，读出 evidence
- * - validate：至少 1 项且每项都有 name + description + evidence（无证据视为不合格）
+ * - normalize：容忍字段缺失，缺 name / 缺 evidence 的条目逐条剔除，过滤 tags 中的对象项与 [object Object]，读出 evidence
+ * - validate：逐条剔除无证据候选后，剩余至少 1 条有证据实体即通过
  * - buildPrompt：只提取实际登场 + 强制证据 的约束、existingNames 避重
  */
 import { test } from 'node:test'
@@ -26,14 +26,18 @@ function buildInput(overrides) {
   }
 }
 
-test('asset-extract normalize: 三类实体规范化，tags 过滤对象项与 [object Object]，读出 evidence', () => {
+test('asset-extract normalize: 缺 name / 缺 evidence 的条目逐条剔除，tags 过滤对象项与 [object Object]，读出 evidence', () => {
   const raw = JSON.stringify({
     characters: [
       { name: '林昭', role: '主角', description: '少年剑修', tags: ['剑修', { label: '主角' }, '[object Object]'], evidence: '  林昭走进临川城。  ' },
-      { role: '缺名字' }
+      { name: '无名无证', role: '路人' },
+      { role: '缺名字', evidence: '仅被提及' }
     ],
     scenes: [{ name: '临川城', type: '城池', description: '边境重镇', tags: [], evidence: '林昭走进临川城。' }],
-    props: [{ name: '青锋剑', type: '兵器', description: '原文未明确', tags: ['佩剑'] }]
+    props: [
+      { name: '青锋剑', type: '兵器', description: '原文未明确', tags: ['佩剑'] },
+      { name: '断剑', type: '兵器', description: '残破兵器', tags: [], evidence: '  断剑插在地上。  ' }
+    ]
   })
 
   const result = handler.normalize(raw)
@@ -42,38 +46,36 @@ test('asset-extract normalize: 三类实体规范化，tags 过滤对象项与 [
   assert.equal(result.characters[0].evidence, '林昭走进临川城。')
   assert.equal(result.scenes[0].type, '城池')
   assert.equal(result.scenes[0].evidence, '林昭走进临川城。')
-  assert.equal(result.props[0].description, '原文未明确')
-  assert.equal(result.props[0].evidence, '', '缺证据的候选 evidence 归一为空串')
+  // 缺 evidence 的「青锋剑」被逐条剔除，仅保留有证据的「断剑」
+  assert.deepEqual(result.props.map((item) => item.name), ['断剑'])
+  assert.equal(result.props[0].description, '残破兵器')
+  assert.equal(result.props[0].evidence, '断剑插在地上。')
 })
 
-test('asset-extract validate: 至少 1 项且每项要有 name、description 与 evidence', () => {
+test('asset-extract validate: 剔除无证据候选后剩余至少 1 条即通过，全部无证据则失败', () => {
   const ok = handler.normalize(JSON.stringify({
-    characters: [{ name: '林昭', role: '主角', description: '少年剑修', tags: [], evidence: '林昭走进临川城。' }],
+    characters: [
+      { name: '林昭', role: '主角', description: '少年剑修', tags: [], evidence: '林昭走进临川城。' },
+      { name: '仅被提及者', role: '路人', description: '', tags: [] }
+    ],
     scenes: [],
     props: []
   }))
-  assert.equal(handler.validate(ok), true)
+  assert.equal(handler.validate(ok), true, '缺证据条目被剔除后，剩余有证据条目即通过')
 
   const empty = handler.normalize(JSON.stringify({ characters: [], scenes: [], props: [] }))
   assert.equal(handler.validate(empty), false)
+  assert.ok(
+    handler.describeValidationErrors(empty).some((message) => message.includes('有证据')),
+    '无剩余时应提示「本批未提取到有证据的实体」'
+  )
 
-  const noEvidence = handler.normalize(JSON.stringify({
+  const onlyNoEvidence = handler.normalize(JSON.stringify({
     characters: [{ name: '林昭', role: '主角', description: '少年剑修', tags: [] }],
     scenes: [],
     props: []
   }))
-  assert.equal(handler.validate(noEvidence), false, '无 evidence 的条目视为不合格')
-  assert.ok(
-    handler.describeValidationErrors(noEvidence).some((message) => message.includes('evidence')),
-    '缺证据时应给出 evidence 相关错误提示'
-  )
-
-  const incomplete = handler.normalize(JSON.stringify({
-    characters: [{ name: '林昭', role: '主角', description: '', tags: [], evidence: '林昭走进临川城。' }],
-    scenes: [],
-    props: []
-  }))
-  assert.equal(handler.validate(incomplete), false)
+  assert.equal(handler.validate(onlyNoEvidence), false, '全部缺证据→逐条剔除后为空→不合格')
 })
 
 test('asset-extract buildPrompt: 只提取实际登场、强制证据、避重与原文注入', () => {
