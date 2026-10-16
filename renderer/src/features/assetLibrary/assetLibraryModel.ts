@@ -5,7 +5,9 @@ import type {
   CharacterTag,
   OrganizationMembership,
   ProjectSummary,
-  ProjectWorkspaceData
+  ProjectWorkspaceData,
+  VisualContext,
+  VisualStyleProfile
 } from '@/types/app'
 
 /** 4 类资产（组织本期只读） */
@@ -41,6 +43,24 @@ export interface AssetEntry {
   color: string
   /** 关联计数（角色=涉及关系条数；场景/道具=关联实体数；组织=成员数） */
   relationCount: number
+  /** 渲染方式（角色视觉风格；缺省空串）（v1.27.0） */
+  renderMode: string
+  /** 配色（角色 palette / 场景·道具 colorPalette；缺省空数组）（v1.27.0） */
+  palette: string[]
+  /** 氛围词（缺省空数组）（v1.27.0） */
+  moodWords: string[]
+  /** 关键参照词（缺省空数组）（v1.27.0） */
+  keyReferences: string[]
+  /** 光影说明（场景/道具视觉上下文；缺省空串）（v1.27.0） */
+  lightingNote: string
+  /** 季相说明（缺省空串）（v1.27.0） */
+  seasonNote: string
+  /** 材质说明（缺省空串）（v1.27.0） */
+  materialityNote: string
+  /** 原始角色视觉风格档案（供预览复用；旧数据缺省 null）（v1.27.0） */
+  visualStyle?: VisualStyleProfile | null
+  /** 原始场景/道具视觉上下文（供预览复用；旧数据缺省 null）（v1.27.0） */
+  visualContext?: VisualContext | null
 }
 
 /** 筛选参数：类型 + 项目范围 + 关键字 */
@@ -104,6 +124,7 @@ export function collectAssets(
     const projectName = titleById.get(projectId) ?? ''
 
     for (const character of workspace.characters ?? []) {
+      const visualStyle = character.visualStyle ?? null
       entries.push({
         key: buildKey(projectId, 'character', character.id),
         kind: 'character',
@@ -115,11 +136,21 @@ export function collectAssets(
         description: character.description,
         tags: tagLabels(character.tags),
         color: character.avatar ?? '',
-        relationCount: countCharacterRelations(workspace.characterRelationships, character.id)
+        relationCount: countCharacterRelations(workspace.characterRelationships, character.id),
+        renderMode: visualStyle?.renderMode ?? '',
+        palette: Array.isArray(visualStyle?.palette) ? [...visualStyle.palette] : [],
+        moodWords: Array.isArray(visualStyle?.moodWords) ? [...visualStyle.moodWords] : [],
+        keyReferences: Array.isArray(visualStyle?.keyReferences) ? [...visualStyle.keyReferences] : [],
+        lightingNote: '',
+        seasonNote: '',
+        materialityNote: '',
+        visualStyle,
+        visualContext: null
       })
     }
 
     for (const prop of workspace.propItems ?? []) {
+      const visualContext = prop.visualContext ?? null
       entries.push({
         key: buildKey(projectId, 'prop', prop.id),
         kind: 'prop',
@@ -131,11 +162,21 @@ export function collectAssets(
         description: prop.description,
         tags: tagLabels(prop.tags),
         color: prop.color ?? '',
-        relationCount: (prop.relatedSceneIds?.length ?? 0) + (prop.relatedCharacterIds?.length ?? 0)
+        relationCount: (prop.relatedSceneIds?.length ?? 0) + (prop.relatedCharacterIds?.length ?? 0),
+        renderMode: '',
+        palette: Array.isArray(visualContext?.colorPalette) ? [...visualContext.colorPalette] : [],
+        moodWords: [],
+        keyReferences: [],
+        lightingNote: visualContext?.lightingNote ?? '',
+        seasonNote: visualContext?.seasonNote ?? '',
+        materialityNote: visualContext?.materialityNote ?? '',
+        visualStyle: null,
+        visualContext
       })
     }
 
     for (const scene of workspace.sceneLocations ?? []) {
+      const visualContext = scene.visualContext ?? null
       entries.push({
         key: buildKey(projectId, 'scene', scene.id),
         kind: 'scene',
@@ -147,7 +188,16 @@ export function collectAssets(
         description: scene.description,
         tags: tagLabels(scene.tags),
         color: scene.color ?? '',
-        relationCount: (scene.relatedCharacterIds?.length ?? 0) + (scene.relatedPropIds?.length ?? 0)
+        relationCount: (scene.relatedCharacterIds?.length ?? 0) + (scene.relatedPropIds?.length ?? 0),
+        renderMode: '',
+        palette: Array.isArray(visualContext?.colorPalette) ? [...visualContext.colorPalette] : [],
+        moodWords: [],
+        keyReferences: [],
+        lightingNote: visualContext?.lightingNote ?? '',
+        seasonNote: visualContext?.seasonNote ?? '',
+        materialityNote: visualContext?.materialityNote ?? '',
+        visualStyle: null,
+        visualContext
       })
     }
 
@@ -163,7 +213,16 @@ export function collectAssets(
         description: organization.description,
         tags: [],
         color: organization.color ?? '',
-        relationCount: countOrganizationMemberships(workspace.organizationMemberships, organization.id)
+        relationCount: countOrganizationMemberships(workspace.organizationMemberships, organization.id),
+        renderMode: '',
+        palette: [],
+        moodWords: [],
+        keyReferences: [],
+        lightingNote: '',
+        seasonNote: '',
+        materialityNote: '',
+        visualStyle: null,
+        visualContext: null
       })
     }
   }
