@@ -408,9 +408,8 @@ const exportDialogVisible = ref(false)
           <n-button @click="toggleMultiSelect">退出多选</n-button>
         </template>
         <n-button
-          v-if="selectionMode"
+          v-if="selectionMode && canReextract"
           type="primary"
-          :disabled="!canReextract"
           :loading="reextractRunning"
           @click="handleReextract"
         >
