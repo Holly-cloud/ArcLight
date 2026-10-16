@@ -10,6 +10,7 @@ import { NAlert, NButton, NInput, NModal, NProgress, useMessage } from 'naive-ui
 import { isCodexCliProvider } from '@shared/ai-provider-catalog'
 import { useAppStore } from '@/stores/app'
 import { toIpcPayload } from '@/utils/ipcPayload'
+import FeatureHelp from '@/components/FeatureHelp.vue'
 import ExtractionCandidateList, { type CandidateDraft } from '@/components/assetExtraction/ExtractionCandidateList.vue'
 import { parseExtractionResult, type ExtractionCandidates } from '@/features/assetExtraction/parseExtractionResult'
 import { mergeExtractionCandidates, normalizeExtractionName } from '@/features/assetExtraction/mergeExtractionCandidates'
@@ -293,6 +294,10 @@ function adoptSelected(): void {
     title="从小说提取资产"
     @close="close"
   >
+    <template #header-extra>
+      <FeatureHelp feature-id="novel-extraction" />
+    </template>
+
     <div class="wizard-steps">
       <span class="wizard-step" :class="{ active: step === 1 }"><FileText :size="14" />导入小说</span>
       <span class="wizard-step" :class="{ active: step === 2 }"><Sparkles :size="14" />运行提取</span>

@@ -1,8 +1,8 @@
 /**
- * v1.27.0 功能说明（FeatureHelp）公共类型与查表函数
- * - 数据按模块拆分（v1.23 sceneprop / v1.24 adaptation / v1.25 workbench / v1.26 assetLibrary / v1.27 visualStyle）
+ * v1.28.0 功能说明（FeatureHelp）公共类型与查表函数
+ * - 数据按模块拆分（v1.23 sceneprop / v1.24 adaptation / v1.25 workbench / v1.26 assetLibrary / v1.27 visualStyle / v1.28 assetExtraction）
  * - 数据层纯静态常量导出（不接 IPC / 不进 store / 不持久化）
- * - TS 类型严格：FeatureId 联合类型 14 条穷举；新增 featureId 必须 TS 报错
+ * - TS 类型严格：FeatureId 联合类型 15 条穷举；新增 featureId 必须 TS 报错
  */
 
 import { SCENEPROP_HELP } from '@/features/sceneprop/help/sceneprop-help'
@@ -10,14 +10,16 @@ import { ADAPTATION_HELP } from '@/features/adaptation/help/adaptation-help'
 import { WORKBENCH_HELP } from '@/features/workbench/help/workbench-help'
 import { ASSET_LIBRARY_HELP } from '@/features/assetLibrary/help/asset-library-help'
 import { VISUAL_CONSISTENCY_HELP } from '@/features/visualStyle/help/visual-consistency-help'
+import { NOVEL_EXTRACTION_HELP } from '@/features/assetExtraction/help/novel-extraction-help'
 
 /**
- * 14 条功能 id 的严格联合类型（避免拼写错）
+ * 15 条功能 id 的严格联合类型（避免拼写错）
  * - v1.23 sceneprop（3）
  * - v1.24 adaptation（8）
  * - v1.25 workbench（1）
  * - v1.26 assetLibrary（1）
  * - v1.27 visualStyle（1）
+ * - v1.28 assetExtraction（1）
  *
  * 新增 featureId 必须 TS 报错（防止漏写 / 拼写错）
  */
@@ -41,6 +43,8 @@ export type FeatureId =
   | 'asset-library'
   // v1.27 visualStyle（1）
   | 'visual-consistency'
+  // v1.28 assetExtraction（1）
+  | 'novel-extraction'
 
 /**
  * "查看完整文档"链接
@@ -67,10 +71,10 @@ export interface FeatureDescription {
 }
 
 /**
- * 14 条 featureId 的总表（聚合 5 个模块的 HELP_DATA）
+ * 15 条 featureId 的总表（聚合 6 个模块的 HELP_DATA）
  */
 const ALL_DESCRIPTIONS: ReadonlyMap<FeatureId, FeatureDescription> = new Map(
-  [...SCENEPROP_HELP, ...ADAPTATION_HELP, ...WORKBENCH_HELP, ...ASSET_LIBRARY_HELP, ...VISUAL_CONSISTENCY_HELP].map((desc) => [desc.id, desc])
+  [...SCENEPROP_HELP, ...ADAPTATION_HELP, ...WORKBENCH_HELP, ...ASSET_LIBRARY_HELP, ...VISUAL_CONSISTENCY_HELP, ...NOVEL_EXTRACTION_HELP].map((desc) => [desc.id, desc])
 )
 
 /**
@@ -93,7 +97,7 @@ export function getFeatureDescriptions(ids: FeatureId[]): FeatureDescription[] {
 }
 
 /**
- * 14 条 featureId 联合类型的常量元组（用于测试 / 静态校验）
+ * 15 条 featureId 联合类型的常量元组（用于测试 / 静态校验）
  */
 export const ALL_FEATURE_IDS: readonly FeatureId[] = [
   'scene-location',
@@ -109,5 +113,6 @@ export const ALL_FEATURE_IDS: readonly FeatureId[] = [
   '18-gates',
   'workbench',
   'asset-library',
-  'visual-consistency'
+  'visual-consistency',
+  'novel-extraction'
 ] as const
