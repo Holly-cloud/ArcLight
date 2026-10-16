@@ -1,11 +1,11 @@
 <script setup lang="ts">
 // v1.30.0 双模式向导：
-// - mode='import'（章节创作「导入小说」）：只走第 1 步——粘贴 / TXT 导入 → 解析落「章节创作」，完成后关闭，不做提取。
+// - mode='import'（章节创作「导入小说」）：只走第 1 步——粘贴 / TXT 导入 → 解析出「追加 / 覆盖」预览 → 确认落「章节创作」，完成后关闭，不做提取。
 // - mode='extract'（资产库分类「提取资产」，带 kind）：跳过第 1 步，直接从「运行提取」开始，**只提取 kind 指定那一类**。
 // 仅 Naive UI + lucide + --arc-* 令牌；渲染层不直连文件系统 / AI 服务（一律经 window.characterArc.*）。
 import { computed, ref, watch } from 'vue'
 import { Check, FileText, RotateCcw, Sparkles, Upload } from 'lucide-vue-next'
-import { NAlert, NButton, NInput, NModal, NProgress, useMessage } from 'naive-ui'
+import { NAlert, NButton, NInput, NModal, NPopconfirm, NProgress, NRadioButton, NRadioGroup, useMessage } from 'naive-ui'
 import { isCodexCliProvider } from '@shared/ai-provider-catalog'
 import { parseContinuationNovelText, type ContinuationNovelFilePreview } from '@shared/continuation-import'
 import { useAppStore } from '@/stores/app'
@@ -17,6 +17,7 @@ import { mergeExtractionCandidates, normalizeExtractionName } from '@/features/a
 import { chapterContentToPlainText } from '@/features/assetExtraction/chapterText'
 import { loadAllChapterContent } from '@/features/chapters/chapterExport'
 import { buildNovelChapters, type NovelSourceInput } from '@/features/assetExtraction/novelToChapters'
+import { buildImportPlan, type ImportMode, type ImportPlan, type ImportPlanRange } from '@/features/assetExtraction/novelImportPlan'
 
 /** 提取类别（资产库分类入口传入） */
 type ExtractKind = 'character' | 'scene' | 'prop'
@@ -63,6 +64,10 @@ const candidates = ref<ExtractionCandidates>({ characters: [], scenes: [], props
 const drafts = ref<CandidateDraft[]>([])
 const progress = ref({ current: 0, total: 0 })
 
+// import 模式：解析后先出预览（append/overwrite），再确认写入。
+const parsedNovel = ref<NovelSourceInput | null>(null)
+const importMode = ref<ImportMode>('append')
+
 const hasAiSettings = computed(() => {
   const settings = appStore.appSettings
   if (isCodexCliProvider(settings.provider)) return Boolean(settings.model)
@@ -73,6 +78,27 @@ const hasAiSettings = computed(() => {
 const projectName = computed(() => appStore.currentProject?.title || '当前项目')
 // 章节正文为按需懒加载，未加载时直接统计字数会得到错误的 0 字，故这里只展示始终准确的章节数。
 const projectChapterCount = computed(() => appStore.chapters.length)
+
+// import 模式的追加 / 覆盖预览：由 novelImportPlan 纯函数产出「新增 / 跳过 / 区间」。
+const existingChapterTitles = computed(() => appStore.chapters.map((chapter) => chapter.title))
+const importPlan = computed<ImportPlan | null>(() => (
+  parsedNovel.value
+    ? buildImportPlan({
+        novel: parsedNovel.value,
+        existingChapterTitles: existingChapterTitles.value,
+        mode: importMode.value
+      })
+    : null
+))
+const totalChapterCount = computed(() => appStore.chapters.length)
+const importRangeText = computed(() => (importPlan.value ? formatImportRange(importPlan.value.range) : ''))
+const skippedTitlesText = computed(() => (importPlan.value?.skipped ?? []).map((chapter) => chapter.title).join('、'))
+
+/** 序数区间展示：有有效序数时用「第X章~第Y章」，否则回退「共 N 章」。 */
+function formatImportRange(range: ImportPlanRange): string {
+  if (range.from === null || range.to === null) return `共 ${range.count} 章`
+  return `第${range.from}章~第${range.to}章（${range.count} 章）`
+}
 
 const existingNames = computed(() => ({
   characters: appStore.characters.map((character) => character.name),
@@ -106,6 +132,8 @@ watch(() => props.show, (show) => {
   candidates.value = { characters: [], scenes: [], props: [] }
   drafts.value = []
   progress.value = { current: 0, total: 0 }
+  parsedNovel.value = null
+  importMode.value = 'append'
 })
 
 // 手动改动文本框即视为放弃 TXT 解析结果，改为按粘贴文本重新解析。
@@ -147,8 +175,8 @@ async function importFromTxt(): Promise<void> {
   }
 }
 
-/** 确认导入：把解析结果按「卷 / 第X章·第X话」写入当前项目「章节创作」（同名章节自动跳过），随后关闭。 */
-function confirmImport(): void {
+/** 解析正文（或 TXT 解析结果）并进入追加 / 覆盖预览阶段（不写入）。 */
+function buildImportPreview(): void {
   const text = novelText.value.trim()
   if (!importedPreview.value && !text) {
     message.warning('请粘贴正文或从 TXT 导入小说后再继续')
@@ -156,28 +184,42 @@ function confirmImport(): void {
   }
 
   const fallbackTitle = appStore.currentProject?.title || '未命名作品'
-  const novel: NovelSourceInput = importedPreview.value
+  parsedNovel.value = importedPreview.value
     ? { title: importedPreview.value.title, chapters: importedPreview.value.chapters }
     : { title: fallbackTitle, chapters: parseContinuationNovelText(text, fallbackTitle).chapters }
+  importMode.value = 'append'
+}
 
-  const result = buildNovelChapters({
-    novel,
-    existingChapterTitles: appStore.chapters.map((chapter) => chapter.title),
-    createId
-  })
+/** 回到导入输入阶段（放弃预览解析结果）。 */
+function backToImportInput(): void {
+  parsedNovel.value = null
+}
 
-  novelText.value = ''
-  importedPreview.value = null
-
+/** 追加写入：只新增未存在的章，序数沿用小说标题解析结果（不重排）。 */
+function doAppendImport(): void {
+  const novel = parsedNovel.value
+  if (!novel) return
+  const result = buildNovelChapters({ novel, existingChapterTitles: existingChapterTitles.value, createId })
   if (!result.chapters.length) {
-    message.info(`未新增章节（共 ${novel.chapters.length} 章，均已存在于「章节创作」）`)
+    message.info(`没有可新增的章节（共 ${novel.chapters.length} 章，均已存在于「章节创作」）`)
     close()
     return
   }
-
   const { addedChapters } = appStore.importNovelIntoChapters(result)
-  const skipped = novel.chapters.length - addedChapters
-  message.success(`已写入「章节创作」共 ${addedChapters} 章，跳过 ${skipped} 章`)
+  const skipped = importPlan.value?.skipped.length ?? (novel.chapters.length - addedChapters)
+  message.success(`已追加 ${addedChapters} 章，跳过 ${skipped} 章`)
+  emit('applied')
+  close()
+}
+
+/** 覆盖写入（整本替换）：先清空当前项目章节，再写入全部章；已由弹窗二次确认。 */
+function doOverwriteImport(): void {
+  const novel = parsedNovel.value
+  if (!novel) return
+  appStore.clearProjectNovelChapters()
+  const result = buildNovelChapters({ novel, existingChapterTitles: [], createId })
+  appStore.importNovelIntoChapters(result)
+  message.success(`已替换为 ${result.chapters.length} 章`)
   emit('applied')
   close()
 }
@@ -388,27 +430,48 @@ function adoptSelected(): void {
       </template>
     </div>
 
-    <!-- 第一步：导入 / 补录小说（仅 import 模式） -->
+    <!-- 第一步：导入 / 补录小说（仅 import 模式）：输入 → 预览（追加 / 覆盖） -->
     <section v-if="step === 1" class="wizard-body">
-      <n-alert type="info" :show-icon="false" class="wizard-alert">
-        项目「{{ projectName }}」当前「章节创作」共 {{ projectChapterCount }} 章。
-        {{ projectChapterCount > 0 ? '再次导入将追加新章节，同名章节自动跳过。' : '尚未导入章节，请粘贴正文或从 TXT 导入。' }}
-      </n-alert>
+      <template v-if="!parsedNovel">
+        <n-alert type="info" :show-icon="false" class="wizard-alert">
+          项目「{{ projectName }}」当前「章节创作」共 {{ projectChapterCount }} 章。
+          {{ projectChapterCount > 0 ? '点击「解析并预览」后可选择追加或覆盖。' : '尚未导入章节，请粘贴正文或从 TXT 导入。' }}
+        </n-alert>
 
-      <n-input
-        v-model:value="novelText"
-        type="textarea"
-        :autosize="{ minRows: 8, maxRows: 16 }"
-        placeholder="在此粘贴小说正文（支持分章），或点击下方按钮从 TXT 文件导入"
-      />
+        <n-input
+          v-model:value="novelText"
+          type="textarea"
+          :autosize="{ minRows: 8, maxRows: 16 }"
+          placeholder="在此粘贴小说正文（支持分章），或点击下方按钮从 TXT 文件导入"
+        />
 
-      <div class="wizard-inline">
-        <n-button :loading="importing" @click="importFromTxt">
-          <template #icon><Upload :size="15" /></template>
-          从 TXT 导入
-        </n-button>
-        <span class="wizard-hint">TXT 读取复用既有导入能力，导入后正文会回填到上方文本框，确认后解析并写入「章节创作」。</span>
-      </div>
+        <div class="wizard-inline">
+          <n-button :loading="importing" @click="importFromTxt">
+            <template #icon><Upload :size="15" /></template>
+            从 TXT 导入
+          </n-button>
+          <span class="wizard-hint">TXT 读取复用既有导入能力，导入后正文会回填到上方文本框，确认后解析并写入「章节创作」。</span>
+        </div>
+      </template>
+
+      <template v-else>
+        <n-alert type="info" :show-icon="false" class="wizard-alert">
+          项目「{{ projectName }}」当前「章节创作」共 {{ totalChapterCount }} 章。
+          「追加」只新增未存在的章、「覆盖」将整本替换。章节序数取自小说标题，不从第 1 章重排。
+        </n-alert>
+
+        <n-radio-group v-model:value="importMode" size="small">
+          <n-radio-button value="append">追加</n-radio-button>
+          <n-radio-button value="overwrite">覆盖</n-radio-button>
+        </n-radio-group>
+
+        <n-alert v-if="importMode === 'append'" type="info" :show-icon="false" class="wizard-alert">
+          本次新增：{{ importRangeText }}<template v-if="skippedTitlesText">；跳过（已存在）：{{ skippedTitlesText }}</template>
+        </n-alert>
+        <n-alert v-else type="warning" :show-icon="false" class="wizard-alert">
+          将替换当前项目全部章节（共 {{ totalChapterCount }} 章），不可撤销。
+        </n-alert>
+      </template>
     </section>
 
     <!-- 第二步：运行提取（仅 extract 模式） -->
@@ -437,7 +500,19 @@ function adoptSelected(): void {
         <n-button round @click="close">取消</n-button>
 
         <template v-if="step === 1">
-          <n-button type="primary" round @click="confirmImport">保存并继续</n-button>
+          <template v-if="!parsedNovel">
+            <n-button type="primary" round @click="buildImportPreview">解析并预览</n-button>
+          </template>
+          <template v-else>
+            <n-button round @click="backToImportInput">上一步</n-button>
+            <n-popconfirm v-if="importMode === 'overwrite'" @positive-click="doOverwriteImport">
+              <template #trigger>
+                <n-button type="primary" round>覆盖导入</n-button>
+              </template>
+              将替换当前项目全部章节，不可撤销。确定继续？
+            </n-popconfirm>
+            <n-button v-else type="primary" round @click="doAppendImport">确认追加</n-button>
+          </template>
         </template>
 
         <template v-else-if="step === 2">
