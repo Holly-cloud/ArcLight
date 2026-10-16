@@ -8,9 +8,10 @@ import {
   shiftWorkbenchMenuItem
 } from './workbenchMenu.ts'
 
-test('默认顺序将工作台置顶并保持其他菜单排列', () => {
+test('默认顺序将工作台置顶、资产库紧随其后并保持其他菜单排列', () => {
   assert.deepEqual(DEFAULT_WORKBENCH_MENU_ORDER, [
     'workbench',
+    'assetLibrary',
     'overview',
     'characters',
     'relations',
@@ -29,6 +30,7 @@ test('标准化会过滤无效和重复菜单并将缺失菜单追加到末尾',
     normalizeWorkbenchMenuOrder(['chapters', 'overview', 'chapters', 'removed-menu']),
     [
       'workbench',
+      'assetLibrary',
       'chapters',
       'overview',
       'characters',
@@ -43,8 +45,8 @@ test('标准化会过滤无效和重复菜单并将缺失菜单追加到末尾',
   )
 })
 
-test('升级场景：旧 11 项顺序（v1.24 持久化）→ workbench 自动置顶', () => {
-  // 模拟 v1.24 旧顺序（不含 workbench）—— 用户从 v1.24 升级到 v1.25 不丢数据
+test('升级场景：旧 11 项顺序（v1.24 持久化）→ workbench 置顶、assetLibrary 紧随其后', () => {
+  // 模拟 v1.24 旧顺序（不含 workbench / assetLibrary）—— 用户从 v1.24 升级不丢数据
   const legacyOrder = [
     'overview',
     'characters',
@@ -59,12 +61,14 @@ test('升级场景：旧 11 项顺序（v1.24 持久化）→ workbench 自动�
   ]
   const normalized = normalizeWorkbenchMenuOrder(legacyOrder)
   assert.equal(normalized[0], 'workbench', 'workbench 必须置顶（架构 §6.6 决策）')
-  // 其余顺序保持相对位置（仅追加 workbench 到首位）
-  assert.deepEqual(normalized.slice(1), legacyOrder)
+  assert.equal(normalized[1], 'assetLibrary', 'assetLibrary 必须排在 workbench 之后（v1.26 决策）')
+  // 其余顺序保持相对位置（仅在前面插入 workbench + assetLibrary）
+  assert.deepEqual(normalized.slice(2), legacyOrder)
 })
 
 test('升级场景：空数组 / null / undefined → workbench 在首位且补齐全部默认项', () => {
   assert.equal(normalizeWorkbenchMenuOrder([])[0], 'workbench')
+  assert.equal(normalizeWorkbenchMenuOrder([])[1], 'assetLibrary')
   assert.equal(normalizeWorkbenchMenuOrder(null)[0], 'workbench')
   assert.equal(normalizeWorkbenchMenuOrder(undefined)[0], 'workbench')
 })
@@ -77,14 +81,27 @@ test('用户已自定义 workbench 在首位 → 尊重用户位置不重复添�
   assert.equal(normalized.indexOf('workbench'), normalized.lastIndexOf('workbench'), '不应重复')
 })
 
+test('v1.26 新增断言：值缺 assetLibrary 时插到 workbench 之后（index 1）且不重复', () => {
+  const withWorkbench = normalizeWorkbenchMenuOrder(['workbench', 'overview', 'chapters'])
+  assert.equal(withWorkbench[0], 'workbench')
+  assert.equal(withWorkbench[1], 'assetLibrary', 'assetLibrary 应插入到 index 1')
+  assert.equal(withWorkbench.indexOf('assetLibrary'), withWorkbench.lastIndexOf('assetLibrary'), '不应重复')
+
+  // 用户已包含 assetLibrary → 保留用户位置，不重复插入
+  const userPlaced = normalizeWorkbenchMenuOrder(['workbench', 'overview', 'assetLibrary', 'chapters'])
+  assert.equal(userPlaced.indexOf('assetLibrary'), 2, '尊重用户自定义位置')
+  assert.deepEqual(new Set(userPlaced), new Set(DEFAULT_WORKBENCH_MENU_ORDER))
+})
+
 test('拖拽和按钮移动都保持完整菜单集合', () => {
   const dragged = moveWorkbenchMenuItem(DEFAULT_WORKBENCH_MENU_ORDER, 'chapters', 'overview', 'before')
-  // workbench 在 DEFAULT_WORKBENCH_MENU_ORDER 中已置顶；chapters 移至 overview 之前
+  // workbench / assetLibrary 在 DEFAULT 前置；chapters 移至 overview 之前
   assert.equal(dragged[0], 'workbench')
-  assert.equal(dragged[1], 'chapters')
+  assert.equal(dragged[1], 'assetLibrary')
+  assert.equal(dragged[2], 'chapters')
   assert.deepEqual(new Set(dragged), new Set(DEFAULT_WORKBENCH_MENU_ORDER))
 
-  const shifted = shiftWorkbenchMenuItem(dragged, 'chapters', 1)
-  // chapters 上移一位后，workbench / overview / chapters 在前三
-  assert.deepEqual(shifted.slice(0, 3), ['workbench', 'overview', 'chapters'])
+  const shifted = shiftWorkbenchMenuItem(dragged, 'chapters', -1)
+  // chapters 上移一位后，workbench / chapters / assetLibrary 在前三
+  assert.deepEqual(shifted.slice(0, 3), ['workbench', 'chapters', 'assetLibrary'])
 })

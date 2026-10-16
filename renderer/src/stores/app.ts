@@ -284,7 +284,7 @@ export const useAppStore = defineStore('app', () => {
   /** 是否已完成初始化水合（从 SQLite 加载数据） */
   const hasHydrated = ref(false)
   /** 当前视图：项目列表 / 新建向导 / 工作台 / 章节写作 / 独立能力页 */
-  const currentView = ref<'projects' | 'wizard' | 'continuation-import' | 'workbench' | 'workbench-container' | 'chapter-studio' | 'skills' | 'cover-workbench' | 'fanqie-trends' | 'deconstruction-adaptation'>('projects')
+  const currentView = ref<'projects' | 'wizard' | 'continuation-import' | 'workbench' | 'workbench-container' | 'chapter-studio' | 'skills' | 'cover-workbench' | 'fanqie-trends' | 'deconstruction-adaptation' | 'asset-library'>('projects')
   const pendingWizardDraft = ref<{ title?: string; genre?: string; premise?: string } | null>(null)
   /** 工作台中当前激活的面板 */
   const activePanel = ref<PanelName>('outline')
@@ -1508,6 +1508,12 @@ export const useAppStore = defineStore('app', () => {
   function openFanqieTrends(): void {
     pendingChapterInsertion.value = null
     currentView.value = 'deconstruction-adaptation'
+  }
+
+  /** 打开资产库聚合页（跨项目浏览/检索 4 类资产；全局可进，不依赖是否已选项目） */
+  function openAssetLibrary(): void {
+    pendingChapterInsertion.value = null
+    currentView.value = 'asset-library'
   }
 
   /** 打开 Skills 独立页面 */
@@ -4588,6 +4594,7 @@ export const useAppStore = defineStore('app', () => {
     workbenchActiveTab,
     pendingAdaptationReferenceWorkId,
     openFanqieTrends,
+    openAssetLibrary,
     openProject,
     openCoverWorkbenchPage,
     openContinuationImport,

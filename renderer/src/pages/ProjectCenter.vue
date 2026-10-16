@@ -160,6 +160,7 @@ function requestDeleteProject(projectId: string): void {
         @open-fanqie-trends="appStore.openFanqieTrends()"
         @open-cover-workbench="openCoverWorkbenchPage"
         @open-skills="openSkillsPage"
+        @open-asset-library="appStore.openAssetLibrary()"
         @open-settings="settingsVisible = true"
         @open-announcement="announcementVisible = true"
         @open-tutorial="tutorialVisible = true"

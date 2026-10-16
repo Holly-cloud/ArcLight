@@ -1,5 +1,6 @@
 export const WORKBENCH_MENU_DEFINITIONS = [
   { id: 'workbench', label: '工作台' },
+  { id: 'assetLibrary', label: '资产库' },
   { id: 'overview', label: '作品概览' },
   { id: 'characters', label: '角色图鉴' },
   { id: 'relations', label: '关系组织' },
@@ -18,12 +19,14 @@ export type WorkbenchMenuDropPosition = 'before' | 'after'
 /**
  * 默认菜单顺序。
  * - v1.25 起：将"工作台"（workbench）置顶，使其成为菜单最显眼位置
- * - 用户自定义顺序（appSettings.workspaceMenuOrder）若已包含 workbench，则按用户位置保留
- * - 缺失项（包含 'workbench'）由 normalizeWorkbenchMenuOrder 自动补齐到首位 / 末尾
+ * - v1.26 起：将"资产库"（assetLibrary）固定排在 workbench 之后（index 1）
+ * - 用户自定义顺序（appSettings.workspaceMenuOrder）若已包含对应项，则按用户位置保留
+ * - 缺失项（含 'workbench' / 'assetLibrary'）由 normalizeWorkbenchMenuOrder 自动补齐
  */
 export const DEFAULT_WORKBENCH_MENU_ORDER: WorkbenchMenuId[] = [
   'workbench',
-  ...WORKBENCH_MENU_DEFINITIONS.filter((d) => d.id !== 'workbench').map((d) => d.id)
+  'assetLibrary',
+  ...WORKBENCH_MENU_DEFINITIONS.filter((d) => d.id !== 'workbench' && d.id !== 'assetLibrary').map((d) => d.id)
 ]
 
 const workbenchMenuIdSet = new Set<string>(DEFAULT_WORKBENCH_MENU_ORDER)
@@ -50,9 +53,17 @@ export function normalizeWorkbenchMenuOrder(value?: readonly string[] | null): W
     seen.add('workbench')
   }
 
-  // 其他缺失项按 DEFAULT 顺序补到末尾（workbench 已在首项）
+  // v1.26 决策：升级场景（值缺 assetLibrary）→ 插到 workbench 之后（index 1），
+  // 避免旧配置补齐后 'assetLibrary' 落到末尾。
+  if (!seen.has('assetLibrary')) {
+    const workbenchIndex = result.indexOf('workbench')
+    result.splice(workbenchIndex >= 0 ? workbenchIndex + 1 : 1, 0, 'assetLibrary')
+    seen.add('assetLibrary')
+  }
+
+  // 其他缺失项按 DEFAULT 顺序补到末尾（workbench / assetLibrary 已在前面处理）
   for (const id of DEFAULT_WORKBENCH_MENU_ORDER) {
-    if (id === 'workbench') continue
+    if (id === 'workbench' || id === 'assetLibrary') continue
     if (!seen.has(id)) result.push(id)
   }
 

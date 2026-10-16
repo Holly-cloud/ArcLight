@@ -13,6 +13,7 @@ const ProjectWizardPage = defineAsyncComponent(() => import('@/pages/ProjectWiza
 const ContinuationImportPage = defineAsyncComponent(() => import('@/pages/ContinuationImportPage.vue'))
 const WorkbenchPage = defineAsyncComponent(() => import('@/pages/WorkbenchPage.vue'))
 const WorkbenchContainerPage = defineAsyncComponent(() => import('@/pages/WorkbenchContainerPage.vue'))
+const AssetLibraryPage = defineAsyncComponent(() => import('@/pages/AssetLibraryPage.vue'))
 const ChapterStudioPage = defineAsyncComponent(() => import('@/pages/ChapterStudioPage.vue'))
 // v1.25 起 DeconstructionLibraryPage 已迁出 App.vue 路由；保留文件不删，
 // 旧调用方（openDeconstructionLibrary / setPanel('deconstruction')）已统一 redirect 到工作台 → 全局 Tab。
@@ -255,6 +256,7 @@ onBeforeUnmount(() => {
               <ProjectWizardPage v-else-if="appStore.currentView === 'wizard'" key="wizard" />
               <ContinuationImportPage v-else-if="appStore.currentView === 'continuation-import'" key="continuation-import" />
               <WorkbenchContainerPage v-else-if="appStore.currentView === 'workbench-container'" key="workbench-container" />
+              <AssetLibraryPage v-else-if="appStore.currentView === 'asset-library'" key="asset-library" />
               <ChapterStudioPage v-else-if="appStore.currentView === 'chapter-studio'" key="chapter-studio" />
               <DeconstructionAdaptationPage v-else-if="appStore.currentView === 'deconstruction-adaptation'" key="deconstruction-adaptation" />
               <SkillsPage v-else-if="appStore.currentView === 'skills'" key="skills" />
