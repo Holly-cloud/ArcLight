@@ -1655,9 +1655,15 @@ export const useAppStore = defineStore('app', () => {
 
     updateCurrentWorkspace((workspace) => ({
       ...workspace,
+      // 分卷按数组顺序追加（新卷排在既有之后，与 createOutlineVolume 一致，落库时按数组下标写 sort_order）
       outlineVolumes: [...workspace.outlineVolumes, ...volumes],
-      outlineItems: [...workspace.outlineItems, ...outlineItems],
-      chapters: [...workspace.chapters, ...chapters]
+      // 大纲节点 sortOrder 重排：避免新节点从 0 重计与既有节点顺序交错（与 importOutlineItems 范式一致）
+      outlineItems: reindexOutlineItems([...workspace.outlineItems, ...outlineItems]),
+      // 章节 sortOrder 按既有范式（createChapter / createChapterFromOutlineItem）稀疏重排，保证新章连续排在既有之后
+      chapters: assignSparseChapterOrder(
+        [...workspace.chapters, ...chapters],
+        chapters.map((chapter) => chapter.id)
+      ).items
     }))
     // 分卷 / 大纲 / 章节均走工作区全量快照持久化（与 createProjectWorkspace 一致的既有链路）
     schedulePersist('fast')
