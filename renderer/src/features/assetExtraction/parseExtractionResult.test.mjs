@@ -22,7 +22,7 @@ test('字段缺失兜底为空、占位文本归一为空、无名称条目丢�
   assert.equal(result.characters[0].description, '')
   assert.equal(result.characters[0].tags.length, 0)
   assert.equal(result.characters[1].description, '')
-  assert.deepEqual(result.scenes, [{ name: '临川城', type: '', description: '', tags: [] }])
+  assert.deepEqual(result.scenes, [{ name: '临川城', type: '', description: '', tags: [], evidence: '' }])
   assert.deepEqual(result.props, [])
 })
 
@@ -57,4 +57,20 @@ test('字符串输入尝试 JSON 解析，非法字符串返回空结果', () =>
 
   const invalid = parseExtractionResult('not-json-at-all')
   assert.deepEqual(invalid, { characters: [], scenes: [], props: [] })
+})
+
+test('evidence 保留：读出原文证据、占位文本归一为空串、中文键兼容', () => {
+  const result = parseExtractionResult({
+    characters: [
+      { name: '林昭', evidence: '  林昭走进临川城。  ' },
+      { name: '苏卿', evidence: '原文未明确' },
+      { name: '路人甲' }
+    ],
+    scenes: [{ name: '临川城', 证据: '城门缓缓打开。' }]
+  })
+
+  assert.equal(result.characters[0].evidence, '林昭走进临川城。')
+  assert.equal(result.characters[1].evidence, '')
+  assert.equal(result.characters[2].evidence, '')
+  assert.equal(result.scenes[0].evidence, '城门缓缓打开。')
 })

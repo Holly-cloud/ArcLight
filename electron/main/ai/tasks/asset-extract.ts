@@ -1,13 +1,14 @@
 /**
- * asset-extract：从项目小说原文提取角色 / 场景 / 道具候选（outputType: 'json'）。
+ * asset-extract：从项目章节正文提取「实际登场」的角色 / 场景 / 道具候选（outputType: 'json'）。
  *
  * 反幻觉约定：
  * - 只返回 JSON 对象，不要 Markdown / 解释；
- * - 只能提取原文中**真实出现**的实体，不得编造；
+ * - 只提取在本段正文中**确有出场 / 戏份**的实体，仅被提及的一律剔除，不得编造；
+ * - 每条候选必须给 **evidence**（引用原文原句），无证据视为不合格；
  * - 原文未明确的字段留空或写「原文未明确」；
  * - 严格避开 existingNames（已在资产库中的同名实体）。
  *
- * 分批：原文超长时由渲染层按段切分，逐批调用；本地按 name 去重。
+ * 分批：正文超长时由渲染层按段切分，逐批调用；本地按 name 去重。
  */
 import type { AiTaskResult, AssetExtractResult } from '../shared-types.ts'
 import { resolveWritingStyleInstruction } from '../prompts/shared.ts'
@@ -65,7 +66,8 @@ function normalizeEntries(raw: unknown, typeField: 'role' | 'type'): Array<Recor
         name,
         [typeField]: normalizeText(entry[typeField] ?? entry.role ?? entry.type, MAX_NAME_LENGTH),
         description: normalizeText(entry.description ?? entry.desc),
-        tags: normalizeTags(entry.tags)
+        tags: normalizeTags(entry.tags),
+        evidence: normalizeText(entry.evidence)
       }
       return normalized
     })
@@ -88,23 +90,25 @@ const handler: TaskHandler = {
     return {
       system: `${capabilityPreamble.system}\n\n你是小说资产提取器。你**只返回 JSON 对象**，不要 Markdown、解释或提问。
 
-## 强制约束（反幻觉）
-1. 只能提取上面原文中**确实出现过的**角色 / 场景 / 道具，严禁依据套路、常识或题材猜测补造实体。
-2. 每个实体的字段只能来自原文：原文未明确描述的字段留空字符串，或写「原文未明确」，不要编造。
-3. 不得与「已在资产库中的同名实体」重复（严格避开 existingNames 中的名称）。
-4. 名称保持原文写法，不要翻译、不要加前缀。
+## 强制约束（反幻觉 / 只提取实际登场）
+1. **只提取在本段正文中确有出场、参与剧情**的角色 / 场景 / 道具；仅被提及、点名却未参与情节的一律不要。
+2. 严禁依据套路、常识或题材猜测补造实体。
+3. **每条候选必须给出 evidence**：引用本段正文中的**原句**（包含该实体出场 / 戏份的那句话），不得编造、不得空泛概括；**无证据的候选视为不合格**。
+4. 每个实体的字段只能来自原文：原文未明确描述的字段留空字符串，或写「原文未明确」，不要编造。
+5. 不得与「已在资产库中的同名实体」重复（严格避开 existingNames 中的名称）。
+6. 名称保持原文写法，不要翻译、不要加前缀。
 
 ## 输出格式
-{"characters":[{"name":"","role":"","description":"","tags":[""]}],"scenes":[{"name":"","type":"","description":"","tags":[""]}],"props":[{"name":"","type":"","description":"","tags":[""]}]}
-字段说明：character 用 role（定位/身份）；scene 与 prop 用 type（类型）。tags 为 2-4 个来自原文的关键词。没有某类实体就返回空数组。`,
+{"characters":[{"name":"","role":"","description":"","tags":[""],"evidence":"原文原句"}],"scenes":[{"name":"","type":"","description":"","tags":[""],"evidence":"原文原句"}],"props":[{"name":"","type":"","description":"","tags":[""],"evidence":"原文原句"}]}
+字段说明：character 用 role（定位/身份）；scene 与 prop 用 type（类型）。tags 为 2-4 个来自原文的关键词；evidence 必须引用原文原句。没有某类实体就返回空数组。`,
       user: `${capabilityPreamble.user}\n\n当前项目：${String(context.projectTitle ?? '').trim() || '（未命名）'}（题材：${String(context.projectGenre ?? '').trim() || '未指明'}）
 本次处理范围：${batchLabel}
 写作风格：${style}
 
 已有实体名称（严格避重）：${JSON.stringify(existingNames)}
 
-小说原文（节选）：
-${novelText || '（未提供原文——请告诉用户需要先导入小说原文。）'}
+章节正文（节选）：
+${novelText || '（未提供章节正文——请告诉用户需要先在「章节创作」中导入小说。）'}
 
 现在只返回 JSON 对象，不要任何多余文字。`
     }
@@ -121,17 +125,23 @@ ${novelText || '（未提供原文——请告诉用户需要先导入小说原�
     const extracted = result as AssetExtractResult
     const entries = [...(extracted.characters ?? []), ...(extracted.scenes ?? []), ...(extracted.props ?? [])]
     return entries.length > 0
-      && entries.every((entry) => Boolean(String(entry.name ?? '').trim()) && Boolean(String(entry.description ?? '').trim()))
+      && entries.every((entry) => Boolean(String(entry.name ?? '').trim())
+        && Boolean(String(entry.description ?? '').trim())
+        && Boolean(String(entry.evidence ?? '').trim()))
   },
   describeValidationErrors(result: AiTaskResult): string[] {
     const extracted = result as AssetExtractResult
     const entries = [...(extracted.characters ?? []), ...(extracted.scenes ?? []), ...(extracted.props ?? [])]
     if (!entries.length) return ['未提取到任何实体，characters / scenes / props 不能同时为空。']
+    if (entries.some((entry) => !String(entry.evidence ?? '').trim())) {
+      return ['存在缺少 evidence 的实体：每条候选都必须引用本段正文的原句作为出场证据，仅被提及的实体应直接剔除。']
+    }
     return ['存在缺少 name 或 description 的实体，每个实体都必须有名称与描述。']
   },
   resolveMaxTokens(input: PromptBuildInput): number {
     const text = collectNovelText(input.context)
-    return Math.min(8000, 3000 + Math.min(2000, Math.ceil(text.length / 200) * 50))
+    // 「实际登场 + 证据」需要额外输出 evidence 字段，token 预算相应略增
+    return Math.min(10000, 3500 + Math.min(2500, Math.ceil(text.length / 200) * 60))
   }
 }
 

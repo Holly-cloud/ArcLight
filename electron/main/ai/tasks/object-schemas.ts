@@ -477,19 +477,22 @@ const taskObjectSchemas: Partial<Record<AiTaskName, z.ZodTypeAny>> = {
       name: stringField,
       role: stringField.optional(),
       description: stringField.optional(),
-      tags: z.array(z.union([stringField, z.object({ label: stringField })])).optional()
+      tags: z.array(z.union([stringField, z.object({ label: stringField })])).optional(),
+      evidence: stringField
     })),
     scenes: z.array(z.object({
       name: stringField,
       type: stringField.optional(),
       description: stringField.optional(),
-      tags: z.array(z.union([stringField, z.object({ label: stringField })])).optional()
+      tags: z.array(z.union([stringField, z.object({ label: stringField })])).optional(),
+      evidence: stringField
     })),
     props: z.array(z.object({
       name: stringField,
       type: stringField.optional(),
       description: stringField.optional(),
-      tags: z.array(z.union([stringField, z.object({ label: stringField })])).optional()
+      tags: z.array(z.union([stringField, z.object({ label: stringField })])).optional(),
+      evidence: stringField
     }))
   }),
   'asset-reextract': z.object({

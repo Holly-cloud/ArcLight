@@ -12,6 +12,8 @@ export interface CharacterCandidate {
   role: string
   description: string
   tags: string[]
+  /** 原文出场证据（引用原句）；缺失时为空串 */
+  evidence: string
 }
 
 /** 场景候选 */
@@ -20,6 +22,8 @@ export interface SceneCandidate {
   type: string
   description: string
   tags: string[]
+  /** 原文出场证据（引用原句）；缺失时为空串 */
+  evidence: string
 }
 
 /** 道具候选 */
@@ -28,6 +32,8 @@ export interface PropCandidate {
   type: string
   description: string
   tags: string[]
+  /** 原文出场证据（引用原句）；缺失时为空串 */
+  evidence: string
 }
 
 /** 一次提取结果的三类候选集合 */
@@ -73,6 +79,7 @@ const PROP_NAME_KEYS = ['name', 'title', '道具名', '物品名', '名称'] as 
 const DESCRIPTION_KEYS = ['description', 'desc', '描述', '简介', '说明'] as const
 const TAG_KEYS = ['tags', 'labels', '标签'] as const
 const TYPE_KEYS = ['type', '类型', '类别', '场景类型', '道具类型'] as const
+const EVIDENCE_KEYS = ['evidence', '证据', '根据', '依据'] as const
 
 /** 把 AI 返回的原始值收敛为普通对象；字符串时尝试 JSON.parse。 */
 function coerceRawRecord(value: unknown): Record<string, unknown> {
@@ -179,7 +186,8 @@ function parseCharacterEntries(raw: unknown): CharacterCandidate[] {
     name,
     role: coerceExtractionText(firstDefined(entry, ['role', '定位', '身份']), 40),
     description: coerceExtractionText(firstDefined(entry, DESCRIPTION_KEYS)),
-    tags: normalizeExtractionTags(firstDefined(entry, TAG_KEYS))
+    tags: normalizeExtractionTags(firstDefined(entry, TAG_KEYS)),
+    evidence: coerceExtractionText(firstDefined(entry, EVIDENCE_KEYS))
   }))
 }
 
@@ -188,7 +196,8 @@ function parseSceneEntries(raw: unknown): SceneCandidate[] {
     name,
     type: coerceExtractionText(firstDefined(entry, TYPE_KEYS), 40),
     description: coerceExtractionText(firstDefined(entry, DESCRIPTION_KEYS)),
-    tags: normalizeExtractionTags(firstDefined(entry, TAG_KEYS))
+    tags: normalizeExtractionTags(firstDefined(entry, TAG_KEYS)),
+    evidence: coerceExtractionText(firstDefined(entry, EVIDENCE_KEYS))
   }))
 }
 
@@ -197,7 +206,8 @@ function parsePropEntries(raw: unknown): PropCandidate[] {
     name,
     type: coerceExtractionText(firstDefined(entry, TYPE_KEYS), 40),
     description: coerceExtractionText(firstDefined(entry, DESCRIPTION_KEYS)),
-    tags: normalizeExtractionTags(firstDefined(entry, TAG_KEYS))
+    tags: normalizeExtractionTags(firstDefined(entry, TAG_KEYS)),
+    evidence: coerceExtractionText(firstDefined(entry, EVIDENCE_KEYS))
   }))
 }
 

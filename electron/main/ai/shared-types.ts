@@ -437,11 +437,11 @@ export type CatalogBatchResult = {
   entries: Array<Record<string, unknown>>
 }
 
-/** asset-extract 结果：从小说原文提取的角色 / 场景 / 道具候选。 */
+/** asset-extract 结果：从项目章节正文提取的「实际登场」角色 / 场景 / 道具候选。 */
 export type AssetExtractResult = {
-  characters: Array<{ name: string; role: string; description: string; tags: string[] }>
-  scenes: Array<{ name: string; type: string; description: string; tags: string[] }>
-  props: Array<{ name: string; type: string; description: string; tags: string[] }>
+  characters: Array<{ name: string; role: string; description: string; tags: string[]; evidence?: string }>
+  scenes: Array<{ name: string; type: string; description: string; tags: string[]; evidence?: string }>
+  props: Array<{ name: string; type: string; description: string; tags: string[]; evidence?: string }>
 }
 
 /** 再提取时单个目标的字段建议（仅建议，不直接覆盖用户已填内容）。 */
