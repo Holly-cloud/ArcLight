@@ -1640,6 +1640,30 @@ export const useAppStore = defineStore('app', () => {
     })
   }
 
+  /** 把解析后的小说（分卷 / 大纲 / 章节）追加进当前项目；只追加，不删除、不覆盖已有数据。 */
+  function importNovelIntoChapters(payload: {
+    volumes: OutlineVolume[]
+    outlineItems: OutlineItem[]
+    chapters: ChapterDraft[]
+  }): { addedChapters: number } {
+    const volumes = payload?.volumes ?? []
+    const outlineItems = payload?.outlineItems ?? []
+    const chapters = payload?.chapters ?? []
+    if (!selectedProjectId.value || (!volumes.length && !outlineItems.length && !chapters.length)) {
+      return { addedChapters: 0 }
+    }
+
+    updateCurrentWorkspace((workspace) => ({
+      ...workspace,
+      outlineVolumes: [...workspace.outlineVolumes, ...volumes],
+      outlineItems: [...workspace.outlineItems, ...outlineItems],
+      chapters: [...workspace.chapters, ...chapters]
+    }))
+    // 分卷 / 大纲 / 章节均走工作区全量快照持久化（与 createProjectWorkspace 一致的既有链路）
+    schedulePersist('fast')
+    return { addedChapters: chapters.length }
+  }
+
   /** 删除项目；若删除的是当前项目，自动切到剩余首个项目，删空时停留在项目中心空状态 */
   function deleteProject(projectId: string): void {
     if (!projects.value.some((project) => project.id === projectId)) {
@@ -2607,6 +2631,30 @@ export const useAppStore = defineStore('app', () => {
     }))
     persistPropItemsIncrementally()
     persistSceneLocationsIncrementally()
+  }
+
+  /**
+   * 一键清空当前项目的资产（角色 / 场景 / 道具）。
+   * 等价于逐个 deleteCharacter / deleteSceneLocation / deletePropItem 的汇总：
+   * 一并清空 characterRelationships 与 organizationMemberships（两端已无有效实体）、
+   * 场景 / 道具互相之间的悬空引用（随实体整体清空而消失）。
+   * **保留 organizations**（用户明确不清）。
+   */
+  function clearProjectAssets(): void {
+    if (!selectedProjectId.value) return
+
+    updateCurrentWorkspace((workspace) => ({
+      ...workspace,
+      characters: [],
+      sceneLocations: [],
+      propItems: [],
+      characterRelationships: [],
+      organizationMemberships: []
+      // organizations 原样保留
+    }))
+    persistCharactersIncrementally()
+    persistSceneLocationsIncrementally()
+    persistPropItemsIncrementally()
   }
 
   // ── 角色关系 CRUD ──
@@ -4578,6 +4626,8 @@ export const useAppStore = defineStore('app', () => {
     deleteChapter,
     deleteCharacter,
     deleteCharacterRelationship,
+    clearProjectAssets,
+    importNovelIntoChapters,
     deleteInspirationEntry,
     deleteOrganization,
     deleteOrganizationMembership,
