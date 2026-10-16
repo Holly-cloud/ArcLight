@@ -3,10 +3,11 @@
 // - 跨项目浏览 4 类资产（角色 / 道具 / 场景 / 组织）
 // - 「当前项目」可编辑（双击卡片打开抽取出的编辑弹窗）；其余范围只读
 import { computed, ref } from 'vue'
-import { ArrowLeft, Boxes, Search } from 'lucide-vue-next'
+import { ArrowLeft, Boxes, Download, Search } from 'lucide-vue-next'
 import { NButton, NEmpty, NInput, NSelect, useMessage } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
 import AssetLibraryCard from '@/components/assetLibrary/AssetLibraryCard.vue'
+import AssetReferenceExportDialog from '@/components/assetLibrary/AssetReferenceExportDialog.vue'
 import FeatureHelp from '@/components/FeatureHelp.vue'
 import CharacterEditModal from '@/components/entityEdit/CharacterEditModal.vue'
 import SceneLocationEditModal from '@/components/entityEdit/SceneLocationEditModal.vue'
@@ -120,6 +121,9 @@ function handleOpen(entry: AssetEntry): void {
 function handleSelect(entry: AssetEntry): void {
   selectedKey.value = entry.key
 }
+
+// --- 导出资产参考表 ---
+const exportDialogVisible = ref(false)
 </script>
 
 <template>
@@ -136,6 +140,10 @@ function handleSelect(entry: AssetEntry): void {
         <n-input v-model:value="query" class="library-search" placeholder="搜索名称、标签或描述" clearable>
           <template #prefix><Search :size="16" /></template>
         </n-input>
+        <n-button :disabled="visibleEntries.length === 0" @click="exportDialogVisible = true">
+          <template #icon><Download :size="15" /></template>
+          导出资产参考表
+        </n-button>
         <FeatureHelp feature-id="asset-library" placement="bottom-end" />
       </div>
     </header>
@@ -247,6 +255,11 @@ function handleSelect(entry: AssetEntry): void {
       :show="propModalVisible"
       :prop="editingProp"
       @update:show="propModalVisible = $event"
+    />
+    <AssetReferenceExportDialog
+      :show="exportDialogVisible"
+      :entries="visibleEntries"
+      @update:show="exportDialogVisible = $event"
     />
   </section>
 </template>
