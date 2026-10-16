@@ -1,20 +1,22 @@
 <script setup lang="ts">
-// v1.28.0 从小说提取资产向导（三步）：
-// 1) 导入/补录小说（粘贴正文 或 复用 pickContinuationNovel IPC 读取 TXT）
-// 2) 运行提取（分批调 asset-extract，runTrackedAiTask 显示进度）
+// v1.29.0 从小说提取资产向导（三步）：
+// 1) 导入小说（粘贴正文 或 复用 pickContinuationNovel IPC 读取 TXT）→ 解析后写入当前项目「章节创作」
+// 2) 运行提取（把章节正文合并后分批调 asset-extract，runTrackedAiTask 显示进度）
 // 3) 结果预览 + 逐项采纳（勾选 / 就地改名改描述改标签 → 批量落当前项目）
 // 仅 Naive UI + lucide + --arc-* 令牌；渲染层不直连文件系统 / AI 服务（一律经 window.characterArc.*）。
 import { computed, ref, watch } from 'vue'
 import { Check, FileText, RotateCcw, Sparkles, Upload } from 'lucide-vue-next'
 import { NAlert, NButton, NInput, NModal, NProgress, useMessage } from 'naive-ui'
 import { isCodexCliProvider } from '@shared/ai-provider-catalog'
+import { parseContinuationNovelText, type ContinuationNovelFilePreview } from '@shared/continuation-import'
 import { useAppStore } from '@/stores/app'
 import { toIpcPayload } from '@/utils/ipcPayload'
 import FeatureHelp from '@/components/FeatureHelp.vue'
 import ExtractionCandidateList, { type CandidateDraft } from '@/components/assetExtraction/ExtractionCandidateList.vue'
 import { parseExtractionResult, type ExtractionCandidates } from '@/features/assetExtraction/parseExtractionResult'
 import { mergeExtractionCandidates, normalizeExtractionName } from '@/features/assetExtraction/mergeExtractionCandidates'
-import { appendProjectNovel, readProjectNovel } from '@/features/assetExtraction/projectNovel'
+import { chapterContentToPlainText } from '@/features/assetExtraction/chapterText'
+import { buildNovelChapters, type NovelSourceInput } from '@/features/assetExtraction/novelToChapters'
 
 const props = defineProps<{ show: boolean }>()
 const emit = defineEmits<{
@@ -29,8 +31,17 @@ const message = useMessage()
 const SEGMENT_TARGET_CHARS = 2000
 const SEGMENTS_PER_BATCH = 3
 
+/** 生成基于时间戳 + 自增序号的唯一 ID（与续写导入页的构建范式一致）。 */
+let idCounter = 0
+function createId(prefix: string): string {
+  idCounter += 1
+  return `${prefix}-${Date.now()}-${idCounter}`
+}
+
 const step = ref<1 | 2 | 3>(1)
 const novelText = ref('')
+const importedPreview = ref<ContinuationNovelFilePreview | null>(null)
+const importedSnapshot = ref('')
 const importing = ref(false)
 const running = ref(false)
 const candidates = ref<ExtractionCandidates>({ characters: [], scenes: [], props: [] })
@@ -44,9 +55,12 @@ const hasAiSettings = computed(() => {
   return Boolean(settings.model && settings.baseUrl && (settings.apiKey || settings.provider === 'ollama' || isLocal))
 })
 
-const projectNovel = computed(() => readProjectNovel(appStore))
-const projectNovelChars = computed(() => projectNovel.value.replace(/\s+/g, '').length)
 const projectName = computed(() => appStore.currentProject?.title || '当前项目')
+const projectChapterCount = computed(() => appStore.chapters.length)
+const projectChapterChars = computed(() => appStore.chapters.reduce(
+  (sum, chapter) => sum + chapterContentToPlainText(chapter.content).replace(/\s+/g, '').length,
+  0
+))
 
 const existingNames = computed(() => ({
   characters: appStore.characters.map((character) => character.name),
@@ -74,16 +88,25 @@ watch(() => props.show, (show) => {
   if (!show) return
   step.value = 1
   novelText.value = ''
+  importedPreview.value = null
+  importedSnapshot.value = ''
   candidates.value = { characters: [], scenes: [], props: [] }
   drafts.value = []
   progress.value = { current: 0, total: 0 }
+})
+
+// 手动改动文本框即视为放弃 TXT 解析结果，改为按粘贴文本重新解析。
+watch(novelText, (value) => {
+  if (importedPreview.value && value !== importedSnapshot.value) {
+    importedPreview.value = null
+  }
 })
 
 function close(): void {
   emit('update:show', false)
 }
 
-/** 复用既有 IPC：读取 TXT，把 preview.chapters 拼成正文回填 textarea（0 新 IPC）。 */
+/** 复用既有 IPC：读取 TXT，拿到解析好的 preview（含卷 / 章节），并把正文回填到文本框。 */
 async function importFromTxt(): Promise<void> {
   importing.value = true
   try {
@@ -100,8 +123,10 @@ async function importFromTxt(): Promise<void> {
       })
       .join('\n\n')
       .trim()
+    importedPreview.value = result.preview
+    importedSnapshot.value = text
     novelText.value = text
-    message.success(`已导入「${result.preview.fileName}」（${text.length} 字）`)
+    message.success(`已导入「${result.preview.fileName}」（识别 ${result.preview.chapterCount} 章）`)
   } catch (error) {
     message.error(error instanceof Error ? error.message : '读取小说文件失败')
   } finally {
@@ -109,23 +134,37 @@ async function importFromTxt(): Promise<void> {
   }
 }
 
-/** 确认导入：把文本追加合并进当前项目唯一的小说原文（同一本，后续导入=补充）。 */
+/** 确认导入：把解析结果按「卷 / 第X章·第X话」写入当前项目「章节创作」（同名章节自动跳过）。 */
 function confirmImport(): void {
   const text = novelText.value.trim()
-  if (!text && !projectNovel.value.trim()) {
+  if (!importedPreview.value && !text) {
     message.warning('请粘贴正文或从 TXT 导入小说后再继续')
     return
   }
-  if (text) {
-    try {
-      appendProjectNovel(appStore, text)
-      message.success('已合并进项目小说原文')
-    } catch (error) {
-      message.error(error instanceof Error ? error.message : '保存小说原文失败')
-      return
-    }
-  }
+
+  const fallbackTitle = appStore.currentProject?.title || '未命名作品'
+  const novel: NovelSourceInput = importedPreview.value
+    ? { title: importedPreview.value.title, chapters: importedPreview.value.chapters }
+    : { title: fallbackTitle, chapters: parseContinuationNovelText(text, fallbackTitle).chapters }
+
+  const result = buildNovelChapters({
+    novel,
+    existingChapterTitles: appStore.chapters.map((chapter) => chapter.title),
+    createId
+  })
+
   novelText.value = ''
+  importedPreview.value = null
+
+  if (!result.chapters.length) {
+    message.info(`未新增章节（共 ${novel.chapters.length} 章，均已存在于「章节创作」）`)
+    step.value = 2
+    return
+  }
+
+  const { addedChapters } = appStore.importNovelIntoChapters(result)
+  const skipped = novel.chapters.length - addedChapters
+  message.success(`已写入「章节创作」共 ${addedChapters} 章，跳过 ${skipped} 章`)
   step.value = 2
 }
 
@@ -189,12 +228,15 @@ function buildDrafts(list: ExtractionCandidates): CandidateDraft[] {
   return result
 }
 
-/** 运行提取：分段分批逐批调 asset-extract，本地按 name 去重累积。 */
+/** 运行提取：把当前项目章节正文合并后分段分批调 asset-extract，本地按 name 去重累积。 */
 async function runExtraction(): Promise<void> {
   if (isBusy.value) return
-  const sourceText = projectNovel.value.trim()
+  const sourceText = appStore.chapters
+    .map((chapter) => chapterContentToPlainText(chapter.content).trim())
+    .filter(Boolean)
+    .join('\n\n')
   if (!sourceText) {
-    message.warning('项目暂无小说原文，请先返回第一步导入')
+    message.warning('当前项目「章节创作」暂无正文，请先返回第一步导入')
     step.value = 1
     return
   }
@@ -307,8 +349,8 @@ function adoptSelected(): void {
     <!-- 第一步：导入 / 补录小说 -->
     <section v-if="step === 1" class="wizard-body">
       <n-alert type="info" :show-icon="false" class="wizard-alert">
-        项目「{{ projectName }}」当前小说原文约 {{ projectNovelChars }} 字。
-        {{ projectNovelChars > 0 ? '再次导入将作为对同一本的补充（追加合并）。' : '尚未导入小说，请粘贴正文或从 TXT 导入。' }}
+        项目「{{ projectName }}」当前「章节创作」共 {{ projectChapterCount }} 章、约 {{ projectChapterChars }} 字。
+        {{ projectChapterCount > 0 ? '再次导入将追加新章节，同名章节自动跳过。' : '尚未导入章节，请粘贴正文或从 TXT 导入。' }}
       </n-alert>
 
       <n-input
@@ -323,7 +365,7 @@ function adoptSelected(): void {
           <template #icon><Upload :size="15" /></template>
           从 TXT 导入
         </n-button>
-        <span class="wizard-hint">TXT 读取复用既有导入能力，导入后正文会回填到上方文本框，确认后合并进项目小说。</span>
+        <span class="wizard-hint">TXT 读取复用既有导入能力，导入后正文会回填到上方文本框，确认后解析并写入「章节创作」。</span>
       </div>
     </section>
 

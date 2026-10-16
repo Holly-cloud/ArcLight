@@ -22,8 +22,7 @@ import {
   type ExtractionFieldDiff,
   type ReextractKind
 } from '@/features/assetExtraction/buildReextractSuggestions'
-import { extractNovelSnippet } from '@/features/assetExtraction/novelSource'
-import { readProjectNovel } from '@/features/assetExtraction/projectNovel'
+import { chapterContentToPlainText, extractEntitySnippet } from '@/features/assetExtraction/chapterText'
 import {
   ASSET_KINDS,
   ASSET_KIND_LABELS,
@@ -263,13 +262,15 @@ async function handleReextract(): Promise<void> {
     return
   }
 
-  const novel = readProjectNovel(appStore)
-  if (!novel.trim()) {
-    message.warning('请先导入小说原文，再进行「再次提取」')
+  const chapterTexts = appStore.chapters
+    .map((chapter) => chapterContentToPlainText(chapter.content))
+    .filter((text) => text.trim())
+  if (!chapterTexts.length) {
+    message.warning('请先在「章节创作」中导入/准备小说章节')
     return
   }
 
-  const snippet = extractNovelSnippet(novel, targets.map((target) => target.name))
+  const snippet = extractEntitySnippet(chapterTexts, targets.map((target) => target.name))
 
   try {
     const response = await appStore.runTrackedAiTask(

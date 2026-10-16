@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { chapterContentToPlainText } from './chapterText.ts'
+import { chapterContentToPlainText, extractEntitySnippet } from './chapterText.ts'
 
 test('剥离 HTML 标签：br 转换行、段落闭合转空行', () => {
   assert.equal(
@@ -29,4 +29,19 @@ test('空值 / 空白正文返回空串（旧项目兼容）', () => {
   assert.equal(chapterContentToPlainText(''), '')
   assert.equal(chapterContentToPlainText('   '), '')
   assert.equal(chapterContentToPlainText(undefined), '')
+})
+
+test('实体片段：优先命中含实体名的段落', () => {
+  const texts = ['无关段落一', '李雷走进酒馆，他是一名剑客。\n\n韩梅梅在窗边等他。']
+  const snippet = extractEntitySnippet(texts, ['李雷'])
+  assert.ok(snippet.includes('李雷走进酒馆'))
+  assert.ok(!snippet.includes('韩梅梅'))
+})
+
+test('实体片段：无命中回退开头段落，并受长度上限保护', () => {
+  const texts = ['第一段内容', '第二段内容']
+  assert.equal(extractEntitySnippet(texts, ['不存在的人']), '第一段内容\n\n第二段内容')
+  assert.equal(extractEntitySnippet(['a'.repeat(20)], ['a'], { maxChars: 8 }).length, 8)
+  assert.equal(extractEntitySnippet([], ['李雷']), '')
+  assert.equal(extractEntitySnippet([''], ['李雷']), '')
 })
