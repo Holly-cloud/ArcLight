@@ -143,10 +143,21 @@ function toggleMultiSelect(): void {
   toggleSelectionMode()
 }
 
-// 提取向导
+// 提取向导（v1.30.0：按类别提取——角色界面提角色 / 场景界面提场景 / 道具界面提道具；组织不提供提取）
+type ExtractKind = 'character' | 'scene' | 'prop'
 const wizardVisible = ref(false)
+const wizardKind = ref<ExtractKind>('character')
 
-function openWizard(): void {
+function isExtractableKind(value: AssetKind): value is ExtractKind {
+  return value === 'character' || value === 'scene' || value === 'prop'
+}
+
+function openExtractWizard(): void {
+  if (!isExtractableKind(kind.value)) {
+    message.info('组织不提供自动提取')
+    return
+  }
+  wizardKind.value = kind.value
   wizardVisible.value = true
 }
 
@@ -376,9 +387,9 @@ const exportDialogVisible = ref(false)
         <n-input v-model:value="query" class="library-search" placeholder="搜索名称、标签或描述" clearable>
           <template #prefix><Search :size="16" /></template>
         </n-input>
-        <n-button @click="openWizard">
+        <n-button v-if="kind !== 'organization'" @click="openExtractWizard">
           <template #icon><Sparkles :size="15" /></template>
-          从小说提取资产
+          提取{{ ASSET_KIND_LABELS[kind] }}资产
         </n-button>
         <n-button v-if="!selectionMode" :disabled="selectableKeys.length === 0" @click="toggleMultiSelect">
           <template #icon><CheckSquare :size="15" /></template>
@@ -532,7 +543,12 @@ const exportDialogVisible = ref(false)
       :entries="visibleEntries"
       @update:show="exportDialogVisible = $event"
     />
-    <AssetExtractionWizard :show="wizardVisible" @update:show="wizardVisible = $event" />
+    <AssetExtractionWizard
+      :show="wizardVisible"
+      mode="extract"
+      :kind="wizardKind"
+      @update:show="wizardVisible = $event"
+    />
     <AiEnhancePreview
       :show="previewVisible"
       :fields="previewFields"

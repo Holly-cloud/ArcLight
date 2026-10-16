@@ -89,3 +89,29 @@ test('asset-extract buildPrompt: 只提取实际登场、强制证据、避重�
   assert.ok(prompt.user.includes('苏卿'), 'user 应包含已有实体名单')
   assert.ok(prompt.user.includes('林昭走进临川城'), 'user 应包含原文片段')
 })
+
+test('asset-extract targetKind: normalize 只保留该类（其余置空），prompt 声明本次只提取该类', () => {
+  const raw = JSON.stringify({
+    characters: [{ name: '林昭', role: '主角', description: '', tags: [], evidence: '林昭走进临川城。' }],
+    scenes: [{ name: '临川城', type: '城池', description: '', tags: [], evidence: '林昭走进临川城。' }],
+    props: [{ name: '断剑', type: '兵器', description: '', tags: [], evidence: '断剑插在地上。' }]
+  })
+
+  const characterOnly = handler.normalize(raw, { targetKind: 'character' })
+  assert.equal(characterOnly.characters.length, 1)
+  assert.equal(characterOnly.scenes.length, 0, '非目标类的场景应被置空')
+  assert.equal(characterOnly.props.length, 0, '非目标类的道具应被置空')
+
+  const propOnly = handler.normalize(raw, { targetKind: 'prop' })
+  assert.equal(propOnly.characters.length, 0)
+  assert.equal(propOnly.scenes.length, 0)
+  assert.equal(propOnly.props.length, 1)
+
+  const unscoped = handler.normalize(raw)
+  assert.equal(unscoped.characters.length, 1, '未传 targetKind 时保留三类（向后兼容）')
+  assert.equal(unscoped.scenes.length, 1)
+  assert.equal(unscoped.props.length, 1)
+
+  const prompt = handler.buildPrompt(buildInput({ context: { targetKind: 'prop' } }))
+  assert.ok(prompt.system.includes('只提取道具'), 'system 应声明本次只提取指定类别')
+})

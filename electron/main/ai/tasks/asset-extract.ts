@@ -19,6 +19,15 @@ const MAX_NAME_LENGTH = 40
 const MAX_FIELD_LENGTH = 400
 const MAX_TAGS = 6
 
+/** 目标类别：v1.30.0 起「提取资产」按类别分，一次只提取其中一类。 */
+type TargetKind = 'character' | 'scene' | 'prop'
+const TARGET_KIND_LABELS: Record<TargetKind, string> = { character: '角色', scene: '场景', prop: '道具' }
+
+/** 规范化 context.targetKind；非三类之一时返回空串（=不限定，兼容旧调用）。 */
+function normalizeTargetKind(value: unknown): TargetKind | '' {
+  return value === 'character' || value === 'scene' || value === 'prop' ? value : ''
+}
+
 /** 收集本批待提取的原文：优先 novelSegments，其次 novelText。 */
 function collectNovelText(context: Record<string, unknown>): string {
   if (Array.isArray(context.novelSegments)) {
@@ -89,6 +98,10 @@ const handler: TaskHandler = {
     const existingNames = normalizeExistingNames(context.existingNames)
     const style = resolveWritingStyleInstruction(context)
     const batchLabel = Number.isFinite(Number(context.batchIndex)) ? `第 ${Number(context.batchIndex) + 1} 批` : '本批'
+    const targetKind = normalizeTargetKind(context.targetKind)
+    const scopeInstruction = targetKind
+      ? `\n\n## 本次范围\n本次**只提取${TARGET_KIND_LABELS[targetKind]}**（${targetKind} 类）；其余两类一律返回空数组，不要输出。`
+      : ''
 
     return {
       system: `${capabilityPreamble.system}\n\n你是小说资产提取器。你**只返回 JSON 对象**，不要 Markdown、解释或提问。
@@ -103,7 +116,7 @@ const handler: TaskHandler = {
 
 ## 输出格式
 {"characters":[{"name":"","role":"","description":"","tags":[""],"evidence":"原文原句"}],"scenes":[{"name":"","type":"","description":"","tags":[""],"evidence":"原文原句"}],"props":[{"name":"","type":"","description":"","tags":[""],"evidence":"原文原句"}]}
-字段说明：character 用 role（定位/身份）；scene 与 prop 用 type（类型）。tags 为 2-4 个来自原文的关键词；evidence 必须引用原文原句。没有某类实体就返回空数组。`,
+字段说明：character 用 role（定位/身份）；scene 与 prop 用 type（类型）。tags 为 2-4 个来自原文的关键词；evidence 必须引用原文原句。没有某类实体就返回空数组。${scopeInstruction}`,
       user: `${capabilityPreamble.user}\n\n当前项目：${String(context.projectTitle ?? '').trim() || '（未命名）'}（题材：${String(context.projectGenre ?? '').trim() || '未指明'}）
 本次处理范围：${batchLabel}
 写作风格：${style}
@@ -116,12 +129,17 @@ ${novelText || '（未提供章节正文——请告诉用户需要先在「章�
 现在只返回 JSON 对象，不要任何多余文字。`
     }
   },
-  normalize(raw: string): AiTaskResult {
+  normalize(raw: string, context?: Record<string, unknown>): AiTaskResult {
     const parsed = extractJsonObject(raw)
+    const characters = normalizeEntries(parsed.characters, 'role')
+    const scenes = normalizeEntries(parsed.scenes, 'type')
+    const props = normalizeEntries(parsed.props, 'type')
+    // v1.30.0：按类别分后，一次只保留 targetKind 指定的那一类，其余两类置空数组。
+    const targetKind = normalizeTargetKind(context?.targetKind)
     return {
-      characters: normalizeEntries(parsed.characters, 'role'),
-      scenes: normalizeEntries(parsed.scenes, 'type'),
-      props: normalizeEntries(parsed.props, 'type')
+      characters: !targetKind || targetKind === 'character' ? characters : [],
+      scenes: !targetKind || targetKind === 'scene' ? scenes : [],
+      props: !targetKind || targetKind === 'prop' ? props : []
     } as AssetExtractResult
   },
   validate(result: AiTaskResult): boolean {

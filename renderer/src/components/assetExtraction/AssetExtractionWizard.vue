@@ -1,8 +1,7 @@
 <script setup lang="ts">
-// v1.29.0 从小说提取资产向导（三步）：
-// 1) 导入小说（粘贴正文 或 复用 pickContinuationNovel IPC 读取 TXT）→ 解析后写入当前项目「章节创作」
-// 2) 运行提取（把章节正文合并后分批调 asset-extract，runTrackedAiTask 显示进度）
-// 3) 结果预览 + 逐项采纳（勾选 / 就地改名改描述改标签 → 批量落当前项目）
+// v1.30.0 双模式向导：
+// - mode='import'（章节创作「导入小说」）：只走第 1 步——粘贴 / TXT 导入 → 解析落「章节创作」，完成后关闭，不做提取。
+// - mode='extract'（资产库分类「提取资产」，带 kind）：跳过第 1 步，直接从「运行提取」开始，**只提取 kind 指定那一类**。
 // 仅 Naive UI + lucide + --arc-* 令牌；渲染层不直连文件系统 / AI 服务（一律经 window.characterArc.*）。
 import { computed, ref, watch } from 'vue'
 import { Check, FileText, RotateCcw, Sparkles, Upload } from 'lucide-vue-next'
@@ -19,7 +18,17 @@ import { chapterContentToPlainText } from '@/features/assetExtraction/chapterTex
 import { loadAllChapterContent } from '@/features/chapters/chapterExport'
 import { buildNovelChapters, type NovelSourceInput } from '@/features/assetExtraction/novelToChapters'
 
-const props = defineProps<{ show: boolean }>()
+/** 提取类别（资产库分类入口传入） */
+type ExtractKind = 'character' | 'scene' | 'prop'
+const EXTRACT_KIND_LABELS: Record<ExtractKind, string> = { character: '角色', scene: '场景', prop: '道具' }
+
+const props = defineProps<{
+  show: boolean
+  /** 向导模式：import=仅导入小说；extract=仅提取指定类别资产 */
+  mode?: 'import' | 'extract'
+  /** extract 模式必填：只提取该类别 */
+  kind?: ExtractKind
+}>()
 const emit = defineEmits<{
   'update:show': [boolean]
   applied: []
@@ -31,6 +40,11 @@ const message = useMessage()
 // 分批参数：每段目标字符数 / 每批段数（参照 catalog-batch 的 targets 分批范式）
 const SEGMENT_TARGET_CHARS = 2000
 const SEGMENTS_PER_BATCH = 3
+
+const isImportMode = computed(() => (props.mode ?? 'extract') === 'import')
+const extractKind = computed<ExtractKind | undefined>(() => props.kind)
+const extractKindLabel = computed(() => (extractKind.value ? EXTRACT_KIND_LABELS[extractKind.value] : ''))
+const modalTitle = computed(() => (isImportMode.value ? '导入小说' : `提取${extractKindLabel.value}资产`))
 
 /** 生成基于时间戳 + 自增序号的唯一 ID（与续写导入页的构建范式一致）。 */
 let idCounter = 0
@@ -84,7 +98,8 @@ const isBusy = computed(() => running.value || extractRunning.value)
 
 watch(() => props.show, (show) => {
   if (!show) return
-  step.value = 1
+  // import 模式只走第 1 步；extract 模式跳过第 1 步，直接从「运行提取」开始。
+  step.value = isImportMode.value ? 1 : 2
   novelText.value = ''
   importedPreview.value = null
   importedSnapshot.value = ''
@@ -132,7 +147,7 @@ async function importFromTxt(): Promise<void> {
   }
 }
 
-/** 确认导入：把解析结果按「卷 / 第X章·第X话」写入当前项目「章节创作」（同名章节自动跳过）。 */
+/** 确认导入：把解析结果按「卷 / 第X章·第X话」写入当前项目「章节创作」（同名章节自动跳过），随后关闭。 */
 function confirmImport(): void {
   const text = novelText.value.trim()
   if (!importedPreview.value && !text) {
@@ -156,14 +171,15 @@ function confirmImport(): void {
 
   if (!result.chapters.length) {
     message.info(`未新增章节（共 ${novel.chapters.length} 章，均已存在于「章节创作」）`)
-    step.value = 2
+    close()
     return
   }
 
   const { addedChapters } = appStore.importNovelIntoChapters(result)
   const skipped = novel.chapters.length - addedChapters
   message.success(`已写入「章节创作」共 ${addedChapters} 章，跳过 ${skipped} 章`)
-  step.value = 2
+  emit('applied')
+  close()
 }
 
 function splitOversized(text: string, size: number): string[] {
@@ -199,6 +215,7 @@ function chunkNovel(text: string): string[] {
 
 function buildDrafts(list: ExtractionCandidates): CandidateDraft[] {
   const existing = existingNameSet.value
+  const targetKind = extractKind.value
   const result: CandidateDraft[] = []
   const push = (
     kind: CandidateDraft['kind'],
@@ -222,9 +239,16 @@ function buildDrafts(list: ExtractionCandidates): CandidateDraft[] {
       conflict
     })
   }
-  for (const candidate of list.characters) push('character', candidate.name, candidate.role, candidate.description, [...candidate.tags], candidate.evidence ?? '')
-  for (const candidate of list.scenes) push('scene', candidate.name, candidate.type, candidate.description, [...candidate.tags], candidate.evidence ?? '')
-  for (const candidate of list.props) push('prop', candidate.name, candidate.type, candidate.description, [...candidate.tags], candidate.evidence ?? '')
+  // extract 模式只产出 kind 指定那一类；未指定时（向后兼容）三类都产出。
+  if (!targetKind || targetKind === 'character') {
+    for (const candidate of list.characters) push('character', candidate.name, candidate.role, candidate.description, [...candidate.tags], candidate.evidence ?? '')
+  }
+  if (!targetKind || targetKind === 'scene') {
+    for (const candidate of list.scenes) push('scene', candidate.name, candidate.type, candidate.description, [...candidate.tags], candidate.evidence ?? '')
+  }
+  if (!targetKind || targetKind === 'prop') {
+    for (const candidate of list.props) push('prop', candidate.name, candidate.type, candidate.description, [...candidate.tags], candidate.evidence ?? '')
+  }
   return result
 }
 
@@ -250,8 +274,7 @@ async function runExtraction(): Promise<void> {
   const sourceText = await loadExtractionSource()
   if (sourceText === null) return
   if (!sourceText) {
-    message.warning('当前项目「章节创作」暂无正文，请先返回第一步导入')
-    step.value = 1
+    message.warning('当前项目「章节创作」暂无正文，请先在「章节创作」中导入小说')
     return
   }
   if (!hasAiSettings.value) {
@@ -272,7 +295,7 @@ async function runExtraction(): Promise<void> {
         {
           key: extractTaskKey.value,
           kind: 'other',
-          label: '从小说提取资产',
+          label: `从小说提取${extractKindLabel.value || '资产'}`,
           description: `正在提取 ${start + 1}-${end} / ${segments.length}`,
           panel: 'asset-library'
         },
@@ -286,6 +309,7 @@ async function runExtraction(): Promise<void> {
             existingNames: existingNames.value,
             projectGenre: appStore.currentProject?.genre,
             projectTitle: appStore.currentProject?.title,
+            targetKind: extractKind.value,
             batchIndex: Math.floor(start / SEGMENTS_PER_BATCH)
           }
         }))
@@ -301,7 +325,7 @@ async function runExtraction(): Promise<void> {
     candidates.value = mergeExtractionCandidates(batches)
     drafts.value = buildDrafts(candidates.value)
     if (!drafts.value.length) {
-      message.warning('未提取到任何候选，可补充更多原文后重试')
+      message.warning(`未提取到任何${extractKindLabel.value || '资产'}候选，可补充更多原文后重试`)
       return
     }
     step.value = 3
@@ -347,7 +371,7 @@ function adoptSelected(): void {
     preset="card"
     class="arc-editor-modal-wide extraction-wizard"
     :bordered="false"
-    title="从小说提取资产"
+    :title="modalTitle"
     @close="close"
   >
     <template #header-extra>
@@ -355,12 +379,16 @@ function adoptSelected(): void {
     </template>
 
     <div class="wizard-steps">
-      <span class="wizard-step" :class="{ active: step === 1 }"><FileText :size="14" />导入小说</span>
-      <span class="wizard-step" :class="{ active: step === 2 }"><Sparkles :size="14" />运行提取</span>
-      <span class="wizard-step" :class="{ active: step === 3 }"><Check :size="14" />预览采纳</span>
+      <template v-if="isImportMode">
+        <span class="wizard-step active"><FileText :size="14" />导入小说</span>
+      </template>
+      <template v-else>
+        <span class="wizard-step" :class="{ active: step === 2 }"><Sparkles :size="14" />运行提取</span>
+        <span class="wizard-step" :class="{ active: step === 3 }"><Check :size="14" />预览采纳</span>
+      </template>
     </div>
 
-    <!-- 第一步：导入 / 补录小说 -->
+    <!-- 第一步：导入 / 补录小说（仅 import 模式） -->
     <section v-if="step === 1" class="wizard-body">
       <n-alert type="info" :show-icon="false" class="wizard-alert">
         项目「{{ projectName }}」当前「章节创作」共 {{ projectChapterCount }} 章。
@@ -383,13 +411,13 @@ function adoptSelected(): void {
       </div>
     </section>
 
-    <!-- 第二步：运行提取 -->
+    <!-- 第二步：运行提取（仅 extract 模式） -->
     <section v-else-if="step === 2" class="wizard-body">
       <n-alert v-if="!hasAiSettings" type="warning" :show-icon="false" class="wizard-alert">
         需要先在主页设置中配置模型和 API Key，才能运行提取。
       </n-alert>
       <n-alert v-else type="info" :show-icon="false" class="wizard-alert">
-        将按段落把原文切成多段，分批调用 AI 提取角色 / 场景 / 道具，并对已有同名实体去重。原文越长约需要的批次越多。
+        将从当前项目「章节创作」的章节正文中，按段落分批调用 AI 提取「{{ extractKindLabel }}」，并对已有同名实体去重。原文越长约需要的批次越多。
       </n-alert>
 
       <div v-if="progress.total > 0" class="wizard-progress">
@@ -413,7 +441,6 @@ function adoptSelected(): void {
         </template>
 
         <template v-else-if="step === 2">
-          <n-button round @click="step = 1">上一步</n-button>
           <n-button type="primary" round :loading="isBusy" :disabled="!hasAiSettings" @click="runExtraction">
             <template #icon><Sparkles :size="14" /></template>
             开始提取
