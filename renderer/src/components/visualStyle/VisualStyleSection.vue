@@ -6,6 +6,7 @@ import { computed, ref } from 'vue'
 import { NButton, NColorPicker, NDynamicTags, NFormItem, NSelect, NTooltip } from 'naive-ui'
 import type { SelectOption } from 'naive-ui'
 import { Eye, Plus, RotateCcw, X } from 'lucide-vue-next'
+import FeatureHelp from '@/components/FeatureHelp.vue'
 import VisualPreviewModal from '@/components/visualStyle/VisualPreviewModal.vue'
 import type { VisualRenderMode, VisualStyleProfile } from '@/types/app'
 
@@ -69,6 +70,7 @@ function clearVisualStyle(): void {
   <section class="visual-style-section">
     <div class="visual-style-header">
       <span class="visual-style-title">视觉风格</span>
+      <FeatureHelp feature-id="visual-consistency" />
     </div>
 
     <n-form-item label="渲染方式（生图 renderMode）">
