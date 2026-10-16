@@ -7,6 +7,7 @@ import { ArrowLeft, Boxes, Search } from 'lucide-vue-next'
 import { NButton, NEmpty, NInput, NSelect, useMessage } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
 import AssetLibraryCard from '@/components/assetLibrary/AssetLibraryCard.vue'
+import FeatureHelp from '@/components/FeatureHelp.vue'
 import CharacterEditModal from '@/components/entityEdit/CharacterEditModal.vue'
 import SceneLocationEditModal from '@/components/entityEdit/SceneLocationEditModal.vue'
 import PropItemEditModal from '@/components/entityEdit/PropItemEditModal.vue'
@@ -135,6 +136,7 @@ function handleSelect(entry: AssetEntry): void {
         <n-input v-model:value="query" class="library-search" placeholder="搜索名称、标签或描述" clearable>
           <template #prefix><Search :size="16" /></template>
         </n-input>
+        <FeatureHelp feature-id="asset-library" placement="bottom-end" />
       </div>
     </header>
 

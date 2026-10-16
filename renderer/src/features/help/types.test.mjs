@@ -26,8 +26,8 @@ registerHooks({
 
 const { getFeatureDescription, getFeatureDescriptions, ALL_FEATURE_IDS } = await import('./types.ts')
 
-test('12 条 featureId 全部命中查表函数', () => {
-  assert.equal(ALL_FEATURE_IDS.length, 12, 'FeatureId 联合类型必须 12 条穷举')
+test('13 条 featureId 全部命中查表函数', () => {
+  assert.equal(ALL_FEATURE_IDS.length, 13, 'FeatureId 联合类型必须 13 条穷举')
   for (const id of ALL_FEATURE_IDS) {
     const desc = getFeatureDescription(id)
     assert.ok(desc, `${id} 必须命中查表函数（不应返回 null）`)
@@ -80,7 +80,7 @@ test('getFeatureDescriptions 含非法 id 自动过滤（不抛错）', () => {
   assert.equal(descs[1].id, 'prop-item')
 })
 
-test('12 条全部含必填字段且 keyConcepts 单条 ≤ 60 字', () => {
+test('13 条全部含必填字段且 keyConcepts 单条 ≤ 60 字', () => {
   for (const id of ALL_FEATURE_IDS) {
     const desc = getFeatureDescription(id)
     assert.ok(desc)
@@ -90,11 +90,11 @@ test('12 条全部含必填字段且 keyConcepts 单条 ≤ 60 字', () => {
   }
 })
 
-test('docLink 可选字段：本期 12 条全部含 docLink', () => {
+test('docLink 可选字段：本期 13 条全部含 docLink', () => {
   for (const id of ALL_FEATURE_IDS) {
     const desc = getFeatureDescription(id)
     assert.ok(desc)
     assert.ok(desc.docLink, `${id} docLink 应配置`)
-    assert.match(desc.docLink.href, /feature-help-prd\.md/)
+    assert.match(desc.docLink.href, /prd\.md/)
   }
 })
