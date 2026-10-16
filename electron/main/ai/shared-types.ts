@@ -121,7 +121,7 @@ export type AiTaskName =
 export type AiRunKnowledgeItem = {
   documentId: string
   title: string
-  sourceType: 'reference-summary' | 'reference-chunk' | 'workflow-document' | 'canon-fact' | 'chapter-summary' | 'novel-source'
+  sourceType: 'reference-summary' | 'reference-chunk' | 'workflow-document' | 'canon-fact' | 'chapter-summary'
   sourceLabel: string
   snippet: string
   keywords: string[]

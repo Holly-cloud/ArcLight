@@ -681,7 +681,6 @@ export type KnowledgeDocumentSourceType =
   | 'workflow-document'
   | 'canon-fact'
   | 'chapter-summary'
-  | 'novel-source'
 
 /** 知识文档；参考资料为全局作用域，项目知识通过 projectId 隔离 */
 export interface KnowledgeDocument {
