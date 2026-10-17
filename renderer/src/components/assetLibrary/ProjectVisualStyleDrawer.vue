@@ -41,12 +41,22 @@ const draft = reactive({
   seasonPalette: [] as string[]
 })
 
-/** 载入草稿时抑制 watch 触发，避免把未改动值写回 */
-let syncing = false
+/** 载入草稿快照：与之一致则不落库（避免打开抽屉即把 null 回写成空对象） */
+const loadedSignature = ref('')
+
+function draftSignature(): string {
+  return JSON.stringify([
+    draft.renderMode,
+    draft.palette,
+    draft.moodWords,
+    draft.defaultAspectRatio,
+    draft.lightingRules,
+    draft.seasonPalette
+  ])
+}
 
 watch(() => props.show, (show) => {
   if (!show) return
-  syncing = true
   const current = appStore.currentProject?.projectVisualStyle ?? null
   draft.renderMode = current?.renderMode ?? ''
   draft.palette = [...(current?.palette ?? [])]
@@ -54,7 +64,7 @@ watch(() => props.show, (show) => {
   draft.defaultAspectRatio = current?.defaultAspectRatio ?? ''
   draft.lightingRules = current?.lightingRules ?? ''
   draft.seasonPalette = [...(current?.seasonPalette ?? [])]
-  syncing = false
+  loadedSignature.value = draftSignature()
 }, { immediate: true })
 
 function persist(): void {
@@ -68,10 +78,11 @@ function persist(): void {
   })
 }
 
-watch(draft, () => {
-  if (syncing) return
+// 只在草稿内容真正变化（且不同于载入快照）时才落库
+watch(draftSignature, (next) => {
+  if (next === loadedSignature.value) return
   persist()
-}, { deep: true })
+})
 
 function addPaletteColor(): void {
   draft.palette = [...draft.palette, '#ffffff']

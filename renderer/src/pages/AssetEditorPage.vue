@@ -33,17 +33,15 @@ const characterForm = reactive({ name: '', role: '', description: '', tags: [] a
 const sceneForm = reactive({ name: '', type: '', description: '', tags: [] as string[] })
 const propForm = reactive({ name: '', type: '', description: '', tags: [] as string[] })
 
-const activeForm = computed(() => {
-  if (kind.value === 'scene') return sceneForm
-  if (kind.value === 'prop') return propForm
-  return characterForm
-})
-
 const currentCharacter = computed(() => appStore.characters.find((item) => item.id === assetId.value) ?? null)
 const currentScene = computed(() => appStore.sceneLocations.find((item) => item.id === assetId.value) ?? null)
 const currentProp = computed(() => appStore.propItems.find((item) => item.id === assetId.value) ?? null)
 
-const assetName = computed(() => activeForm.value.name)
+const assetName = computed(() => {
+  if (kind.value === 'scene') return sceneForm.name
+  if (kind.value === 'prop') return propForm.name
+  return characterForm.name
+})
 
 /** 组装图库生成提示词所需的资产视觉字段（保留历史视觉字段，虽不再在编辑页编辑） */
 const galleryAsset = computed<AssetImagePromptAsset>(() => {
@@ -109,7 +107,8 @@ const sameKindEntries = computed(() => {
 function dotStyle(entry: AssetEntry): Record<string, string> {
   const color = (entry.color ?? '').trim()
   const base = color || 'var(--arc-primary)'
-  return { background: `linear-gradient(135deg, ${base} 0%, color-mix(in srgb, ${base} 52%, var(--arc-bg-surface)) 100%)` }
+  // 用资产主色在令牌底色上做浅色调和：文字色仍走 --arc-* 令牌，避免硬编码色值
+  return { background: `color-mix(in srgb, ${base} 22%, var(--arc-bg-surface))` }
 }
 
 function openEntry(entry: AssetEntry): void {
@@ -135,9 +134,19 @@ function formSignature(): string {
 }
 
 // ── 表单灌入：定位变化时把目标资产载入对应表单 ──
+// 载入前先落库「上一张」的待保存改动（回调用新的 kind/id，但表单此刻仍是旧值）
 watch(
-  () => [kind.value, assetId.value],
-  () => {
+  () => [kind.value, assetId.value] as [AssetImageKind, string],
+  ([nextKind, nextId]: [AssetImageKind, string], prev: [AssetImageKind, string] | undefined) => {
+    const prevKind = prev?.[0]
+    const prevId = prev?.[1]
+    if (saveTimer !== undefined) {
+      window.clearTimeout(saveTimer)
+      saveTimer = undefined
+    }
+    if (prevId && prevKind && (prevKind !== nextKind || prevId !== nextId)) {
+      persistFor(prevKind, prevId)
+    }
     if (kind.value === 'character') {
       const character = currentCharacter.value
       characterForm.name = character?.name ?? ''
@@ -158,28 +167,49 @@ watch(
       propForm.tags = prop?.tags.map((tag) => tag.label) ?? []
     }
     saveState.value = 'idle'
-    if (saveTimer !== undefined) {
-      window.clearTimeout(saveTimer)
-      saveTimer = undefined
-    }
     loadedSignature.value = formSignature()
   },
   { immediate: true }
 )
 
-function persistNow(): void {
-  if (!assetId.value) return
-  const name = activeForm.value.name.trim()
-  if (!name) return // 名称必填：空名不落库，避免把资产改坏
-  const tags = activeForm.value.tags.map((label) => ({ label }))
-  if (kind.value === 'character') {
-    appStore.updateCharacter(assetId.value, { name, role: characterForm.role, description: characterForm.description, tags })
-  } else if (kind.value === 'scene') {
-    appStore.updateSceneLocation(assetId.value, { name, type: sceneForm.type, description: sceneForm.description, tags })
-  } else {
-    appStore.updatePropItem(assetId.value, { name, type: propForm.type, description: propForm.description, tags })
+/** 把「指定资产」的当前表单内容落库；名称为空则不写（避免把资产改坏），返回是否写入 */
+function persistFor(targetKind: AssetImageKind, targetId: string): boolean {
+  if (!targetId) return false
+  if (targetKind === 'character') {
+    const name = characterForm.name.trim()
+    if (!name) return false
+    appStore.updateCharacter(targetId, {
+      name,
+      role: characterForm.role,
+      description: characterForm.description,
+      tags: characterForm.tags.map((label) => ({ label }))
+    })
+    return true
   }
-  saveState.value = 'saved'
+  if (targetKind === 'scene') {
+    const name = sceneForm.name.trim()
+    if (!name) return false
+    appStore.updateSceneLocation(targetId, {
+      name,
+      type: sceneForm.type,
+      description: sceneForm.description,
+      tags: sceneForm.tags.map((label) => ({ label }))
+    })
+    return true
+  }
+  const name = propForm.name.trim()
+  if (!name) return false
+  appStore.updatePropItem(targetId, {
+    name,
+    type: propForm.type,
+    description: propForm.description,
+    tags: propForm.tags.map((label) => ({ label }))
+  })
+  return true
+}
+
+function persistNow(): void {
+  if (persistFor(kind.value, assetId.value)) saveState.value = 'saved'
 }
 
 function scheduleSave(): void {
@@ -390,7 +420,7 @@ function goBack(): void {
   height: 28px;
   place-items: center;
   border-radius: 50%;
-  color: #ffffff;
+  color: var(--arc-text-primary);
   font-size: 12px;
   font-weight: 700;
 }
