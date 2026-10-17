@@ -3,13 +3,14 @@
 // - 面板与资产库聚合页共用；含 AI 补充流程（AiEnhancePreview）
 // - props.character 为空 → 新建；非空 → 编辑
 import { computed, reactive, ref, watch } from 'vue'
-import { NButton, NDynamicTags, NForm, NFormItem, NInput, NModal, useMessage } from 'naive-ui'
+import { NButton, NModal, useMessage } from 'naive-ui'
 import { Sparkles } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { buildProjectWritingStyleContext } from '@/features/writingStyles/presets'
 import { suggestRenderMode } from '@/features/visualStyle/visualStyleTemplates'
 import { toIpcPayload } from '@/utils/ipcPayload'
 import type { CharacterCard, VisualStyleProfile } from '@/types/app'
+import CharacterEditForm from '@/components/entityEdit/CharacterEditForm.vue'
 import VisualStyleSection from '@/components/visualStyle/VisualStyleSection.vue'
 import AssetGallerySection from '@/components/assetImage/AssetGallerySection.vue'
 import type { AssetImagePromptAsset } from '@/features/assetImage/composeAssetImagePrompt'
@@ -190,38 +191,13 @@ function handleEnhanceApply(accepted: Record<string, string | string[]>): void {
     :bordered="false"
     @close="close"
   >
-    <div class="arc-split-body">
-      <div class="arc-split-left">
-        <n-form label-placement="top">
-          <n-form-item label="角色名称">
-            <n-input v-model:value="form.name" placeholder="例如：李雷 / 艾达" />
-          </n-form-item>
-          <n-form-item label="角色定位">
-            <n-input v-model:value="form.role" placeholder="例如：男主 / 情报中间人" />
-          </n-form-item>
-          <n-form-item label="角色标签">
-            <n-dynamic-tags v-model:value="form.tags" />
-          </n-form-item>
-          <VisualStyleSection
-            v-model="form.visualStyle"
-            :name="form.name"
-            :type-label="form.role"
-            :description="form.description"
-          />
-        </n-form>
-      </div>
-      <div class="arc-split-right">
-        <div class="arc-split-right-header">角色简介</div>
-        <div class="arc-split-right-body">
-          <n-input
-            v-model:value="form.description"
-            type="textarea"
-            placeholder="补充角色背景、动机和冲突..."
-            :show-count="true"
-          />
-        </div>
-      </div>
-    </div>
+    <CharacterEditForm :form="form" />
+    <VisualStyleSection
+      v-model="form.visualStyle"
+      :name="form.name"
+      :type-label="form.role"
+      :description="form.description"
+    />
 
     <AssetGallerySection
       v-if="props.character"

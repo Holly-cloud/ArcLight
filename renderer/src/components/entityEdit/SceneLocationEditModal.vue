@@ -3,11 +3,12 @@
 // - 面板与资产库聚合页共用；保存时双侧镜像同步关联道具（syncSceneProps）
 // - props.scene 为空 → 新建；非空 → 编辑
 import { computed, reactive, watch } from 'vue'
-import { NButton, NDynamicTags, NForm, NFormItem, NInput, NModal, NSelect, useMessage } from 'naive-ui'
+import { NButton, NForm, NFormItem, NModal, NSelect, useMessage } from 'naive-ui'
 import type { SelectOption } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
 import { themePresets } from '@/theme/presets'
 import type { CharacterTag, SceneLocation, VisualContext } from '@/types/app'
+import SceneLocationEditForm from '@/components/entityEdit/SceneLocationEditForm.vue'
 import VisualContextSection from '@/components/visualStyle/VisualContextSection.vue'
 import AssetGallerySection from '@/components/assetImage/AssetGallerySection.vue'
 import type { AssetImagePromptAsset } from '@/features/assetImage/composeAssetImagePrompt'
@@ -41,7 +42,6 @@ const galleryAsset = computed<AssetImagePromptAsset>(() => ({
   materialityNote: sceneForm.visualContext?.materialityNote ?? ''
 }))
 
-const SCENE_TYPE_OPTIONS: SelectOption[] = ['城市', '建筑', '自然地形', '室内', '异空间'].map((type) => ({ label: type, value: type }))
 const ENTITY_COLOR_OPTIONS: SelectOption[] = [
   { label: '跟随主题（默认）', value: '' },
   ...themePresets.map((preset) => ({ label: preset.label, value: preset.primary }))
@@ -146,31 +146,13 @@ function submitScene(): void {
     :bordered="false"
     @close="close"
   >
+    <SceneLocationEditForm :form="sceneForm" />
     <n-form label-placement="top">
-      <div class="form-grid">
-        <n-form-item label="场景名称">
-          <n-input v-model:value="sceneForm.name" placeholder="例如：云顶城 / 落雪谷 / 第七码头" />
-        </n-form-item>
-        <n-form-item label="场景类型">
-          <n-select v-model:value="sceneForm.type" filterable tag :options="SCENE_TYPE_OPTIONS" placeholder="选择或输入场景类型" />
-        </n-form-item>
-      </div>
-      <n-form-item label="场景描述">
-        <n-input
-          v-model:value="sceneForm.description"
-          type="textarea"
-          :autosize="{ minRows: 3, maxRows: 6 }"
-          placeholder="补充地理特征、氛围、势力分布与故事作用..."
-        />
-      </n-form-item>
       <n-form-item label="关联角色">
         <n-select v-model:value="sceneForm.relatedCharacterIds" multiple filterable :options="characterOptions" placeholder="选择出现在该场景的角色" />
       </n-form-item>
       <n-form-item label="关联道具">
         <n-select v-model:value="sceneForm.relatedPropIds" multiple filterable :options="propOptions" placeholder="选择位于该场景的重要道具" />
-      </n-form-item>
-      <n-form-item label="标签">
-        <n-dynamic-tags v-model:value="sceneForm.tags" />
       </n-form-item>
       <n-form-item label="主色">
         <n-select v-model:value="sceneForm.color" :options="ENTITY_COLOR_OPTIONS" />
@@ -205,22 +187,10 @@ function submitScene(): void {
 </template>
 
 <style scoped>
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
 .arc-modal-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-}
-
-@media (max-width: 720px) {
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
 }
 </style>

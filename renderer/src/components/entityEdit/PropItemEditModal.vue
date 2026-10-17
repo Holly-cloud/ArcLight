@@ -3,11 +3,12 @@
 // - 面板与资产库聚合页共用；保存时双侧镜像同步关联场景（syncPropScenes）
 // - props.prop 为空 → 新建；非空 → 编辑
 import { computed, reactive, watch } from 'vue'
-import { NButton, NDynamicTags, NForm, NFormItem, NInput, NModal, NSelect, useMessage } from 'naive-ui'
+import { NButton, NForm, NFormItem, NModal, NSelect, useMessage } from 'naive-ui'
 import type { SelectOption } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
 import { themePresets } from '@/theme/presets'
 import type { CharacterTag, PropItem, VisualContext } from '@/types/app'
+import PropItemEditForm from '@/components/entityEdit/PropItemEditForm.vue'
 import VisualContextSection from '@/components/visualStyle/VisualContextSection.vue'
 import AssetGallerySection from '@/components/assetImage/AssetGallerySection.vue'
 import type { AssetImagePromptAsset } from '@/features/assetImage/composeAssetImagePrompt'
@@ -41,7 +42,6 @@ const galleryAsset = computed<AssetImagePromptAsset>(() => ({
   materialityNote: propForm.visualContext?.materialityNote ?? ''
 }))
 
-const PROP_TYPE_OPTIONS: SelectOption[] = ['武器', '信物', '法器', '消耗品', '线索物'].map((type) => ({ label: type, value: type }))
 const ENTITY_COLOR_OPTIONS: SelectOption[] = [
   { label: '跟随主题（默认）', value: '' },
   ...themePresets.map((preset) => ({ label: preset.label, value: preset.primary }))
@@ -149,23 +149,8 @@ function submitProp(): void {
     :bordered="false"
     @close="close"
   >
+    <PropItemEditForm :form="propForm" />
     <n-form label-placement="top">
-      <div class="form-grid">
-        <n-form-item label="道具名称">
-          <n-input v-model:value="propForm.name" placeholder="例如：断魂剑 / 传国玉玺 / 引魂灯" />
-        </n-form-item>
-        <n-form-item label="道具类型">
-          <n-select v-model:value="propForm.type" filterable tag :options="PROP_TYPE_OPTIONS" placeholder="选择或输入道具类型" />
-        </n-form-item>
-      </div>
-      <n-form-item label="道具描述">
-        <n-input
-          v-model:value="propForm.description"
-          type="textarea"
-          :autosize="{ minRows: 3, maxRows: 6 }"
-          placeholder="补充道具外观、用途、来源与剧情中的作用..."
-        />
-      </n-form-item>
       <n-form-item label="持有者">
         <n-select v-model:value="propForm.ownerCharacterId" clearable filterable :options="characterOptions" placeholder="选择主要持有者" />
       </n-form-item>
@@ -174,9 +159,6 @@ function submitProp(): void {
       </n-form-item>
       <n-form-item label="关联角色">
         <n-select v-model:value="propForm.relatedCharacterIds" multiple filterable :options="characterOptions" placeholder="选择其他关联角色（不含持有者）" />
-      </n-form-item>
-      <n-form-item label="标签">
-        <n-dynamic-tags v-model:value="propForm.tags" />
       </n-form-item>
       <n-form-item label="主色">
         <n-select v-model:value="propForm.color" :options="ENTITY_COLOR_OPTIONS" />
@@ -211,22 +193,10 @@ function submitProp(): void {
 </template>
 
 <style scoped>
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 14px;
-}
-
 .arc-modal-actions {
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 10px;
-}
-
-@media (max-width: 720px) {
-  .form-grid {
-    grid-template-columns: 1fr;
-  }
 }
 </style>
