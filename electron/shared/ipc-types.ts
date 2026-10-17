@@ -118,6 +118,10 @@ export interface ProjectVisualStyle {
   lightingRules: string
   seasonPalette: string[]
   moodWords: string[]
+  /** v1.34.0 图片主风格：生图默认渲染方式；旧数据缺省读为 null */
+  renderMode?: VisualRenderMode | null
+  /** v1.34.0 图片主风格：默认画幅比（角色 / 场景默认 16:9，道具 1:1）；旧数据缺省读为 null */
+  defaultAspectRatio?: string | null
 }
 
 /** 资产图库支持的资产类型（v1.33.0） */

@@ -29,6 +29,10 @@ export interface PromptProjectVisualStyle {
   lightingRules?: string
   seasonPalette?: string[]
   moodWords?: string[]
+  /** v1.34.0 图片主风格：渲染方式（生图 renderMode 默认） */
+  renderMode?: string | null
+  /** v1.34.0 图片主风格：默认画幅比 */
+  defaultAspectRatio?: string | null
 }
 
 export interface ComposeAssetImagePromptInput {
@@ -46,11 +50,24 @@ export const ASPECT_RATIO_OPTIONS: readonly string[] = [
 /** 分辨率候选 */
 export const IMAGE_SIZE_OPTIONS: readonly string[] = ['1K', '2K', '4K'] as const
 
-/** 按资产类型推荐默认画幅比：角色立绘 3:4、场景 16:9、道具 1:1 */
+/** 按资产类型推荐默认画幅比（v1.34.0）：角色 / 场景 16:9、道具 1:1 */
 export function recommendAspectRatio(kind: AssetImageKind | string | null | undefined): string {
-  if (kind === 'character') return '3:4'
+  if (kind === 'character') return '16:9'
   if (kind === 'scene') return '16:9'
   return '1:1'
+}
+
+/**
+ * 解析生图默认画幅比：优先取项目「图片主风格」的 defaultAspectRatio（若合法），
+ * 否则回退到按资产类型的推荐值。用于「未改过生成选项」时的初始值。
+ */
+export function resolveDefaultAspectRatio(
+  kind: AssetImageKind | string | null | undefined,
+  projectStyle?: PromptProjectVisualStyle | null
+): string {
+  const configured = (projectStyle?.defaultAspectRatio ?? '').trim()
+  if (configured && ASPECT_RATIO_OPTIONS.includes(configured)) return configured
+  return recommendAspectRatio(kind)
 }
 
 function joinList(values?: string[] | null): string {
@@ -71,10 +88,12 @@ export function composeAssetImagePrompt(input: ComposeAssetImagePromptInput): st
   const lines: string[] = []
 
   if (projectStyle) {
+    const renderMode = (projectStyle.renderMode ?? '').trim()
     const palette = joinList(projectStyle.palette)
     const season = joinList(projectStyle.seasonPalette)
     const mood = joinList(projectStyle.moodWords)
     const lighting = (projectStyle.lightingRules ?? '').trim()
+    if (renderMode) lines.push(`项目渲染方式：${renderMode}`)
     if (palette) lines.push(`项目配色：${palette}`)
     if (season) lines.push(`项目季相色板：${season}`)
     if (lighting) lines.push(`项目光影规则：${lighting}`)

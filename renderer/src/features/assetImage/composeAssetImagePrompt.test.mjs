@@ -17,7 +17,7 @@ registerHooks({
   }
 })
 
-const { composeAssetImagePrompt, recommendAspectRatio, ASPECT_RATIO_OPTIONS } = await import('./composeAssetImagePrompt.ts')
+const { composeAssetImagePrompt, recommendAspectRatio, resolveDefaultAspectRatio, ASPECT_RATIO_OPTIONS } = await import('./composeAssetImagePrompt.ts')
 
 const characterAsset = {
   kind: 'character',
@@ -108,10 +108,25 @@ test('场景资产：场景视觉上下文映射（光影 / 季相 / 材质 / �
   assert.ok(prompt.includes('材质：石材'))
 })
 
-test('recommendAspectRatio：角色 3:4 / 场景 16:9 / 道具 1:1（缺省 1:1）', () => {
-  assert.equal(recommendAspectRatio('character'), '3:4')
+test('recommendAspectRatio：角色 / 场景 16:9、道具 1:1（缺省 1:1）', () => {
+  assert.equal(recommendAspectRatio('character'), '16:9')
   assert.equal(recommendAspectRatio('scene'), '16:9')
   assert.equal(recommendAspectRatio('prop'), '1:1')
   assert.equal(recommendAspectRatio(undefined), '1:1')
   assert.ok(ASPECT_RATIO_OPTIONS.includes('auto'))
+})
+
+test('resolveDefaultAspectRatio：项目主风格优先，缺省回退推荐值', () => {
+  assert.equal(resolveDefaultAspectRatio('character', null), '16:9', '无项目风格时用推荐值')
+  assert.equal(resolveDefaultAspectRatio('prop', { defaultAspectRatio: '1:1' }), '1:1', '项目风格覆盖默认')
+  assert.equal(resolveDefaultAspectRatio('character', { defaultAspectRatio: '3:4' }), '3:4', '项目合法值优先')
+  assert.equal(resolveDefaultAspectRatio('scene', { defaultAspectRatio: 'not-a-ratio' }), '16:9', '非法值回退推荐值')
+})
+
+test('项目图片主风格注入渲染方式前缀', () => {
+  const prompt = composeAssetImagePrompt({
+    asset: characterAsset,
+    projectStyle: { renderMode: 'realistic', palette: [], seasonPalette: [], lightingRules: '', moodWords: [] }
+  })
+  assert.ok(prompt.includes('项目渲染方式：realistic'), '应含项目渲染方式')
 })
