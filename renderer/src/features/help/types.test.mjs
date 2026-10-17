@@ -26,8 +26,8 @@ registerHooks({
 
 const { getFeatureDescription, getFeatureDescriptions, ALL_FEATURE_IDS } = await import('./types.ts')
 
-test('6 条 featureId 全部命中查表函数', () => {
-  assert.equal(ALL_FEATURE_IDS.length, 6, 'FeatureId 联合类型必须 6 条穷举')
+test('7 条 featureId 全部命中查表函数', () => {
+  assert.equal(ALL_FEATURE_IDS.length, 7, 'FeatureId 联合类型必须 7 条穷举')
   for (const id of ALL_FEATURE_IDS) {
     const desc = getFeatureDescription(id)
     assert.ok(desc, `${id} 必须命中查表函数（不应返回 null）`)

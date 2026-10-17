@@ -1,8 +1,8 @@
 {
   "version": 1,
-  "updatedAt": "2026-08-06",
+  "updatedAt": "2026-10-17",
   "title": "CharacterArc（弧光）使用教程",
-  "intro": "从创建作品、配置 AI，到维护设定、生成大纲和进行章节创作，按这份教程即可快速熟悉弧光。",
+  "intro": "从创建作品、配置 AI，到维护设定、生成大纲和进行章节创作，按这份教程即可快速熟悉弧光。v1.33.0 起，角色 / 场景 / 道具资产卡新增「图库」，可一键生成立绘与配图。",
   "resources": [
     {
       "id": "feishu-guide",
@@ -17,6 +17,14 @@
       "type": "bilibili",
       "title": "B站视频教程",
       "description": "视频教程正在准备中，发布后会在这里补充链接。",
+      "url": "",
+      "enabled": false
+    },
+    {
+      "id": "asset-image-generation-guide",
+      "type": "external",
+      "title": "资产卡生图（v1.33.0）",
+      "description": "在角色 / 场景 / 道具资产卡「图库」一键生图：GRS AI 渠道、参考图图生图、角色基准立绘一致性，结果入库落盘，可查看 / 删除 / 导出。",
       "url": "",
       "enabled": false
     }

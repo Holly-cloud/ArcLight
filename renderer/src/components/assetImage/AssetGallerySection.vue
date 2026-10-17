@@ -10,6 +10,7 @@ import type { SelectOption } from 'naive-ui'
 import { Download, ImagePlus, Sparkles, Star, Trash2, Upload, X } from 'lucide-vue-next'
 import { useAppStore } from '@/stores/app'
 import { toIpcPayload } from '@/utils/ipcPayload'
+import FeatureHelp from '@/components/FeatureHelp.vue'
 import type { AssetImageItem, AssetImageKind } from '@/types/app'
 import {
   ASPECT_RATIO_OPTIONS,
@@ -260,6 +261,7 @@ function imageSrc(item: AssetImageItem): string {
     <div class="gallery-header">
       <span class="gallery-title">图库</span>
       <span class="gallery-count">{{ images.length }} 张</span>
+      <FeatureHelp feature-id="asset-image" />
     </div>
 
     <n-alert

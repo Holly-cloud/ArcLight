@@ -4,6 +4,28 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.33.0] - 2026-10-17
+
+### 资产卡生图能力（**放开「本期不引入外部 API」约束**，接入 GRS AI）
+
+资产卡从「描述沉淀」升级为「描述 + 图像沉淀」：角色 / 场景 / 道具资产卡的编辑弹窗新增「图库」，一键生成立绘或配图，结果**入库 + 落本地文件**，可查看 / 删除 / 导出。**本版为有意的战略放宽**（用户已确认），正式引入第三方生图服务 GRS AI（`grsai.dakka.com.cn`，模型 `nano-banana-fast`，对照已更新 `manga-drama-roadmap-prd.md §〇 决策2` 与长线回顾 §3-2）。
+
+- **新增图库**——角色 / 场景 / 道具编辑弹窗内嵌「图库」区块：网格缩略图、空态、生成 / 预览 / 删除 / 导出；角色可设「基准立绘」
+- **GRS AI 渠道**——图片设置新增 GRS AI 预设；`imageProvider='grsai'` 走独立协议 `POST {base}/v1/api/generate`（`replyType:'json'` 同步返回最终结果），非 GRS 沿用既有 OpenAI 兼容逻辑（**封面生图零回归**）
+- **图生图 / 参考图**——生成前可挂 0..4 张参考图（图库选 / 本地上传，超 8MB 拒绝），随请求发送；角色「基准立绘」自动作为参考图注入实现一致性
+- **提示词组装**——项目级视觉风格 + 资产视觉字段自动拼装（复用 `buildImagePrompt`），填入可编辑文本域；默认画幅比按类型推荐（角色 3:4 / 场景 16:9 / 道具 1:1）
+- **落盘 + 落库**——图像落 `userData/asset-images/<projectId>/`，DB 仅存元数据与文件名（**图库有意不进工作区快照**，走专用 IPC 懒加载）；显示走自定义协议 `arc-asset://`
+- **失败与重试**——网络错误 / 超时 / 429 / 5xx 有限次重试（≤2，间隔 1.5s）；`violation` / `failed` 给可读错误；单次超时 180s、支持取消
+- **级联删除**——资产 / 项目删除时双层清理（前端 store + 主进程 DB）并删对应本地文件
+- **计费与隐私提示**——生成前提示调用第三方服务、按次计费（约 ¥0.02/次，失败返还）、描述与参考图会上传
+- **文案留痕**——FeatureHelp +1（`asset-image`）；CHANGELOG / announcements / tutorial 同步
+- **零 schema 迁移**——`asset_images` 为幂等附加表，`WORKSPACE_SCHEMA_VERSION` 保持 **4**
+
+### patch 级变更
+
+- 新增子套件 `test:asset-image`（提示词组装 / 图库模型 / GRS 响应解析，**全用桩数据、不发真实网络请求**）；`pnpm test` 基线 **232/231/1 → 260/259/1**（新增 28 项用例），唯一红仍为 `run-agent-codex-cli` 的 Windows 平台边界
+- `test:workspace-entities` 14/14、`test:visual-consistency` 19/19、`test:asset-extraction` 47/47；`typecheck` 0 错
+
 ## [1.32.1] - 2026-10-17
 
 ### 技术债 + 收尾批次（`pnpm test` 5 红 → 1 红）
