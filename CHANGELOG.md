@@ -4,6 +4,17 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.34.1] - 2026-10-17
+
+### 图库缩略图修复 + 清除「角色图鉴」+ 角色 AI 补充迁入资产编辑页
+
+- **修复：图库缩略图显示异常**——`n-image` 内 `<img>` 未约束尺寸，纵向比例图会按原始尺寸溢出、被卡片 `overflow:hidden` 裁切成「窄长条」。现通过 `img-props` 给缩略图固定 **16:9** 裁切（`aspect-ratio: 16 / 9` + `object-fit: cover`），横竖图统一为规整网格
+- **清除「角色图鉴」面板**（与资产库功能重合，用户裁定）——移除侧栏入口与 `components/CharactersPanel.vue`；连带清理随之失去引用的资产实体编辑弹窗（`Character/SceneLocation/PropItem EditModal`）、资产级视觉区块（`VisualStyleSection` / `VisualContextSection`）与 `visualStyleTemplates`（含其单测）；FeatureHelp `FeatureId` **7 → 6**（移除 `visual-consistency`）
+- **旧跳转统一改指资产库**——概览「角色数量」统计卡、全局搜索结果「角色」分组、全局助手资产入口、流程阶段「设定搭建」、概览快速入口「角色」均改为打开「资产库」独立页
+- **角色「AI 补充」迁入资产编辑页**——顶栏新增「AI 补充」按钮（仅角色），逻辑自原「角色图鉴」编辑弹窗迁入，**能力不丢失**
+- **零 schema 迁移**——无新表 / 无新列 / 不 bump `WORKSPACE_SCHEMA_VERSION`（保持 4）
+- `pnpm test` 基线保持 **264/263/1**（无新增用例，唯一红仍为 `run-agent-codex-cli` 的 Windows 平台边界）；`test:visual-consistency` 收敛为 `workspace-visual-migration.test.mjs`；`typecheck` 0 错
+
 ## [1.34.0] - 2026-10-17
 
 ### 资产编辑页重构 + 资产库「图片主风格」（界面 / 导航重构）
