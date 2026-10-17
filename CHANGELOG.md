@@ -4,6 +4,21 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.32.1] - 2026-10-17
+
+### 技术债 + 收尾批次（`pnpm test` 5 红 → 1 红）
+
+- **修复真 bug（向后兼容红线）**——`normalizeWorkspacePayload` 对可空 `chapters` 未兜底会抛 TypeError；改为 `(chapters ?? [])`（对齐 legacy 分支范式）
+- **FeatureHelp 合契约**——`novel-extraction` 的 `keyConcepts` 由 **6 条**收敛到 **5 条**（契约 3–5）
+- **4 个 AI 测试加载修复**——`run-agent-codex-cli` / `codex-cli` / `agent-loop` / `conversation-manager` 加 `node:module` `registerHooks`，解析 `@shared` 别名与无扩展名导入；`pnpm test` **5 红 → 1 红**
+- **注释校正**——移除指向已删 `ScenePropSection` 的溯源注释；`orchestrator` 流式任务注释改为实际 **8 种**
+- **文档校正**——README「内置 Skill 包」按实际目录重写（`oh-story-claudecode` 12→13、列真实 skill 名）；`CLAUDE.md` 测试运行器说明与 `assistant_*` 五表
+
+### patch 级变更
+
+- 测试基线：**207/202/5 → 232/231/1**（4 个 AI 测试由「文件级 1 条失败」展开为完整子用例；唯一剩余红为 **Windows 平台边界**（测试以 shebang 脚本 spawn Codex CLI），属环境性、修复前即红）
+- `test:asset-extraction` 47/47、`test:workspace-entities` 14/14、`test:visual-consistency` 19/19；`typecheck` 0 错
+
 ## [1.32.0] - 2026-10-17
 
 ### 解散工作台容器 + 删除参考作品库与「拆书→改编」流水线（**破坏性**）

@@ -1,5 +1,19 @@
 [
   {
+    "id": "v1.32.1-tech-debt-sweep",
+    "title": "弧光 v1.32.1 技术债 + 收尾",
+    "date": "2026-10-17",
+    "type": "info",
+    "severity": "info",
+    "items": [
+      "【修 bug】修复 normalizeWorkspacePayload 对可空 chapters 未兜底导致的异常（向后兼容）",
+      "【测试基线】pnpm test 由 5 红降到 1 红；4 个 AI 测试补齐模块解析（@shared 别名 / 无扩展名导入）",
+      "【合契约】novel-extraction 功能说明 keyConcepts 由 6 条收敛为 5 条",
+      "【文档校正】README 内置 Skill 分组与清单按实际目录重写；CLAUDE.md 测试运行器与 assistant_* 表说明更新",
+      "【已知】唯一剩余红为 Windows 平台边界（测试以 shebang 脚本 spawn Codex CLI），属环境性、非产品缺陷"
+    ]
+  },
+  {
     "id": "v1.32.0-workbench-dissolution",
     "title": "弧光 v1.32.0 解散工作台 + 删除参考作品库与拆书→改编",
     "date": "2026-10-17",
