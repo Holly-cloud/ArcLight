@@ -13,7 +13,7 @@ import type { AssetImageItem, AssetImageKind } from '@/types/app'
 import {
   ASPECT_RATIO_OPTIONS,
   IMAGE_SIZE_OPTIONS,
-  composeAssetImagePrompt,
+  resolveAssetPrompt,
   resolveDefaultAspectRatio,
   type AssetImagePromptAsset,
   type PromptProjectVisualStyle
@@ -67,14 +67,12 @@ const galleryOptions = computed<SelectOption[]>(() => props.images.map((item) =>
 })))
 
 function recomposePrompt(): void {
-  promptText.value = composeAssetImagePrompt({
-    asset: props.asset ?? null,
-    projectStyle: props.projectStyle ?? null
-  })
+  // v1.34.3：优先资产自带的「视觉提示词」，为空时才按视觉字段拼装
+  promptText.value = resolveAssetPrompt(props.asset ?? null, props.projectStyle ?? null)
 }
 
 watch(
-  () => [props.projectId, props.kind, props.assetId, props.projectStyle],
+  () => [props.projectId, props.kind, props.assetId, props.projectStyle, props.asset?.visualPrompt],
   () => {
     references.value = []
     aspectRatio.value = resolveDefaultAspectRatio(props.kind, props.projectStyle ?? null)

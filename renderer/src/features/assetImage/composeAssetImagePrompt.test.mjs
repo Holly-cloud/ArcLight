@@ -17,7 +17,7 @@ registerHooks({
   }
 })
 
-const { composeAssetImagePrompt, recommendAspectRatio, resolveDefaultAspectRatio, ASPECT_RATIO_OPTIONS } = await import('./composeAssetImagePrompt.ts')
+const { composeAssetImagePrompt, recommendAspectRatio, resolveDefaultAspectRatio, resolveAssetPrompt, ASPECT_RATIO_OPTIONS } = await import('./composeAssetImagePrompt.ts')
 
 const characterAsset = {
   kind: 'character',
@@ -129,4 +129,14 @@ test('项目图片主风格注入渲染方式前缀', () => {
     projectStyle: { renderMode: 'realistic', palette: [], seasonPalette: [], lightingRules: '', moodWords: [] }
   })
   assert.ok(prompt.includes('项目渲染方式：realistic'), '应含项目渲染方式')
+})
+
+test('resolveAssetPrompt：优先资产视觉提示词，为空时回退拼装', () => {
+  const withPrompt = { ...characterAsset, visualPrompt: '少年剑客，青灰布衣，左眼旧疤。' }
+  assert.equal(resolveAssetPrompt(withPrompt, null), '少年剑客，青灰布衣，左眼旧疤。', '有视觉提示词时直接取用')
+
+  const blank = { ...characterAsset, visualPrompt: '   ' }
+  assert.equal(resolveAssetPrompt(blank, null), composeAssetImagePrompt({ asset: characterAsset }), '空白提示词回退拼装')
+
+  assert.equal(resolveAssetPrompt(null, null), '资产配图', '无资产回退默认文案')
 })

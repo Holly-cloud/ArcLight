@@ -21,6 +21,8 @@ export interface AssetImagePromptAsset {
   lightingNote: string
   seasonNote: string
   materialityNote: string
+  /** v1.34.3 视觉提示词：随资产持久化；为空时回退到视觉字段拼装 */
+  visualPrompt?: string
 }
 
 /** 项目级视觉风格（仅人工填写，可空） */
@@ -125,4 +127,18 @@ export function composeAssetImagePrompt(input: ComposeAssetImagePromptInput): st
     return asset?.name?.trim() || '资产配图'
   }
   return lines.join('\n')
+}
+
+/**
+ * 解析资产生图的「初始提示词」(v1.34.3)：
+ * 优先使用资产自带的视觉提示词（人工编辑或 AI 生成、随资产持久化），
+ * 为空时才回退到按视觉字段拼装的提示词。用户仍可在生成浮层里临时编辑。
+ */
+export function resolveAssetPrompt(
+  asset?: AssetImagePromptAsset | null,
+  projectStyle?: PromptProjectVisualStyle | null
+): string {
+  const override = (asset?.visualPrompt ?? '').trim()
+  if (override) return override
+  return composeAssetImagePrompt({ asset: asset ?? null, projectStyle: projectStyle ?? null })
 }

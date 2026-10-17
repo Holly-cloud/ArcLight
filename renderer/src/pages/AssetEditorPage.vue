@@ -24,7 +24,9 @@ import {
   type AssetEntry
 } from '@/features/assetLibrary/assetLibraryModel'
 import { pickPrimaryImage } from '@/features/assetImage/assetImageModel'
-import type { AssetImageKind } from '@/types/app'
+import { loadAllChapterContent } from '@/features/chapters/chapterExport'
+import { chapterContentToPlainText, extractEntitySnippet } from '@/features/assetExtraction/chapterText'
+import type { AssetImageKind, VisualContext, VisualStyleProfile } from '@/types/app'
 import type { AssetImagePromptAsset } from '@/features/assetImage/composeAssetImagePrompt'
 
 const appStore = useAppStore()
@@ -36,9 +38,9 @@ const assetId = computed(() => target.value?.id ?? '')
 const kindLabel = computed(() => ASSET_KIND_LABELS[kind.value])
 
 // ── 表单（按类型分别持有，保持各字段命名） ──
-const characterForm = reactive({ name: '', role: '', description: '', tags: [] as string[] })
-const sceneForm = reactive({ name: '', type: '', description: '', tags: [] as string[] })
-const propForm = reactive({ name: '', type: '', description: '', tags: [] as string[] })
+const characterForm = reactive({ name: '', role: '', description: '', tags: [] as string[], visualPrompt: '' })
+const sceneForm = reactive({ name: '', type: '', description: '', tags: [] as string[], visualPrompt: '' })
+const propForm = reactive({ name: '', type: '', description: '', tags: [] as string[], visualPrompt: '' })
 
 const currentCharacter = computed(() => appStore.characters.find((item) => item.id === assetId.value) ?? null)
 const currentScene = computed(() => appStore.sceneLocations.find((item) => item.id === assetId.value) ?? null)
@@ -49,6 +51,60 @@ const assetName = computed(() => {
   if (kind.value === 'prop') return propForm.name
   return characterForm.name
 })
+
+/** 当前资产的「视觉提示词」（可读写，直接映射到活动表单） */
+const currentVisualPrompt = computed({
+  get(): string {
+    if (kind.value === 'scene') return sceneForm.visualPrompt
+    if (kind.value === 'prop') return propForm.visualPrompt
+    return characterForm.visualPrompt
+  },
+  set(value: string) {
+    if (kind.value === 'scene') sceneForm.visualPrompt = value
+    else if (kind.value === 'prop') propForm.visualPrompt = value
+    else characterForm.visualPrompt = value
+  }
+})
+
+/** 视觉提示词的生成依据：当前资产的简介 / 定位 / 标签 */
+const currentDescription = computed(() => {
+  if (kind.value === 'scene') return sceneForm.description
+  if (kind.value === 'prop') return propForm.description
+  return characterForm.description
+})
+const currentTypeLabel = computed(() => {
+  if (kind.value === 'scene') return sceneForm.type
+  if (kind.value === 'prop') return propForm.type
+  return characterForm.role
+})
+const currentTags = computed(() => {
+  if (kind.value === 'scene') return sceneForm.tags
+  if (kind.value === 'prop') return propForm.tags
+  return characterForm.tags
+})
+
+/** 读取指定资产已存的视觉档案（角色 visualStyle / 场景·道具 visualContext），用于整对象写回时保留旧字段 */
+function readAssetVisual(targetKind: AssetImageKind, targetId: string): VisualStyleProfile | VisualContext | null {
+  if (targetKind === 'character') return appStore.characters.find((item) => item.id === targetId)?.visualStyle ?? null
+  if (targetKind === 'scene') return appStore.sceneLocations.find((item) => item.id === targetId)?.visualContext ?? null
+  return appStore.propItems.find((item) => item.id === targetId)?.visualContext ?? null
+}
+
+/** 角色 visualStyle：保留旧字段，仅覆盖 visualPrompt（整对象写回）。无旧档案且提示词为空则维持 null */
+function buildCharacterVisualStyle(existing: VisualStyleProfile | null, visualPrompt: string): VisualStyleProfile | null {
+  const prompt = visualPrompt.trim()
+  if (!existing && !prompt) return null
+  const base: VisualStyleProfile = existing ?? { renderMode: 'realistic', palette: [], moodWords: [], keyReferences: [] }
+  return { ...base, visualPrompt: prompt || null }
+}
+
+/** 场景 / 道具 visualContext：保留旧字段，仅覆盖 visualPrompt（整对象写回） */
+function buildVisualContext(existing: VisualContext | null, visualPrompt: string): VisualContext | null {
+  const prompt = visualPrompt.trim()
+  if (!existing && !prompt) return null
+  const base: VisualContext = existing ?? { colorPalette: [], lightingNote: '', seasonNote: '', materialityNote: '' }
+  return { ...base, visualPrompt: prompt || null }
+}
 
 /** 组装图库生成提示词所需的资产视觉字段（保留历史视觉字段，虽不再在编辑页编辑） */
 const galleryAsset = computed<AssetImagePromptAsset>(() => {
@@ -65,7 +121,8 @@ const galleryAsset = computed<AssetImagePromptAsset>(() => {
       keyReferences: currentCharacter.value?.visualStyle?.keyReferences ?? [],
       lightingNote: '',
       seasonNote: '',
-      materialityNote: ''
+      materialityNote: '',
+      visualPrompt: characterForm.visualPrompt
     }
   }
   if (kind.value === 'scene') {
@@ -81,7 +138,8 @@ const galleryAsset = computed<AssetImagePromptAsset>(() => {
       keyReferences: [],
       lightingNote: currentScene.value?.visualContext?.lightingNote ?? '',
       seasonNote: currentScene.value?.visualContext?.seasonNote ?? '',
-      materialityNote: currentScene.value?.visualContext?.materialityNote ?? ''
+      materialityNote: currentScene.value?.visualContext?.materialityNote ?? '',
+      visualPrompt: sceneForm.visualPrompt
     }
   }
   return {
@@ -96,7 +154,8 @@ const galleryAsset = computed<AssetImagePromptAsset>(() => {
     keyReferences: [],
     lightingNote: currentProp.value?.visualContext?.lightingNote ?? '',
     seasonNote: currentProp.value?.visualContext?.seasonNote ?? '',
-    materialityNote: currentProp.value?.visualContext?.materialityNote ?? ''
+    materialityNote: currentProp.value?.visualContext?.materialityNote ?? '',
+    visualPrompt: propForm.visualPrompt
   }
 })
 
@@ -166,12 +225,12 @@ let saveTimer: number | undefined
 /** 当前表单的稳定签名（只看可持久化字段） */
 function formSignature(): string {
   if (kind.value === 'character') {
-    return JSON.stringify([characterForm.name, characterForm.role, characterForm.description, characterForm.tags])
+    return JSON.stringify([characterForm.name, characterForm.role, characterForm.description, characterForm.tags, characterForm.visualPrompt])
   }
   if (kind.value === 'scene') {
-    return JSON.stringify([sceneForm.name, sceneForm.type, sceneForm.description, sceneForm.tags])
+    return JSON.stringify([sceneForm.name, sceneForm.type, sceneForm.description, sceneForm.tags, sceneForm.visualPrompt])
   }
-  return JSON.stringify([propForm.name, propForm.type, propForm.description, propForm.tags])
+  return JSON.stringify([propForm.name, propForm.type, propForm.description, propForm.tags, propForm.visualPrompt])
 }
 
 // ── 表单灌入：定位变化时把目标资产载入对应表单 ──
@@ -194,18 +253,21 @@ watch(
       characterForm.role = character?.role ?? ''
       characterForm.description = character?.description ?? ''
       characterForm.tags = character?.tags.map((tag) => tag.label) ?? []
+      characterForm.visualPrompt = character?.visualStyle?.visualPrompt ?? ''
     } else if (kind.value === 'scene') {
       const scene = currentScene.value
       sceneForm.name = scene?.name ?? ''
       sceneForm.type = scene?.type ?? '城市'
       sceneForm.description = scene?.description ?? ''
       sceneForm.tags = scene?.tags.map((tag) => tag.label) ?? []
+      sceneForm.visualPrompt = scene?.visualContext?.visualPrompt ?? ''
     } else {
       const prop = currentProp.value
       propForm.name = prop?.name ?? ''
       propForm.type = prop?.type ?? '信物'
       propForm.description = prop?.description ?? ''
       propForm.tags = prop?.tags.map((tag) => tag.label) ?? []
+      propForm.visualPrompt = prop?.visualContext?.visualPrompt ?? ''
     }
     saveState.value = 'idle'
     loadedSignature.value = formSignature()
@@ -223,7 +285,8 @@ function persistFor(targetKind: AssetImageKind, targetId: string): boolean {
       name,
       role: characterForm.role,
       description: characterForm.description,
-      tags: characterForm.tags.map((label) => ({ label }))
+      tags: characterForm.tags.map((label) => ({ label })),
+      visualStyle: buildCharacterVisualStyle(readAssetVisual('character', targetId) as VisualStyleProfile | null, characterForm.visualPrompt)
     })
     return true
   }
@@ -234,7 +297,8 @@ function persistFor(targetKind: AssetImageKind, targetId: string): boolean {
       name,
       type: sceneForm.type,
       description: sceneForm.description,
-      tags: sceneForm.tags.map((label) => ({ label }))
+      tags: sceneForm.tags.map((label) => ({ label })),
+      visualContext: buildVisualContext(readAssetVisual('scene', targetId) as VisualContext | null, sceneForm.visualPrompt)
     })
     return true
   }
@@ -244,7 +308,8 @@ function persistFor(targetKind: AssetImageKind, targetId: string): boolean {
     name,
     type: propForm.type,
     description: propForm.description,
-    tags: propForm.tags.map((label) => ({ label }))
+    tags: propForm.tags.map((label) => ({ label })),
+    visualContext: buildVisualContext(readAssetVisual('prop', targetId) as VisualContext | null, propForm.visualPrompt)
   })
   return true
 }
@@ -360,6 +425,76 @@ function handleEnhanceApply(accepted: Record<string, string | string[]>): void {
   if (accepted.tags != null) characterForm.tags = accepted.tags as string[]
   enhanceVisible.value = false
 }
+
+// ── 视觉提示词（v1.34.3）：以简介为核心依据，并读取小说原文片段保证与小说描述一致 ──
+const VISUAL_PROMPT_TASK_KEY = 'asset-visual-prompt'
+const visualPromptLoading = computed(() => appStore.isAiTaskRunning(VISUAL_PROMPT_TASK_KEY))
+
+async function handleGenerateVisualPrompt(): Promise<void> {
+  if (visualPromptLoading.value) return
+  if (!assetId.value) {
+    message.warning('请先保存资产后再生成视觉提示词')
+    return
+  }
+  if (!currentDescription.value.trim()) {
+    message.warning('请先填写「简介」——视觉提示词以简介为核心依据')
+    return
+  }
+
+  // 章节正文按需懒加载，抽取包含该资产名的原文片段作为一致性依据（读取失败不阻断，仅依据简介生成）
+  let snippet = ''
+  try {
+    const chapters = await loadAllChapterContent(appStore.chapters, (id) => appStore.ensureChapterContent(id))
+    const texts = chapters
+      .map((chapter) => chapterContentToPlainText(chapter.content))
+      .filter((text) => text.trim())
+    if (texts.length) snippet = extractEntitySnippet(texts, [assetName.value])
+  } catch {
+    /* 原文片段读取失败时退化为仅依据简介生成 */
+  }
+
+  try {
+    const response = await appStore.runTrackedAiTask(
+      {
+        key: VISUAL_PROMPT_TASK_KEY,
+        kind: kind.value === 'character' ? 'character' : 'other',
+        label: 'AI 生成视觉提示词',
+        description: `正在为「${assetName.value || '未命名资产'}」生成视觉提示词`,
+        panel: 'asset-library'
+      },
+      () => window.characterArc.generateAi(toIpcPayload({
+        task: 'asset-visual-prompt',
+        clientKey: VISUAL_PROMPT_TASK_KEY,
+        settings: appStore.appSettings,
+        context: {
+          projectId: appStore.currentProject?.id,
+          kind: kind.value,
+          name: assetName.value,
+          typeLabel: currentTypeLabel.value,
+          tags: currentTags.value,
+          description: currentDescription.value,
+          projectStyle: {
+            renderMode: appStore.currentProject?.projectVisualStyle?.renderMode ?? '',
+            palette: appStore.currentProject?.projectVisualStyle?.palette ?? [],
+            moodWords: appStore.currentProject?.projectVisualStyle?.moodWords ?? []
+          },
+          novelSnippet: snippet,
+          projectGenre: appStore.currentProject?.genre
+        }
+      }))
+    )
+
+    if (!response.success || !response.result) {
+      throw new Error(response.error ?? '生成视觉提示词失败，请检查模型配置')
+    }
+    const content = ((response.result as { content?: string }).content ?? '').trim()
+    if (!content) throw new Error('模型未返回有效提示词，请重试')
+    currentVisualPrompt.value = content
+    message.success('已生成视觉提示词，生图默认取用本段')
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : '生成视觉提示词失败，请检查模型配置')
+  }
+}
 </script>
 
 <template>
@@ -421,6 +556,24 @@ function handleEnhanceApply(accepted: Record<string, string | string[]>): void {
             <CharacterEditForm v-if="kind === 'character'" :form="characterForm" />
             <SceneLocationEditForm v-else-if="kind === 'scene'" :form="sceneForm" />
             <PropItemEditForm v-else :form="propForm" />
+          </div>
+          <div class="visual-prompt">
+            <div class="visual-prompt__head">
+              <span class="visual-prompt__label">视觉提示词</span>
+              <n-button size="tiny" :loading="visualPromptLoading" @click="handleGenerateVisualPrompt">
+                <template #icon><Sparkles :size="13" /></template>
+                AI 生成
+              </n-button>
+            </div>
+            <n-input
+              v-model:value="currentVisualPrompt"
+              type="textarea"
+              :autosize="{ minRows: 3, maxRows: 8 }"
+              placeholder="以「简介」为核心依据生成的生图提示词；生图默认取用本段，留空则按资产字段自动拼装"
+            />
+            <p class="visual-prompt__hint">
+              以「简介」为核心生成依据，并读取该资产在小说章节中的原文片段，确保画面与小说的描述一致。
+            </p>
           </div>
           <p class="info-note">
             视觉风格已上收为<b>资产库级「图片主风格」</b>（渲染方式 / 配色 / 氛围词 / 默认画幅比），此处不再重复。
@@ -644,6 +797,35 @@ function handleEnhanceApply(accepted: Record<string, string | string[]>): void {
 
 .info-note b {
   color: var(--arc-text-secondary);
+}
+
+/* 视觉提示词（v1.34.3） */
+.visual-prompt {
+  margin-top: 14px;
+  border: 1px solid var(--arc-border);
+  border-radius: var(--arc-radius-md);
+  padding: 14px 16px;
+}
+
+.visual-prompt__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.visual-prompt__label {
+  color: var(--arc-text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.visual-prompt__hint {
+  margin: 8px 0 0;
+  color: var(--arc-text-hint);
+  font-size: 12px;
+  line-height: 1.65;
 }
 
 /* 右栏 */
