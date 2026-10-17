@@ -11,9 +11,6 @@ import {
 import {
   NButton,
   NCard,
-  NCheckbox,
-  NCheckboxGroup,
-  NEmpty,
   NInput,
   NModal,
   NScrollbar,
@@ -63,8 +60,6 @@ const outlineVolumes = computed(() => appStore.outlineVolumes)
 const activeWorkflowVolumeId = computed(() => appStore.activeWorkflowVolumeId)
 const activeWorkflowVolume = computed(() => appStore.activeWorkflowVolume)
 const workflowDocuments = computed(() => appStore.workflowDocuments)
-const referenceWorks = computed(() => appStore.referenceWorks)
-const selectedReferenceWorkIds = computed(() => currentProject.value?.selectedReferenceWorkIds ?? [])
 
 const volumeOptions = computed(() =>
   outlineVolumes.value.map((volume, index) => ({
@@ -95,13 +90,6 @@ function isDefaultContent(content: string): boolean {
   return content.startsWith('# ') && content.includes('待 AI 生成')
 }
 
-function updateReferenceSelection(ids: Array<string | number>): void {
-  if (!currentProject.value?.id) return
-  appStore.updateProject(currentProject.value.id, {
-    selectedReferenceWorkIds: ids as string[]
-  })
-}
-
 function openEditModal(key: WorkflowDocumentKey): void {
   const doc = workflowDocuments.value.find((d) => d.key === key)
   if (!doc) return
@@ -121,12 +109,6 @@ function saveEditingDocument(): void {
   editingDocumentKey.value = null
 }
 
-function buildSelectedReferenceContext() {
-  return selectedReferenceWorkIds.value.length > 0
-    ? referenceWorks.value.filter((w) => selectedReferenceWorkIds.value.includes(w.id))
-    : referenceWorks.value
-}
-
 function buildGenerationContext() {
   return {
     projectTitle: currentProject.value?.title ?? '',
@@ -140,15 +122,6 @@ function buildGenerationContext() {
     volumeSummary: activeWorkflowVolume.value?.summary ?? '',
     volumeWordTarget: activeWorkflowVolume.value?.wordTarget ?? '',
     requestedDocuments: allDocumentKeys,
-    selectedReferenceWorks: buildSelectedReferenceContext().map((work) => ({
-      id: work.id,
-      title: work.title,
-      source: work.source,
-      notes: work.notes,
-      fileName: work.fileName,
-      analysis: work.analysis
-    })),
-    referenceSelectionMode: selectedReferenceWorkIds.value.length > 0 ? 'manual' : 'auto',
     workflowDocuments: appStore.workflowDocuments.map((d) => ({
       key: d.key,
       content: d.content
@@ -183,13 +156,8 @@ function buildGenerationContext() {
   }
 }
 
-const hasReferenceInput = computed(() =>
-  selectedReferenceWorkIds.value.length > 0 || referenceWorks.value.length > 0
-)
-
 const hasAnyProjectContext = computed(() =>
-  hasReferenceInput.value
-  || appStore.worldviewEntries.length > 0
+  appStore.worldviewEntries.length > 0
   || appStore.characters.length > 0
   || appStore.characterRelationships.length > 0
   || appStore.organizations.length > 0
@@ -204,8 +172,6 @@ const canGenerate = computed(() =>
 
 const dataSources = computed(() => {
   const items: string[] = []
-  const refCount = selectedReferenceWorkIds.value.length
-  if (refCount > 0) items.push(`${refCount} 部参考书`)
   const wv = appStore.worldviewEntries.length
   if (wv > 0) items.push(`${wv} 条世界观`)
   const ch = appStore.characters.length
@@ -291,58 +257,11 @@ watch(
       <div class="workflow-header-text">
         <span class="workflow-kicker">Creative Memory</span>
         <h2>创作记忆</h2>
-        <p>基于项目资料与可选参考书，整理当前分卷的计划、进度、伏笔和素材。</p>
+        <p>基于项目现有资料，整理当前分卷的计划、进度、伏笔和素材。</p>
       </div>
     </div>
 
     <n-card class="workflow-config-card" :bordered="true">
-      <div class="workflow-reference-section">
-        <div class="workflow-reference-header">
-          <div>
-            <strong>参考书选择</strong>
-            <span class="workflow-hint">可选，勾选后 AI 会优先参考这些拆书结果</span>
-          </div>
-          <n-button
-            size="small"
-            secondary
-            :disabled="!currentProject?.id"
-            @click="appStore.openDeconstructionLibrary()"
-          >
-            打开拆书知识库
-          </n-button>
-        </div>
-
-        <template v-if="referenceWorks.length > 0">
-          <n-checkbox-group :value="selectedReferenceWorkIds" @update:value="updateReferenceSelection">
-            <div class="workflow-reference-list">
-              <n-checkbox
-                v-for="work in referenceWorks"
-                :key="work.id"
-                :value="work.id"
-                :label="work.title"
-              />
-            </div>
-          </n-checkbox-group>
-          <p v-if="selectedReferenceWorkIds.length > 0" class="workflow-hint">
-            已选 {{ selectedReferenceWorkIds.length }} 部参考书
-          </p>
-          <p v-else class="workflow-hint">
-            未勾选时系统将结合项目现有资料与全部已沉淀信息进行判断
-          </p>
-        </template>
-        <n-empty v-else size="small" description="还没有参考书">
-          <template #extra>
-            <n-button
-              size="small"
-              :disabled="!currentProject?.id"
-              @click="appStore.openDeconstructionLibrary()"
-            >
-              前往拆书知识库导入
-            </n-button>
-          </template>
-        </n-empty>
-      </div>
-
       <div class="workflow-prompt-section">
         <strong>补充说明</strong>
         <span v-if="hasAnyProjectContext" class="workflow-hint">可选，帮助 AI 更准确地整理创作记忆</span>
@@ -370,7 +289,7 @@ watch(
           <span class="workflow-datasource-label">AI 将参考：</span>
           <n-tag v-for="item in dataSources" :key="item" size="small" :bordered="false" round>{{ item }}</n-tag>
         </template>
-        <span v-else class="workflow-datasource-empty">当前项目暂无可用资料，请先填写补充说明或导入参考书</span>
+        <span v-else class="workflow-datasource-empty">当前项目暂无可用资料，请先填写补充说明</span>
       </div>
 
       <div class="workflow-generate-row">

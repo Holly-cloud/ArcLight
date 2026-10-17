@@ -147,7 +147,6 @@ export async function runStreamingAgentTask(
     plotThreads: '剧情线索（使用 read_project_data entity_type=plot_threads）',
     inspiration: '灵感记录（使用 read_project_data entity_type=inspiration）',
     knowledge: '项目知识库（使用 read_project_data entity_type=knowledge）',
-    deconstructionLibrary: '公共拆书知识库/参考书（使用 read_project_data entity_type=available_deconstructions 或 deconstruction_library）',
     workflowDocuments: '创作记忆（使用 read_project_data entity_type=workflow_documents）',
     projectConstraints: '项目约束（使用 read_project_data entity_type=project_constraints）'
   }
@@ -177,7 +176,6 @@ export async function runStreamingAgentTask(
         '- Prefer `read_project_data` without `entity_type` to get a quick index, then read only the modules that matter.',
         '- Use narrow reads whenever possible: `summary_only=true` for reconnaissance, `limit` to avoid over-reading, `entity_id` for exact entities, and `doc_key` for creative memory.',
         '- When the user asks what skills exist, what skills are enabled, or asks to summarize every skill, you must call `skill_list` first and answer from its result. The skill index above is only the current task-matched subset, not the complete registry.',
-        '- When the user asks for 拆书知识库 / 可用拆书 / 参考书 / 对标作品 / reference works, call `read_project_data` with `entity_type=available_deconstructions`; the deconstruction library is public and shared across projects, not owned by the current project.',
         '- Do not rely on the static skill list alone. When the task may benefit from project skills, you must decide which skills are relevant and explicitly call `skill_load` yourself before concluding.',
         '- Use `search_project` first when the user mentions a specific concept, role, event, clue, creative memory artifact, or rule and you are not sure where it lives.',
         '- Treat `project_constraints` as hard boundaries and `workflow_documents` as creative memory. If they may affect the answer, inspect them before concluding.',

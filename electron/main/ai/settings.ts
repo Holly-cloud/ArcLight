@@ -118,8 +118,6 @@ export function resolveMaxTokens(task?: AiTaskPayload): number | undefined {
     case 'project-bootstrap':
       return 1500
     case 'chapter-analysis':
-    case 'reference-style-chunk':
-    case 'reference-style-analysis':
     case 'inspiration-pack':
     case 'plot-thread-detect':
     case 'outline-batch':
@@ -184,7 +182,5 @@ export function applyReasoningSafeFloor(baseMaxTokens: number | undefined): numb
  */
 export const AGENT_TASK_WHITELIST: ReadonlySet<AiTaskName> = new Set([
   'outline-batch',
-  'reference-deep-analyze',
-  'style-fingerprint-extract',
   'global-assistant'
 ])

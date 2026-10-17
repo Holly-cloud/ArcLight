@@ -25,7 +25,7 @@ export function inferSkillMeta(skillId: string, description: string): HeuristicR
     return buildHeuristic('market', ['reference'], [], ['排行', '市场', '趋势'], true)
 
   if (lowerSkillId.includes('analyze') || lowerDesc.includes('拆书') || lowerDesc.includes('拆文'))
-    return buildHeuristic('analysis', ['reference'], ['reference-style-chunk', 'reference-style-analysis'], ['拆书', '分析', '对标'], true)
+    return buildHeuristic('analysis', ['reference'], [], ['拆书', '分析', '对标'], true)
 
   if (lowerSkillId.includes('write') || lowerDesc.includes('写作') || lowerDesc.includes('创作'))
     return buildHeuristic('writing', ['premise', 'setting', 'outline', 'draft'], WRITING_TASKS, ['写正文', '写章节', '大纲', '开书'], true)

@@ -1,6 +1,6 @@
 /**
  * AI 模块对外暴露的所有类型。
- * IPC、index.ts、referenceAnalysis.ts 都从这里 import。
+ * IPC、index.ts 都从这里 import。
  */
 
 import type { SpiralSeedResult, SpiralExpandResult, SpiralValidateResult } from './spiral/types'
@@ -63,12 +63,8 @@ export type AiTaskName =
   | 'outline-item'
   | 'outline-batch'
   | 'outline-chain'
-  | 'reference-style-chunk'
-  | 'reference-style-analysis'
   | 'ranking-style-analysis'
   | 'ranking-idea-combinations'
-  | 'reference-deep-analyze'
-  | 'style-fingerprint-extract'
   | 'workflow-documents'
   | 'assistant-intent'
   | 'assistant-action-proposal'
@@ -106,11 +102,6 @@ export type AiTaskName =
   | 'cover-generate'
   | 'continuation-import-chunk'
   | 'continuation-import-aggregate'
-  | 'adaptation-lead-identify'
-  | 'adaptation-stage-map'
-  | 'adaptation-plot-cards'
-  | 'adaptation-character-bible'
-  | 'adaptation-tone-profile'
   | 'asset-extract'
   | 'asset-reextract'
   | 'novel-split-locate'
@@ -391,35 +382,6 @@ export type ChapterAnalysisResult = {
   revisionActions: string[]
 }
 
-/** 参考小说整体风格分析结果 */
-export type ReferenceStyleAnalysisResult = {
-  overview: string
-  sentenceStyle: string
-  dialogueRatio: string
-  pacingControl: string
-  emotionExpression: string
-  narrativePerspective: string
-  styleRules: string[]
-  plotOutline: string
-  reusableStylePrompt: string
-  avoidRules: string[]
-}
-
-/** 参考小说片段风格分析结果 */
-export type ReferenceStyleChunkResult = {
-  overview: string
-  sentenceStyle: string
-  dialogueRatio: string
-  pacingControl: string
-  emotionExpression: string
-  plotFunction: string
-  hookDesign: string
-  informationRelease: string
-  characterShift: string
-  tensionCurve: string
-  styleRules: string[]
-}
-
 /** 单条灵感条目 */
 export type InspirationResult = {
   type: string
@@ -611,8 +573,6 @@ export type AiTaskResult =
   | WorkflowDocumentsResult
   | WorkflowStageDocumentsResult
   | ChapterAnalysisResult
-  | ReferenceStyleChunkResult
-  | ReferenceStyleAnalysisResult
   | InspirationPackResult
   | CatalogBatchResult
   | AssetExtractResult

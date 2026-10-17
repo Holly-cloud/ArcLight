@@ -1,6 +1,6 @@
 /**
- * v1.28.0 FeatureHelp 工具函数单测
- * - 15 条 featureId 穷举覆盖
+ * v1.32.0 FeatureHelp 工具函数单测
+ * - 6 条 featureId 穷举覆盖
  * - getFeatureDescription 单条查表 + null 兜底
  * - getFeatureDescriptions 聚合 + 顺序 + 空数组 + 非法 id 过滤
  * - keyConcepts 单条 ≤ 60 字（PRD §5.3）
@@ -26,8 +26,8 @@ registerHooks({
 
 const { getFeatureDescription, getFeatureDescriptions, ALL_FEATURE_IDS } = await import('./types.ts')
 
-test('15 条 featureId 全部命中查表函数', () => {
-  assert.equal(ALL_FEATURE_IDS.length, 15, 'FeatureId 联合类型必须 15 条穷举')
+test('6 条 featureId 全部命中查表函数', () => {
+  assert.equal(ALL_FEATURE_IDS.length, 6, 'FeatureId 联合类型必须 6 条穷举')
   for (const id of ALL_FEATURE_IDS) {
     const desc = getFeatureDescription(id)
     assert.ok(desc, `${id} 必须命中查表函数（不应返回 null）`)
@@ -80,7 +80,7 @@ test('getFeatureDescriptions 含非法 id 自动过滤（不抛错）', () => {
   assert.equal(descs[1].id, 'prop-item')
 })
 
-test('15 条全部含必填字段且 keyConcepts 单条 ≤ 60 字', () => {
+test('6 条全部含必填字段且 keyConcepts 单条 ≤ 60 字', () => {
   for (const id of ALL_FEATURE_IDS) {
     const desc = getFeatureDescription(id)
     assert.ok(desc)
@@ -90,7 +90,7 @@ test('15 条全部含必填字段且 keyConcepts 单条 ≤ 60 字', () => {
   }
 })
 
-test('docLink 可选字段：本期 15 条全部含 docLink', () => {
+test('docLink 可选字段：本期 6 条全部含 docLink', () => {
   for (const id of ALL_FEATURE_IDS) {
     const desc = getFeatureDescription(id)
     assert.ok(desc)

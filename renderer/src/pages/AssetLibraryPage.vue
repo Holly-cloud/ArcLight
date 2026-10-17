@@ -464,8 +464,8 @@ const exportDialogVisible = ref(false)
         <div v-else class="library-empty">
           <n-empty :description="emptyDescription">
             <template #extra>
-              <n-button v-if="showCreateAction" type="primary" @click="appStore.openWorkbench()">
-                前往工作台新建第一个资产
+              <n-button v-if="showCreateAction && kind !== 'organization'" type="primary" @click="openExtractWizard">
+                提取{{ ASSET_KIND_LABELS[kind] }}资产
               </n-button>
             </template>
           </n-empty>

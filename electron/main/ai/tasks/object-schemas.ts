@@ -281,31 +281,6 @@ const taskObjectSchemas: Partial<Record<AiTaskName, z.ZodTypeAny>> = {
     })),
     volumeSummaries: z.array(z.object({ title: stringField, summary: stringField }))
   }),
-  'reference-style-analysis': z.object({
-    overview: stringField,
-    sentenceStyle: stringField,
-    dialogueRatio: stringField,
-    pacingControl: stringField,
-    emotionExpression: stringField,
-    narrativePerspective: stringField,
-    styleRules: stringList,
-    plotOutline: stringField,
-    reusableStylePrompt: stringField,
-    avoidRules: stringList
-  }),
-  'reference-style-chunk': z.object({
-    overview: stringField,
-    sentenceStyle: stringField,
-    dialogueRatio: stringField,
-    pacingControl: stringField,
-    emotionExpression: stringField,
-    plotFunction: stringField,
-    hookDesign: stringField,
-    informationRelease: stringField,
-    characterShift: stringField,
-    tensionCurve: stringField,
-    styleRules: stringList
-  }),
   'spiral-seed': z.object({
     protagonist: z.object({
       name: stringField,

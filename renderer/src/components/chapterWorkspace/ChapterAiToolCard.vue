@@ -40,10 +40,6 @@ const toolLabel = computed(() => {
         'plotThreads': '读取剧情线索',
         'plot_threads': '读取剧情线索',
         'knowledge': '读取项目知识库',
-        'available_deconstructions': '读取公共拆书库',
-        'deconstructionLibrary': '读取拆书知识库',
-        'deconstruction_library': '读取拆书知识库',
-        'reference_works': '读取参考书',
         'workflow_documents': '读取创作记忆',
         'project_constraints': '读取项目约束',
         'style': '读取写作风格'

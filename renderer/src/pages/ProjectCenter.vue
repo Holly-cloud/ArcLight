@@ -52,10 +52,6 @@ function openProject(projectId: string): void {
   appStore.openProject(projectId)
 }
 
-function openDeconstructionLibrary(): void {
-  appStore.openDeconstructionLibrary()
-}
-
 function openSkillsPage(): void {
   appStore.openSkillsPage()
 }
@@ -156,7 +152,6 @@ function requestDeleteProject(projectId: string): void {
         @create="appStore.openWizard()"
         @continue-import="appStore.openContinuationImport()"
         @import="archiveImportRef?.pickArchive()"
-        @open-deconstruction="openDeconstructionLibrary"
         @open-fanqie-trends="appStore.openFanqieTrends()"
         @open-cover-workbench="openCoverWorkbenchPage"
         @open-skills="openSkillsPage"

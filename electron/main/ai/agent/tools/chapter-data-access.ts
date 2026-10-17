@@ -110,10 +110,6 @@ function parseOrdinalRef(value: string): number | null {
   return digits[raw] ?? null
 }
 
-function readPublicReferenceWorkRows(db: Awaited<ReturnType<typeof ensureWorkspaceDb>>): Record<string, unknown>[] {
-  return db.prepare('SELECT id, title, source, notes, file_name, analysis_json FROM reference_works ORDER BY created_at DESC, rowid DESC').all() as Record<string, unknown>[]
-}
-
 export async function readChapterFromDb(projectId: string, chapterId: string): Promise<ChapterData | null> {
   const db = await ensureWorkspaceDb()
   const row = db.prepare(
@@ -522,71 +518,6 @@ export async function searchProjectData(
           type: 'knowledge',
           title,
           content: truncateSnippet(summary || content)
-        })
-      }
-    }
-  }
-
-  if (shouldSearch('deconstruction_library')) {
-    const rows = db.prepare("SELECT id, title, content, summary, source_label FROM knowledge_documents WHERE project_id = '' OR project_id IS NULL").all() as Record<string, unknown>[]
-    for (const row of rows) {
-      if (results.length >= maxResults) break
-      const id = String(row.id)
-      const title = String(row.title)
-      const summary = String(row.summary ?? '')
-      const content = String(row.content ?? '')
-      const sourceLabel = String(row.source_label ?? '')
-      if (matchesQuery(normalizedQuery, title, summary, content, sourceLabel)) {
-        push({
-          entityType: 'deconstruction_library',
-          entityId: id,
-          type: 'deconstruction_library',
-          title,
-          content: truncateSnippet(summary || content)
-        })
-      }
-    }
-  }
-
-  if (shouldSearch('available_deconstructions')) {
-    const rows = readPublicReferenceWorkRows(db)
-    for (const row of rows) {
-      if (results.length >= maxResults) break
-      const id = String(row.id)
-      const title = String(row.title)
-      const source = String(row.source ?? '')
-      const notes = String(row.notes ?? '')
-      const fileName = String(row.file_name ?? '')
-      const analysis = String(row.analysis_json ?? '')
-      if (matchesQuery(normalizedQuery, title, source, notes, fileName, analysis)) {
-        push({
-          entityType: 'available_deconstructions',
-          entityId: id,
-          type: 'available_deconstructions',
-          title,
-          content: truncateSnippet(notes || analysis)
-        })
-      }
-    }
-  }
-
-  if (shouldSearch('reference_works')) {
-    const rows = db.prepare('SELECT id, title, source, notes, file_name, analysis_json FROM reference_works').all() as Record<string, unknown>[]
-    for (const row of rows) {
-      if (results.length >= maxResults) break
-      const id = String(row.id)
-      const title = String(row.title)
-      const source = String(row.source ?? '')
-      const notes = String(row.notes ?? '')
-      const fileName = String(row.file_name ?? '')
-      const analysis = String(row.analysis_json ?? '')
-      if (matchesQuery(normalizedQuery, title, source, notes, fileName, analysis)) {
-        push({
-          entityType: 'reference_works',
-          entityId: id,
-          type: 'reference_works',
-          title,
-          content: truncateSnippet(notes || analysis)
         })
       }
     }

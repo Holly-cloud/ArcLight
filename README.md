@@ -325,7 +325,7 @@ CharacterArc/
 | 来源 | 数量 | 代表 Skill | 说明 |
 |---|---:|---|---|
 | `oh-story-claudecode` | 12 | `story-long-write`、`story-short-write`、`story-chapter-exec` | 核心网文写作工作流，覆盖长篇、短篇、章节执行、拆文、扫榜、封面、去 AI 味、故事蓝图与番茄排版 |
-| `community-skills` | 3 | `humanizer-zh`、`style-fingerprint`、`style-fusion` | 通用风格与润色能力，适合中文去 AI 味、风格提取和风格融合 |
+| `community-skills` | 2 | `humanizer-zh`、`style-fusion` | 通用风格与润色能力，适合中文去 AI 味和风格融合 |
 | `Distilled-Novel-Toolbox` | 13 | `novel-pacing`、`novel-worldbuilding`、`novel-commercialization` | 工程化网文知识库，覆盖题材、人设、世界观、节奏、情绪、爽点、润色、平台、合规与反检测 |
 
 ### `oh-story-claudecode`
@@ -338,7 +338,6 @@ CharacterArc/
 ### `community-skills`
 
 - `humanizer-zh`：中文小说去 AI 味润色
-- `style-fingerprint`：提取参考文本的风格指纹
 - `style-fusion`：组合多个来源的风格特征
 
 ### `Distilled-Novel-Toolbox`

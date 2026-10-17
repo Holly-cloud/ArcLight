@@ -1,4 +1,4 @@
-import type { KnowledgeDocument, KnowledgeDocumentSourceType, ReferenceWorkItem } from '@/types/app'
+import type { KnowledgeDocument, KnowledgeDocumentSourceType } from '@/types/app'
 
 export type KnowledgeSourceScope = 'project' | 'reference'
 export type KnowledgeSourceFilter = 'all' | KnowledgeSourceScope | KnowledgeDocumentSourceType
@@ -49,25 +49,6 @@ export interface KnowledgeCenterState {
   stats: KnowledgeCenterStats
 }
 
-export interface ReferenceAssetLibrary {
-  id: string
-  title: string
-  source: string
-  fileName: string
-  notes: string
-  summary: string
-  topKeywords: string[]
-  styleRules: string[]
-  documentCount: number
-  summaryCount: number
-  chunkCount: number
-  chapterCount: number
-  characterCount: number
-  updatedAtLabel: string
-  primaryDocument: KnowledgeDocumentView | null
-  relatedDocumentIds: string[]
-}
-
 const PROJECT_SOURCE_TYPES = new Set<KnowledgeDocumentSourceType>([
   'workflow-document',
   'canon-fact',
@@ -81,41 +62,6 @@ const KNOWLEDGE_SOURCE_TYPE_LABELS: Record<KnowledgeDocumentSourceType, string> 
   'canon-fact': '设定事实',
   'chapter-summary': '章节摘要'
 }
-
-const DISPLAY_KEYWORD_BLACKLIST = new Set([
-  '这个',
-  '那个',
-  '这里',
-  '那里',
-  '他们',
-  '我们',
-  '自己',
-  '时候',
-  '东西',
-  '什么',
-  '怎么',
-  '说道',
-  '问道',
-  '笑道',
-  '看着',
-  '看向',
-  '发现',
-  '觉得',
-  '感觉',
-  '知道',
-  '继续',
-  '直接',
-  '慢慢',
-  '瞬间',
-  '片刻',
-  '目光',
-  '眼神',
-  '脸色',
-  '声音',
-  '问题',
-  '事情',
-  '地方'
-])
 
 function normalizeKnowledgeText(value: string): string {
   return value
@@ -152,32 +98,6 @@ function compareKnowledgeDocuments(a: KnowledgeDocument, b: KnowledgeDocument): 
   return b.id.localeCompare(a.id)
 }
 
-function resolveReferenceChunkOrder(document: KnowledgeDocument): number {
-  const value = Number(document.metadata?.chunkOrder ?? Number.NaN)
-  return Number.isFinite(value) ? value : Number.MAX_SAFE_INTEGER
-}
-
-export function compareReferenceAssetDocuments(a: KnowledgeDocument, b: KnowledgeDocument): number {
-  if (a.sourceType === 'reference-summary' && b.sourceType !== 'reference-summary') {
-    return -1
-  }
-  if (b.sourceType === 'reference-summary' && a.sourceType !== 'reference-summary') {
-    return 1
-  }
-
-  const orderDiff = resolveReferenceChunkOrder(a) - resolveReferenceChunkOrder(b)
-  if (orderDiff !== 0) {
-    return orderDiff
-  }
-
-  const createdDiff = resolveKnowledgeTimestamp(a.createdAt) - resolveKnowledgeTimestamp(b.createdAt)
-  if (createdDiff !== 0) {
-    return createdDiff
-  }
-
-  return a.id.localeCompare(b.id)
-}
-
 function buildKnowledgeDuplicateKey(document: KnowledgeDocument): string {
   const titleKey = normalizeKnowledgeText(document.title || document.sourceLabel || '')
   const bodyKey = normalizeKnowledgeText(document.summary || document.content).slice(0, 320)
@@ -200,126 +120,6 @@ function buildKnowledgeConflictBodyKey(document: KnowledgeDocument): string {
   const summaryKey = normalizeKnowledgeText(document.summary)
   const contentKey = normalizeKnowledgeText(document.content).slice(0, 320)
   return summaryKey || contentKey
-}
-
-function normalizeReferenceAssetKey(value: string): string {
-  return normalizeKnowledgeText(value)
-}
-
-function sanitizeReferenceKeywords(keywords: string[]): string[] {
-  return Array.from(
-    new Set(
-      keywords
-        .map((keyword) => String(keyword).trim())
-        .filter((keyword) =>
-          keyword.length >= 2
-          && keyword.length <= 10
-          && !DISPLAY_KEYWORD_BLACKLIST.has(keyword)
-          && !/^第?[0-9零一二三四五六七八九十百千万两]+[章节回卷部集]$/u.test(keyword)
-          && /^[\p{Script=Han}A-Za-z0-9·_-]+$/u.test(keyword)
-        )
-    )
-  ).slice(0, 8)
-}
-
-function getReferenceAssetSourceTitle(documentView: KnowledgeDocumentView): string {
-  const metadataTitle = String(documentView.document.metadata?.sourceTitle ?? '').trim()
-  if (metadataTitle) {
-    return metadataTitle
-  }
-
-  return String(documentView.document.title.split('｜')[0] ?? '').trim()
-}
-
-function getReferenceAssetFileName(documentView: KnowledgeDocumentView): string {
-  return String(documentView.document.metadata?.fileName ?? '').trim()
-}
-
-function getReferenceAssetStyleRules(documentViews: KnowledgeDocumentView[]): string[] {
-  const metadataRules = documentViews.flatMap((item) => {
-    const rawRules = item.document.metadata?.styleRules
-    const structuralTags = [
-      item.document.metadata?.plotFunction,
-      item.document.metadata?.tensionCurve
-    ]
-    return [
-      ...(Array.isArray(rawRules) ? rawRules : []),
-      ...structuralTags
-    ]
-  })
-
-  return Array.from(
-    new Set(
-      metadataRules
-        .map((rule) => String(rule).trim())
-        .filter(Boolean)
-    )
-  ).slice(0, 6)
-}
-
-function buildReferenceAssetLibrary(
-  referenceWork: ReferenceWorkItem | null,
-  documentViews: KnowledgeDocumentView[],
-  fallbackTitle = ''
-): ReferenceAssetLibrary {
-  const sortedDocumentViews = [...documentViews].sort((left, right) =>
-    compareReferenceAssetDocuments(left.document, right.document)
-  )
-
-  const primaryDocument = sortedDocumentViews[0] ?? null
-  const analysis = referenceWork?.analysis
-  const timestamps = [
-    analysis?.createdAt,
-    ...sortedDocumentViews.map((item) => item.document.updatedAt),
-    ...sortedDocumentViews.map((item) => item.document.createdAt)
-  ]
-    .map((value) => resolveKnowledgeTimestamp(value))
-    .filter((value) => value > 0)
-  const latestTimestamp = timestamps.length ? Math.max(...timestamps) : 0
-
-  const topKeywords = referenceWork?.analysis?.topKeywords?.length
-    ? sanitizeReferenceKeywords(referenceWork.analysis.topKeywords)
-    : sanitizeReferenceKeywords(Array.from(new Set(sortedDocumentViews.flatMap((item) => item.document.keywords))))
-
-  const styleRules = referenceWork?.analysis?.styleRules?.length
-    ? referenceWork.analysis.styleRules
-    : getReferenceAssetStyleRules(sortedDocumentViews)
-
-  const metadataCharacterCount = sortedDocumentViews.find((item) =>
-    Number.isFinite(Number(item.document.metadata?.characterCount ?? NaN))
-  )?.document.metadata?.characterCount
-  const metadataChapterCount = sortedDocumentViews.find((item) =>
-    Number.isFinite(Number(item.document.metadata?.chapterCount ?? NaN))
-  )?.document.metadata?.chapterCount
-  const primaryFileName = primaryDocument ? getReferenceAssetFileName(primaryDocument) : ''
-  const fileName = referenceWork?.fileName?.trim()
-    || analysis?.fileName?.trim()
-    || primaryDocument?.document.sourceLabel.trim().split('/')[0]?.trim()
-    || primaryFileName
-    || ''
-
-  return {
-    id: referenceWork?.id || `reference-asset-${normalizeReferenceAssetKey(fallbackTitle || primaryDocument?.document.id || 'unknown')}`,
-    title: referenceWork?.title?.trim() || fallbackTitle || primaryDocument?.document.title || '未命名参考资产',
-    source: referenceWork?.source?.trim() || '未绑定参考作品',
-    fileName,
-    notes: referenceWork?.notes?.trim() || '',
-    summary:
-      analysis?.overview?.trim()
-      || referenceWork?.notes?.trim()
-      || primaryDocument?.preview
-      || '已沉淀参考资产，等待进一步整理。',
-    topKeywords,
-    styleRules,
-    documentCount: sortedDocumentViews.length,
-    summaryCount: sortedDocumentViews.filter((item) => item.document.sourceType === 'reference-summary').length,
-    chunkCount: sortedDocumentViews.filter((item) => item.document.sourceType === 'reference-chunk').length,
-    chapterCount: Number(analysis?.chapterCount ?? metadataChapterCount ?? 0),
-    characterCount: Number(analysis?.characterCount ?? metadataCharacterCount ?? 0),
-    updatedAtLabel: latestTimestamp ? formatKnowledgeDateTime(new Date(latestTimestamp).toISOString()) : '未知时间',
-    primaryDocument,
-    relatedDocumentIds: sortedDocumentViews.map((item) => item.document.id)
-  }
 }
 
 export function isProjectKnowledgeSource(sourceType: KnowledgeDocumentSourceType): boolean {
@@ -412,51 +212,6 @@ export function formatKnowledgeDateTime(value?: string): string {
     day: '2-digit',
     hour: '2-digit',
     minute: '2-digit'
-  })
-}
-
-export function buildReferenceAssetLibraries(
-  referenceWorks: ReferenceWorkItem[],
-  documents: KnowledgeDocumentView[]
-): ReferenceAssetLibrary[] {
-  const referenceDocumentViews = documents.filter((item) =>
-    item.document.sourceType === 'reference-summary' || item.document.sourceType === 'reference-chunk'
-  )
-  const claimedDocumentIds = new Set<string>()
-
-  const libraries = referenceWorks.map((referenceWork) => {
-    const titleKey = normalizeReferenceAssetKey(referenceWork.title)
-    const fileNameKey = normalizeReferenceAssetKey(referenceWork.fileName || referenceWork.analysis?.fileName || '')
-    const matchedDocuments = referenceDocumentViews.filter((item) => {
-      const sourceTitleKey = normalizeReferenceAssetKey(getReferenceAssetSourceTitle(item))
-      const sourceFileNameKey = normalizeReferenceAssetKey(getReferenceAssetFileName(item))
-      return (titleKey && sourceTitleKey === titleKey) || (fileNameKey && sourceFileNameKey === fileNameKey)
-    })
-
-    matchedDocuments.forEach((item) => claimedDocumentIds.add(item.document.id))
-    return buildReferenceAssetLibrary(referenceWork, matchedDocuments, referenceWork.title)
-  })
-
-  const orphanGroups = new Map<string, KnowledgeDocumentView[]>()
-  referenceDocumentViews
-    .filter((item) => !claimedDocumentIds.has(item.document.id))
-    .forEach((item) => {
-      const groupKey = normalizeReferenceAssetKey(getReferenceAssetSourceTitle(item))
-        || normalizeReferenceAssetKey(getReferenceAssetFileName(item))
-        || item.document.id
-      const group = orphanGroups.get(groupKey) ?? []
-      group.push(item)
-      orphanGroups.set(groupKey, group)
-    })
-
-  const orphanLibraries = Array.from(orphanGroups.values()).map((group) =>
-    buildReferenceAssetLibrary(null, group, getReferenceAssetSourceTitle(group[0]))
-  )
-
-  return [...libraries, ...orphanLibraries].sort((left, right) => {
-    const rightTimestamp = resolveKnowledgeTimestamp(right.primaryDocument?.document.updatedAt)
-    const leftTimestamp = resolveKnowledgeTimestamp(left.primaryDocument?.document.updatedAt)
-    return rightTimestamp - leftTimestamp
   })
 }
 

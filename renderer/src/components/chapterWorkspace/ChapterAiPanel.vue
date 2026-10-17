@@ -65,8 +65,7 @@ const contextModules: { module: ContextModule; label: string }[] = [
   { module: 'characters', label: '角色卡' },
   { module: 'worldview', label: '世界观' },
   { module: 'plotThreads', label: '剧情线索' },
-  { module: 'knowledge', label: '项目知识库' },
-  { module: 'deconstructionLibrary', label: '拆书知识库' }
+  { module: 'knowledge', label: '项目知识库' }
 ]
 
 function closeAllPanels(): void {

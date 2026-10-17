@@ -34,12 +34,8 @@ const TASK_DEFAULT_CAPABILITIES: Record<AiTaskName, PromptCapabilityId[]> = {
   'outline-item': ['settings', 'outline', 'worldview', 'characters', 'relations', 'writing-style'],
   'outline-batch': ['settings', 'outline', 'worldview', 'characters', 'relations', 'writing-style', 'project-skills'],
   'outline-chain': ['settings', 'outline', 'chapters', 'worldview', 'characters', 'relations', 'writing-style', 'project-skills'],
-  'reference-style-chunk': ['settings', 'analysis', 'writing-style', 'outline', 'import-export', 'project-skills'],
-  'reference-style-analysis': ['settings', 'analysis', 'writing-style', 'outline', 'import-export', 'project-skills'],
   'ranking-style-analysis': ['settings', 'analysis', 'writing-style'],
   'ranking-idea-combinations': ['settings', 'analysis', 'writing-style'],
-  'reference-deep-analyze': ['settings', 'analysis', 'writing-style', 'project-skills', 'import-export'],
-  'style-fingerprint-extract': ['settings', 'analysis', 'writing-style', 'project-skills'],
   'workflow-documents': ['settings', 'workflow', 'import-export'],
   'assistant-intent': ['settings', 'chapters', 'analysis', 'versioning'],
   'assistant-action-proposal': ['settings', 'chapters', 'worldview', 'characters', 'relations', 'outline', 'inspiration', 'writing-style', 'project-skills', 'versioning'],
@@ -80,13 +76,7 @@ const TASK_DEFAULT_CAPABILITIES: Record<AiTaskName, PromptCapabilityId[]> = {
   'continuation-import-chunk': ['settings', 'analysis', 'characters', 'outline'],
   'continuation-import-aggregate': ['settings', 'analysis', 'characters', 'relations', 'outline', 'worldview'],
   // 封面生成走独立图片通道，不经过 prompt capability 流程；此项仅为满足类型完整性。
-  'cover-generate': ['settings'],
-  // 文章拆解改编页 5 段（PRD §3.2 P0-4 + deconstruction-prompts.md §3）
-  'adaptation-lead-identify': ['settings', 'analysis', 'import-export'],
-  'adaptation-stage-map': ['settings', 'analysis', 'project-skills', 'import-export'],
-  'adaptation-plot-cards': ['settings', 'analysis', 'import-export'],
-  'adaptation-character-bible': ['settings', 'analysis', 'import-export'],
-  'adaptation-tone-profile': ['settings', 'analysis', 'writing-style', 'import-export']
+  'cover-generate': ['settings']
 }
 
 /**

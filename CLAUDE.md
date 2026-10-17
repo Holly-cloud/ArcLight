@@ -38,7 +38,7 @@ The renderer **never** touches the filesystem or AI providers directly. Everythi
 
 ### SQLite (workspace store)
 
-`electron/main/workspace-store.ts` uses Node's built-in `node:sqlite` (`DatabaseSync`), not better-sqlite3 — node ≥18 with the experimental flag, or the bundled Electron Node. Schema is created idempotently via `CREATE TABLE IF NOT EXISTS` on first `ensureWorkspaceDb()` call. Tables include `projects`, `worldview_entries`, `characters`, `organizations`, `character_relationships`, `organization_memberships`, `inspiration_entries`, `outline_volumes`, `outline_items`, `chapters`, `chapter_versions`, `ai_messages`, `knowledge_documents`, `reference_works`, `ai_runs`, `workflow_documents`, `plot_threads`, `app_settings`, `cover_workbench_history`, `assistant_sessions`. Story-state tables are initialized separately in `story-state-store.ts`.
+`electron/main/workspace-store.ts` uses Node's built-in `node:sqlite` (`DatabaseSync`), not better-sqlite3 — node ≥18 with the experimental flag, or the bundled Electron Node. Schema is created idempotently via `CREATE TABLE IF NOT EXISTS` on first `ensureWorkspaceDb()` call. Tables include `projects`, `worldview_entries`, `characters`, `organizations`, `character_relationships`, `organization_memberships`, `inspiration_entries`, `outline_volumes`, `outline_items`, `chapters`, `chapter_versions`, `ai_messages`, `knowledge_documents`, `ai_runs`, `workflow_documents`, `plot_threads`, `app_settings`, `cover_workbench_history`, `assistant_sessions`. Story-state tables are initialized separately in `story-state-store.ts`.
 
 The DB lives under `<userData>/data/workspace.db`. `configureCanonicalUserDataPath()` migrates legacy `characterarc/` userData to `CharacterArc/` on first launch — preserve this path discipline if you touch boot code.
 
@@ -46,7 +46,7 @@ The DB lives under `<userData>/data/workspace.db`. `configureCanonicalUserDataPa
 
 The core dispatch is in `ai/runtime/orchestrator.ts`:
 
-- `runAiTask(task, knowledgeContext, signal)` — non-streaming. Routes to **agent loop** if `task.task ∈ AGENT_TASK_WHITELIST` (currently `outline-batch`, `reference-deep-analyze`, `style-fingerprint-extract`, `global-assistant`). Tool support is negotiated by the SDK/provider at request time; only an explicit upstream "tools unsupported" error triggers the existing single-shot fallback.
+- `runAiTask(task, knowledgeContext, signal)` — non-streaming. Routes to **agent loop** if `task.task ∈ AGENT_TASK_WHITELIST` (currently `outline-batch`, `global-assistant`). Tool support is negotiated by the SDK/provider at request time; only an explicit upstream "tools unsupported" error triggers the existing single-shot fallback.
 - `streamAiTask(task, handlers, signal, knowledgeContext)` — streaming. Only enabled for `chapter-assistant`, `global-assistant`, `chapter-first-draft`, `chapter-memo`, `chapter-audit`.
 - `runAgentTask` (`ai/agent/`) drives the AI SDK `streamText` loop with progressive skill disclosure, capped at `maxSteps = 8`.
 
@@ -71,7 +71,7 @@ In agent-loop mode, **required** skills are inlined into the system prompt; opti
 
 ### Renderer organization
 
-- `renderer/src/pages/` — top-level routed views (`ProjectCenter`, `WorkbenchPage`, `ChapterStudioPage`, `CoverWorkbenchPage`, `DeconstructionLibraryPage`, `ProjectWizardPage`, `SkillsPage`)
+- `renderer/src/pages/` — top-level routed views (`ProjectCenter`, `WorkbenchPage`, `ChapterStudioPage`, `CoverWorkbenchPage`, `ProjectWizardPage`, `SkillsPage`)
 - `renderer/src/features/` — feature modules (ai, chapters, cover, knowledge, relations, projects, projectSkills, novelWorkflow, inspiration, settings, wizard, workspace, writingStyles, announcements). Each owns its types, helpers, and (sometimes) sub-stores.
 - `renderer/src/stores/app.ts` — single top-level Pinia store; most domain logic delegates to feature-module helpers
 - `renderer/src/components/chapterWorkspace/` — three-pane chapter editor (TipTap)
@@ -82,7 +82,7 @@ In agent-loop mode, **required** skills are inlined into the system prompt; opti
 
 All channels are namespaced `characterarc:*`. Main-side handlers split between two files:
 
-- `electron/main/register-main-ipc.ts` — workspace, files, exports/imports, reference deconstruction, project-skills, sessions, updates
+- `electron/main/register-main-ipc.ts` — workspace, files, exports/imports, project-skills, sessions, updates
 - `electron/main/ai/ipc.ts` — AI generate/stream/agent/cancel, model probing, image generation, story-state
 
 The preload (`electron/preload/index.ts`) exposes a flat `window.characterArc` object via `contextBridge`. Every payload is JSON-cloned through `toIpcPayload` to strip non-serializable values before crossing the bridge.

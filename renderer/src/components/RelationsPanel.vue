@@ -547,8 +547,8 @@ function openGraphNodeEditor(payload: { kind: 'character' | 'organization' | 'sc
     return
   }
   if (payload.kind === 'scene' || payload.kind === 'prop') {
-    appStore.openWorkbench('project')
-    message.info('场景 / 道具已迁至「工作台 → 项目内」面板，请前往编辑。')
+    appStore.openAssetLibrary()
+    message.info('场景 / 道具编辑已迁至资产库，请前往编辑。')
     return
   }
   const organization = appStore.organizations.find((item) => item.id === payload.entityId)

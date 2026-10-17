@@ -26,7 +26,7 @@ for (const { name, premise, modules, expected } of [
   { name: '覆盖项目资料时更新独立简介', premise: '归档简介', modules: ['project'], expected: '归档简介' },
   { name: '覆盖项目资料时保留主动清空的简介', premise: '', modules: ['project'], expected: '' },
   { name: '旧归档覆盖项目资料时移除目标项目简介以允许兼容恢复', premise: undefined, modules: ['project'], expected: undefined },
-  { name: '未选择项目资料模块时保留目标简介', premise: '归档简介', modules: ['referenceWorks'], expected: '目标简介' }
+  { name: '未选择项目资料模块时保留目标简介', premise: '归档简介', modules: ['worldview'], expected: '目标简介' }
 ]) {
   test(name, async () => {
     const directory = await mkdtemp(join(tmpdir(), 'characterarc-premise-archive-'))
@@ -41,8 +41,7 @@ for (const { name, premise, modules, expected } of [
         selectedProjectId: 'target',
         projects: [{ id: 'target', title: '目标项目', premise: '目标简介' }],
         workspaces: { target: { chapters: [], aiRuns: [] } },
-        knowledgeDocuments: [],
-        referenceWorks: []
+        knowledgeDocuments: []
       }
       let saved
       await importProjectArchive({

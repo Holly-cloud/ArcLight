@@ -11,7 +11,7 @@
 import type { DatabaseSync } from 'node:sqlite'
 import type { AiTaskPayload, AppSettings } from './shared-types'
 import { buildStoryStateContext, formatStoryStateForPrompt } from '../story-state-store'
-import { embedText, cosineSimilarity, embedTexts, providerSupportsEmbedding } from './embedding-service'
+import { embedTexts, cosineSimilarity, providerSupportsEmbedding } from './embedding-service'
 import { ensureWorkspaceDb } from '../workspace-store'
 import { filterProjectKnowledgeDocuments } from './knowledge-document-scope'
 
@@ -673,87 +673,6 @@ export async function indexChapterSegments(
     db.exec('ROLLBACK')
     throw error
   }
-}
-
-/**
- * 将参考小说文本拆段并写入向量索引，用于后续语义检索。
- *
- * @param settings - AI 设置
- * @param projectId - 项目 id
- * @param refId - 参考文献 id
- * @param novelText - 小说全文
- */
-export async function indexReferenceNovel(
-  settings: AppSettings,
-  projectId: string,
-  refId: string,
-  novelText: string
-): Promise<void> {
-  if (!novelText || novelText.length < 100) return
-  if (!providerSupportsEmbedding(settings)) return
-
-  const db = await ensureWorkspaceDb()
-
-  db.prepare(
-    `DELETE FROM story_embeddings WHERE project_id = ? AND source_type = 'reference_novel' AND source_id = ?`
-  ).run(projectId, refId)
-
-  const segments = splitForEmbedding(novelText, 800)
-  if (!segments.length) return
-
-  const BATCH = 16
-  const timestamp = new Date().toISOString()
-  const stmt = db.prepare(`
-    INSERT INTO story_embeddings (id, project_id, source_type, source_id, chapter_index, text_content, embedding, created_at)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `)
-
-  for (let i = 0; i < segments.length; i += BATCH) {
-    const batch = segments.slice(i, i + BATCH)
-    const embeddings = await embedTexts(settings, batch)
-    for (let j = 0; j < batch.length; j++) {
-      const id = `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 8)}`
-      const buffer = Buffer.from(embeddings[j].buffer)
-      stmt.run(id, projectId, 'reference_novel', refId, null, batch[j], buffer, timestamp)
-    }
-  }
-}
-
-/**
- * 在已索引的参考小说中做向量语义搜索。
- *
- * @param settings - AI 设置
- * @param projectId - 项目 id
- * @param refId - 参考文献 id
- * @param query - 查询文本
- * @param topK - 返回的最大结果数，默认 20
- * @returns 按相似度降序的文本片段及分数
- */
-export async function searchReferenceNovel(
-  settings: AppSettings,
-  projectId: string,
-  refId: string,
-  query: string,
-  topK = 20
-): Promise<Array<{ text: string; score: number }>> {
-  const db = await ensureWorkspaceDb()
-
-  const rows = db.prepare(`
-    SELECT text_content, embedding FROM story_embeddings
-    WHERE project_id = ? AND source_type = 'reference_novel' AND source_id = ?
-  `).all(projectId, refId) as Array<{ text_content: string; embedding: Buffer }>
-
-  if (!rows.length) return []
-
-  const queryEmbedding = await embedText(settings, query)
-
-  return rows
-    .map((row) => {
-      const storedVec = new Float32Array(row.embedding.buffer, row.embedding.byteOffset, row.embedding.byteLength / 4)
-      return { text: row.text_content, score: cosineSimilarity(queryEmbedding, storedVec) }
-    })
-    .sort((a, b) => b.score - a.score)
-    .slice(0, topK)
 }
 
 function splitLongUnit(unit: string, maxChars: number): string[] {

@@ -63,9 +63,9 @@ const sharedSessions = ref<SessionSummary[]>([])
 const sharedDeletedSessionIds = new Set<string>()
 let sharedHydratedProjectId = ''
 
-export type ContextModule = 'chapter' | 'outline' | 'characters' | 'worldview' | 'plotThreads' | 'knowledge' | 'deconstructionLibrary'
+export type ContextModule = 'chapter' | 'outline' | 'characters' | 'worldview' | 'plotThreads' | 'knowledge'
 
-const ALL_CONTEXT_MODULES: ContextModule[] = ['chapter', 'outline', 'characters', 'worldview', 'plotThreads', 'knowledge', 'deconstructionLibrary']
+const ALL_CONTEXT_MODULES: ContextModule[] = ['chapter', 'outline', 'characters', 'worldview', 'plotThreads', 'knowledge']
 
 type ComposerMode = '问答' | '改写' | '续写'
 

@@ -1,6 +1,5 @@
 import JSZip from 'jszip'
-import { existsSync } from 'node:fs'
-import { mkdir, readFile, writeFile } from 'node:fs/promises'
+import { readFile, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 import type { DatabaseSync } from 'node:sqlite'
@@ -11,8 +10,7 @@ import { stagedChangesStore } from '../ai/runtime-v2/staged-changes-store'
 import {
   normalizeWorkspacePayload,
   type WorkspaceKnowledgeDocument,
-  type WorkspacePayload,
-  type WorkspaceReferenceWork
+  type WorkspacePayload
 } from '../workspace-types'
 import type {
   AssistantSession,
@@ -42,10 +40,8 @@ export type ProjectArchiveModule =
   | 'chapterVersions'
   | 'workflowDocuments'
   | 'knowledgeDocuments'
-  | 'referenceWorks'
   | 'aiRuns'
   | 'assistantSessions'
-  | 'referenceNovelAssets'
 
 export type ProjectArchiveImportMode = 'new-project' | 'overwrite-project'
 
@@ -72,8 +68,6 @@ type ProjectArchiveContent = {
   workspace: ProjectWorkspace
   assistantV2: AssistantV2Archive
   knowledgeDocuments: Array<WorkspaceKnowledgeDocument & { projectId?: string }>
-  referenceWorks: WorkspaceReferenceWork[]
-  referenceNovelAssets: Map<string, Buffer>
 }
 
 type AssistantV2Archive = {
@@ -183,10 +177,8 @@ const ALL_ARCHIVE_MODULES: ProjectArchiveModule[] = [
   'chapterVersions',
   'workflowDocuments',
   'knowledgeDocuments',
-  'referenceWorks',
   'aiRuns',
-  'assistantSessions',
-  'referenceNovelAssets'
+  'assistantSessions'
 ]
 
 function createEmptyWorkspace(): ProjectWorkspace {
@@ -484,9 +476,7 @@ function buildManifest(
   project: ProjectRecord,
   workspace: ProjectWorkspace,
   assistantV2: AssistantV2Archive,
-  knowledgeDocuments: WorkspaceKnowledgeDocument[],
-  referenceWorks: WorkspaceReferenceWork[],
-  assetCount: number
+  knowledgeDocuments: WorkspaceKnowledgeDocument[]
 ): ProjectArchiveManifest {
   const electronRequire = eval('require') as NodeJS.Require
   const { app } = electronRequire('electron') as { app: { getVersion: () => string } }
@@ -513,7 +503,6 @@ function buildManifest(
           workspace.outlineVolumes.reduce((total, volume) => total + (volume.workflowDocuments?.length ?? 0), 0)
       },
       knowledgeDocuments: { count: knowledgeDocuments.length },
-      referenceWorks: { count: referenceWorks.length },
       aiRuns: { count: workspace.aiRuns.length },
       assistantSessions: {
         count:
@@ -522,8 +511,7 @@ function buildManifest(
           assistantV2.sessions.length +
           assistantV2.turns.length +
           assistantV2.stagedChanges.length
-      },
-      referenceNovelAssets: { count: assetCount }
+      }
     }
   }
 }
@@ -541,23 +529,11 @@ export async function exportProjectArchive(options: ExportProjectArchiveOptions)
     throw new Error('未找到要导出的当前项目。')
   }
 
-  const referenceIdSet = new Set(project.selectedReferenceWorkIds ?? [])
-  const referenceWorks = snapshot.referenceWorks.filter((work) => referenceIdSet.has(work.id))
   const knowledgeDocuments = readProjectKnowledgeDocuments(options.db, project.id)
   const assistantV2 = readAssistantV2Archive(options.db, project.id)
   const zip = new JSZip()
-  const assetDir = join(getWorkspaceDirPath(), 'reference-novels')
-  let assetCount = 0
 
-  // 原文资产按参考作品 ID 存放，导入时会随新的 referenceWork ID 重命名。
-  for (const work of referenceWorks) {
-    const sourcePath = join(assetDir, `${work.id}.txt`)
-    if (!existsSync(sourcePath)) continue
-    zip.file(`assets/reference-novels/${work.id}.txt`, await readFile(sourcePath))
-    assetCount++
-  }
-
-  const manifest = buildManifest(project, workspace, assistantV2, knowledgeDocuments, referenceWorks, assetCount)
+  const manifest = buildManifest(project, workspace, assistantV2, knowledgeDocuments)
   addJson(zip, 'manifest.json', manifest)
   addJson(zip, 'project.json', project)
   addJson(zip, 'workspace/worldview.json', workspace.worldviewEntries)
@@ -581,7 +557,6 @@ export async function exportProjectArchive(options: ExportProjectArchiveOptions)
   addJson(zip, 'workspace/chapterVersions.json', workspace.chapterVersions)
   addJson(zip, 'workspace/workflowDocuments.json', workspace.workflowDocuments)
   addJson(zip, 'workspace/knowledgeDocuments.json', knowledgeDocuments)
-  addJson(zip, 'workspace/referenceWorks.json', referenceWorks)
   addJson(zip, 'workspace/aiRuns.json', workspace.aiRuns)
   addJson(zip, 'workspace/assistantSessions.json', {
     messages: workspace.messages,
@@ -658,21 +633,13 @@ async function readArchiveContent(filePath: string): Promise<ProjectArchiveConte
     workflowDocuments: await readZipJson(zip, 'workspace/workflowDocuments.json', []),
     plotThreads: await readZipJson(zip, 'workspace/plotThreads.json', [])
   }
-  const assets = new Map<string, Buffer>()
-  for (const fileName of Object.keys(zip.files)) {
-    const match = fileName.match(/^assets\/reference-novels\/(.+)\.txt$/)
-    if (!match) continue
-    assets.set(match[1], await zip.file(fileName)!.async('nodebuffer'))
-  }
 
   return {
     manifest,
     project,
     workspace,
     assistantV2: normalizeAssistantV2Archive(assistantPayload.assistantV2),
-    knowledgeDocuments: await readZipJson(zip, 'workspace/knowledgeDocuments.json', []),
-    referenceWorks: await readZipJson(zip, 'workspace/referenceWorks.json', []),
-    referenceNovelAssets: assets
+    knowledgeDocuments: await readZipJson(zip, 'workspace/knowledgeDocuments.json', [])
   }
 }
 
@@ -682,7 +649,6 @@ function expandModules(modules?: ProjectArchiveModule[]): Set<ProjectArchiveModu
   if (selected.has('chapters')) selected.add('outline')
   if (selected.has('chapterVersions')) selected.add('chapters').add('outline')
   if (selected.has('workflowDocuments')) selected.add('outline')
-  if (selected.has('referenceNovelAssets')) selected.add('referenceWorks')
   if (selected.has('aiRuns')) selected.add('knowledgeDocuments')
   return selected
 }
@@ -753,7 +719,6 @@ function remapArchiveContent(
     return next
   }
 
-  for (const work of content.referenceWorks) assign(work.id, 'ref')
   for (const document of content.knowledgeDocuments) assign(document.id, 'knowledge')
   for (const volume of content.workspace.outlineVolumes) assign(volume.id, 'volume')
   for (const item of content.workspace.outlineItems) assign(item.id, 'outline')
@@ -778,10 +743,7 @@ function remapArchiveContent(
     ...content.project,
     id: targetProjectId,
     title: modules.has('project') ? content.project.title : content.project.title,
-    lastEdited: new Date().toISOString(),
-    selectedReferenceWorkIds: modules.has('referenceWorks')
-      ? (content.project.selectedReferenceWorkIds ?? []).map((id) => mapId(idMap, id)).filter(Boolean)
-      : []
+    lastEdited: new Date().toISOString()
   }
   const workspace: ProjectWorkspace = {
     worldviewEntries: modules.has('worldview')
@@ -882,9 +844,6 @@ function remapArchiveContent(
       : []
   }
 
-  const referenceWorks = modules.has('referenceWorks')
-    ? content.referenceWorks.map((work) => ({ ...work, id: mapId(idMap, work.id) }))
-    : []
   const knowledgeDocuments = modules.has('knowledgeDocuments')
     ? content.knowledgeDocuments.map((document) => ({
         ...document,
@@ -892,12 +851,6 @@ function remapArchiveContent(
         projectId: targetProjectId
       }))
     : []
-  const assets = new Map<string, Buffer>()
-  if (modules.has('referenceNovelAssets')) {
-    for (const [oldId, data] of content.referenceNovelAssets) {
-      assets.set(mapId(idMap, oldId), data)
-    }
-  }
   const assistantV2 = remapAssistantV2Archive(content.assistantV2, targetProjectId, idMap, modules)
 
   return {
@@ -905,9 +858,7 @@ function remapArchiveContent(
     project,
     workspace,
     assistantV2,
-    knowledgeDocuments,
-    referenceWorks,
-    referenceNovelAssets: assets
+    knowledgeDocuments
   }
 }
 
@@ -975,15 +926,6 @@ function mergeById<T extends { id: string }>(current: T[], incoming: T[], replac
   return [...preserved, ...incoming]
 }
 
-async function restoreReferenceNovelAssets(assets: Map<string, Buffer>): Promise<void> {
-  if (assets.size === 0) return
-  const targetDir = join(getWorkspaceDirPath(), 'reference-novels')
-  await mkdir(targetDir, { recursive: true })
-  for (const [id, data] of assets) {
-    await writeFile(join(targetDir, `${id}.txt`), data)
-  }
-}
-
 export async function importProjectArchive(options: ImportProjectArchiveOptions): Promise<{ selectedProjectId: string }> {
   options.onProgress?.({ phase: 'preparing', message: '正在读取当前工作区...', percent: 6 })
   const snapshot = options.readWorkspaceSnapshot(options.db)
@@ -1025,7 +967,7 @@ export async function importProjectArchive(options: ImportProjectArchiveOptions)
 
     nextPayload.projects = snapshot.projects.map((project) => {
       if (project.id !== targetProjectId) return project
-      if (!modules.has('project') && !modules.has('referenceWorks')) return project
+      if (!modules.has('project')) return project
       return {
         ...project,
         ...(modules.has('project')
@@ -1045,7 +987,6 @@ export async function importProjectArchive(options: ImportProjectArchiveOptions)
               projectVisualStyle: incoming.project.projectVisualStyle
             }
           : {}),
-        ...(modules.has('referenceWorks') ? { selectedReferenceWorkIds: incoming.project.selectedReferenceWorkIds } : {}),
         lastEdited: new Date().toISOString()
       }
     })
@@ -1058,11 +999,6 @@ export async function importProjectArchive(options: ImportProjectArchiveOptions)
         true
       )
     }
-  }
-
-  if (modules.has('referenceWorks')) {
-    // 参考作品是全局拆书库资源，覆盖项目时只更新当前项目的选择列表，不删除旧全局条目，避免影响其他项目复用。
-    nextPayload.referenceWorks = mergeById(snapshot.referenceWorks, incoming.referenceWorks, new Set<string>())
   }
 
   if (modules.has('knowledgeDocuments')) {
@@ -1089,8 +1025,6 @@ export async function importProjectArchive(options: ImportProjectArchiveOptions)
       options.mode === 'overwrite-project'
     )
   }
-  options.onProgress?.({ phase: 'assets', message: '正在恢复参考原文资产...', percent: 92 })
-  await restoreReferenceNovelAssets(incoming.referenceNovelAssets)
   return { selectedProjectId: targetProjectId }
 }
 

@@ -163,9 +163,6 @@ function toolScopeLabel(scope: string): string {
     plotThreads: '剧情线索',
     inspiration: '灵感',
     knowledge: '项目知识',
-    available_deconstructions: '公共拆书库',
-    deconstruction_library: '拆书知识库',
-    reference_works: '参考书',
     chapters: '章节',
     workflow_documents: '创作记忆',
     workflowDocuments: '创作记忆',
@@ -1929,7 +1926,6 @@ export function useGlobalAssistant(options: UseGlobalAssistantOptions = {}) {
             'plotThreads',
             'inspiration',
             'knowledge',
-            'deconstructionLibrary',
             'workflowDocuments',
             'projectConstraints'
           ],

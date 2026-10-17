@@ -95,10 +95,7 @@ export async function runAiTask(
       return await runAgentTask(task, knowledgeContext)
     } catch (error) {
       if (isToolUseNotSupportedError(error)) {
-        if (task.task === 'reference-deep-analyze') {
-          throw new Error('深度拆书需要模型支持 tool_use（工具调用）。当前模型不支持此功能，请切换到支持工具调用的模型后重试。')
-        }
-        // 其余白名单任务：降级到单次调用路径
+        // 白名单任务工具不支持时，降级到单次调用路径
       } else {
         throw error
       }

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
 import { CircleHelp } from 'lucide-vue-next'
-import { NButton, NCheckbox, NCheckboxGroup, NInputNumber, NInput, NModal, NSelect, NSwitch, NTag, NTooltip } from 'naive-ui'
+import { NButton, NInputNumber, NInput, NModal, NSelect, NSwitch, NTag, NTooltip } from 'naive-ui'
 import { buildChapterReferencePreview, buildOutlineItemContext } from '@/features/ai/chapterAssistantContext'
 import { getChapterPreviewText, getPlainTextFromEditorContent } from '@/features/chapters/editorContent'
 import { useAppStore } from '@/stores/app'
@@ -29,7 +29,6 @@ const chapter = computed(() => appStore.selectedChapter)
 const project = computed(() => appStore.currentProject)
 
 const targetWordCount = ref(3000)
-const selectedRefIds = ref<string[]>([])
 const userPrompt = ref('')
 const expandedStepId = ref<FirstDraftStepId | null>('draft')
 const discoveredProjectSkills = ref<ProjectSkillItem[]>([])
@@ -38,7 +37,6 @@ const isLoadingProjectSkills = ref(false)
 const projectSkillsLoadError = ref('')
 const steps = reactive<Record<FirstDraftStepId, FirstDraftStepConfig>>(createDefaultFirstDraftSteps())
 
-const referenceWorks = computed(() => appStore.referenceWorks)
 const projectSkills = computed(() => {
   const savedSkills = project.value?.projectSkills ?? []
   if (!hasScannedProjectSkills.value) return savedSkills
@@ -280,7 +278,6 @@ watch(() => props.show, (visible) => {
     return
   }
   targetWordCount.value = parseChapterWordTarget(chapter.value?.wordTarget) || 3000
-  selectedRefIds.value = [...(project.value?.selectedReferenceWorkIds ?? [])]
   userPrompt.value = ''
   expandedStepId.value = 'draft'
   Object.assign(steps, createDefaultFirstDraftSteps())
@@ -300,7 +297,6 @@ function handleConfirm(): void {
   const selectableSkillIds = new Set(selectableProjectSkills.value.map((skill) => skill.id))
   emit('confirm', {
     targetWordCount: targetWordCount.value,
-    selectedReferenceWorkIds: selectedRefIds.value,
     userPrompt: userPrompt.value.trim(),
     steps: FIRST_DRAFT_STEP_DEFINITIONS.reduce((acc, item) => {
       acc[item.id] = {
@@ -449,21 +445,6 @@ function handleConfirm(): void {
         <div v-else class="context-preview-empty">
           当前项目还没有可用于本章预览的角色、组织或设定。
         </div>
-      </section>
-
-      <section v-if="referenceWorks.length > 0" class="config-section reference-panel">
-        <div class="section-title-row">
-          <div>
-            <label class="section-label">参考作品（拆书库）</label>
-            <p class="section-hint">勾选的作品风格将注入初稿步骤，不勾选则不参考。</p>
-          </div>
-          <span class="selection-count">{{ selectedRefIds.length }} / {{ referenceWorks.length }}</span>
-        </div>
-        <n-checkbox-group v-model:value="selectedRefIds">
-          <div class="checkbox-list">
-            <n-checkbox v-for="work in referenceWorks" :key="work.id" :value="work.id" :label="work.title" />
-          </div>
-        </n-checkbox-group>
       </section>
 
       <section class="config-section workflow-section">

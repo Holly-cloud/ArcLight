@@ -27,7 +27,6 @@ export const novelWorkflowStageDefinitions: NovelWorkflowStageDefinition[] = [
     focus: '参考书、风格提炼、平台偏好',
     summary: '对应 2.md 中的扫榜、下载参考书、提炼写法和题材判断。',
     actions: [
-      { label: '打开拆书知识库', panel: 'deconstruction' },
       { label: '打开灵感模块', panel: 'inspiration' }
     ]
   },

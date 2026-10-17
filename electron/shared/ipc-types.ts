@@ -180,23 +180,6 @@ export interface PersistedPropRecord {
 }
 
 /** 单表 JSON blob：顶层冗余字段便于查询，其余内嵌字段统一存入 payloadJson */
-export interface PersistedAdaptationRunRecord {
-  id: string
-  referenceWorkId: string
-  sourceTitle: string
-  sourceContentHash: string
-  sourceChapterCount: number
-  targetEpisodeCount: number
-  /** 顶层 status 冗余字段（PRD Q6：仅清 status !== 'archived' 的 run） */
-  status: 'draft' | 'running' | 'completed' | 'archived'
-  /** 其余字段（activeStage / leadCandidates / leadSelection / stages / plotCards /
-   * characters / relationships / characterMergeLedger / toneProfile / bookUnderstanding /
-   * selectedCardIds / stageStates / fusionImport / error / createdAt / updatedAt） */
-  payloadJson: string
-  createdAt: string
-  updatedAt: string
-}
-
 export interface SaveWorkspaceEntitiesRequest {
   projectId: string
   worldviewEntries?: PersistedWorldviewEntryRecord[]
@@ -204,8 +187,6 @@ export interface SaveWorkspaceEntitiesRequest {
   inspirationEntries?: PersistedInspirationEntryRecord[]
   sceneLocations?: PersistedSceneLocationRecord[]
   propItems?: PersistedPropRecord[]
-  /** 文章拆解改编运行；与既有实体同构走白名单合并。 */
-  adaptationRuns?: PersistedAdaptationRunRecord[]
 }
 
 export interface DatabaseBackupSummary {

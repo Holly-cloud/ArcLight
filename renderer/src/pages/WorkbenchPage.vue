@@ -9,7 +9,6 @@ import {
   FileText,
   Globe2,
   LayoutDashboard,
-  LayoutGrid,
   Lightbulb,
   Network,
   PanelLeftClose,
@@ -64,7 +63,6 @@ const isDraggingGlobalAssistant = ref(false)
 const panelSearch = reactive<Record<string, string>>({
   workflow: '',
   overview: '',
-  deconstruction: '',
   'project-knowledge': '',
   world: '',
   characters: '',
@@ -80,7 +78,6 @@ const panelSearch = reactive<Record<string, string>>({
 const searchKeyword = ref(panelSearch[appStore.activePanel] ?? '')
 
 const sidebarItemPresentation = {
-  workbench: { description: '场景/道具编辑与跨级 AI 工具容器', icon: LayoutGrid, color: 'var(--arc-primary)', emphasized: true },
   assetLibrary: { description: '项目内按分类浏览与编辑角色/场景/道具/组织', icon: Boxes, color: '#0891b2' },
   overview: { description: '掌握项目进度与全局信息', icon: LayoutDashboard, color: '#8b5cf6' },
   characters: { description: '维护人物卡、关系与成长线索', icon: Users, color: '#ec4899' },
@@ -115,14 +112,10 @@ const sidebarItems = computed(() => {
 
 /**
  * 处理侧边栏菜单点击。
- * - id === 'workbench'：跳转到顶级"工作台"容器（v1.25 新增；不进入项目级工作台子面板）
+ * - id === 'assetLibrary'：跳转到资产库聚合页
  * - 其他：沿用既有 setPanel 路径
  */
 function handleSidebarItemClick(itemId: WorkbenchMenuId): void {
-  if (itemId === 'workbench') {
-    appStore.openWorkbench()
-    return
-  }
   if (itemId === 'assetLibrary') {
     appStore.openAssetLibrary()
     return
@@ -131,7 +124,6 @@ function handleSidebarItemClick(itemId: WorkbenchMenuId): void {
 }
 
 const hiddenPanelLabels: Partial<Record<PanelName, string>> = {
-  deconstruction: '拆书知识库',
   workflow: '创作记忆'
 }
 
@@ -374,7 +366,7 @@ watch(searchKeyword, (value) => {
             type="button"
             class="sidebar-item"
             :class="{
-              active: item.id !== 'workbench' && appStore.activePanel === item.id,
+              active: appStore.activePanel === item.id,
               'is-emphasized': 'emphasized' in item && Boolean(item.emphasized)
             }"
             :title="item.label"

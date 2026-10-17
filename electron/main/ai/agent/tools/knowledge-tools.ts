@@ -13,7 +13,7 @@ const VALID_SOURCE_TYPES = new Set<AiKnowledgeDocumentDraft['sourceType']>([
 export type KnowledgeToolFactoryOptions = {
   /** 单次 agent loop 内的"已落库"集合。每次工具调用 push 进来。 */
   collectDocument: (doc: AiKnowledgeDocumentDraft) => void | string | Promise<void | string>
-  /** 默认 sourceType——agent 没显式指定时使用。如 reference-deep-analyze 默认 reference-summary。 */
+  /** 默认 sourceType——agent 没显式指定时使用。 */
   defaultSourceType?: AiKnowledgeDocumentDraft['sourceType']
   /** 默认 sourceLabel——通常是参考作品的书名等。 */
   defaultSourceLabel?: string

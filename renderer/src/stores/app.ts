@@ -61,9 +61,6 @@ import type {
   AssistantToolCall,
   AssistantTurn,
   AppSettings,
-  AdaptationRun,
-  AdaptationStageId,
-  AdaptationStageState,
   ChapterDraft,
   ChapterInsertionMode,
   ChapterInsertionRequest,
@@ -95,14 +92,10 @@ import type {
   ProjectVisualStyle,
   ProjectWorkspaceData,
   PropItem,
-  ReferenceWorkItem,
   SceneLocation,
   ThemeName,
   WorldviewEntry
 } from '@/types/app'
-import type { PersistedAdaptationRunRecord } from '@shared/ipc-types'
-import { getInitialStageStates as getInitialStageStatesFromMachine, markDownstreamStagesStale } from '@/features/adaptation/stateMachine/adaptationStageMachine'
-import { isMainlineProtagonistCard } from '@/features/adaptation/types'
 
 type AssistantFocusPanel = 'world' | 'characters' | 'outline' | 'project-knowledge'
 
@@ -128,7 +121,6 @@ interface ProjectWorkspacePayload {
     projectSkills?: ProjectSummary['projectSkills']
     skillPolicy?: ProjectSummary['skillPolicy']
     targetPlatform?: string
-    selectedReferenceWorkIds?: ProjectSummary['selectedReferenceWorkIds']
     coverHistory?: ProjectSummary['coverHistory']
   }
   worldviewEntries?: WorldviewEntry[]
@@ -285,7 +277,7 @@ export const useAppStore = defineStore('app', () => {
   /** 是否已完成初始化水合（从 SQLite 加载数据） */
   const hasHydrated = ref(false)
   /** 当前视图：项目列表 / 新建向导 / 工作台 / 章节写作 / 独立能力页 */
-  const currentView = ref<'projects' | 'wizard' | 'continuation-import' | 'workbench' | 'workbench-container' | 'chapter-studio' | 'skills' | 'cover-workbench' | 'fanqie-trends' | 'deconstruction-adaptation' | 'asset-library'>('projects')
+  const currentView = ref<'projects' | 'wizard' | 'continuation-import' | 'workbench' | 'chapter-studio' | 'skills' | 'cover-workbench' | 'fanqie-trends' | 'asset-library'>('projects')
   const pendingWizardDraft = ref<{ title?: string; genre?: string; premise?: string } | null>(null)
   /** 工作台中当前激活的面板 */
   const activePanel = ref<PanelName>('outline')
@@ -303,35 +295,9 @@ export const useAppStore = defineStore('app', () => {
   const globalAiRuns = ref<AiRunRecord[]>(normalizeAiRuns(stored.aiRuns))
   /** 应用全局设置（AI 供应商、模型、自动保存等） */
   const appSettings = ref<AppSettings>(stored.appSettings)
-  /**
-   * 工作台 Tab 状态（v1.25 新增）
-   * - 内存层 ref；与 appSettings.workbenchActiveTab 双向 watch 同步
-   * - 切项目不重置（用户偏好优先）
-   * - 持久化到 appSettings（走 scheduleSettingsPersist）
-   */
-  const workbenchActiveTab = ref<'project' | 'global'>('project')
-  // 应用层 → 内存层：水合时（immediate）把持久化值同步到 ref；后续外部改动同步流入
-  watch(
-    () => appSettings.value.workbenchActiveTab,
-    (next) => {
-      workbenchActiveTab.value = next === 'global' ? 'global' : 'project'
-    },
-    { immediate: true }
-  )
-  // 内存层 → 应用层：用户在 UI 切 Tab 后写回 appSettings + 触发 scheduleSettingsPersist
-  watch(workbenchActiveTab, (next) => {
-    if (appSettings.value.workbenchActiveTab !== next) {
-      appSettings.value.workbenchActiveTab = next
-      scheduleSettingsPersist({ flushWorkspace: false })
-    }
-  })
   const coverWorkbenchHistory = ref<import('@/types/app').CoverWorkbenchHistoryItem[]>(stored.coverWorkbenchHistory ?? [])
   /** 待执行的章节正文插入请求 */
   const pendingChapterInsertion = ref<ChapterInsertionRequest | null>(null)
-  /**
-   * 文章拆解改编页：当前选中的 referenceWorkId（开页时填入，关页时清空）
-   */
-  const pendingAdaptationReferenceWorkId = ref<string>('')
   /** 用户在编辑器中当前选中的文本状态 */
   const currentChapterSelection = ref<ChapterSelectionState | null>(null)
   /** 章节轻检告警：key 为 chapterId，value 为告警 payload。由章节生成后的异步后处理流水线推送。 */
@@ -435,8 +401,6 @@ export const useAppStore = defineStore('app', () => {
       .filter((document) => document.sourceType === 'canon-fact' && document.sourceLabel === 'global-constraint')
       .sort((left, right) => (right.updatedAt || '').localeCompare(left.updatedAt || ''))
   )
-  /** 全局拆书库参考作品（跨项目共享） */
-  const referenceWorks = ref<ReferenceWorkItem[]>(stored.referenceWorks ?? [])
   /** 当前项目关联的 AI 运行记录列表 */
   const aiRuns = computed(() => globalAiRuns.value.filter((run) => run.projectId === selectedProjectId.value))
   /**
@@ -1074,9 +1038,6 @@ export const useAppStore = defineStore('app', () => {
           normalizeKnowledgeDocumentScope(document)
         )
       : []
-    referenceWorks.value = Array.isArray((payload as Partial<StoredState>).referenceWorks)
-      ? (payload as Partial<StoredState>).referenceWorks!
-      : []
     const workspaceAiRuns = Object.entries(projectWorkspaces.value).flatMap(([projectId, workspace]) =>
       (workspace.aiRuns ?? []).map((run) => ({ ...run, projectId: run.projectId || projectId }))
     )
@@ -1104,7 +1065,6 @@ export const useAppStore = defineStore('app', () => {
       projects: toSerializable(projects.value),
       workspaces: toSerializable(projectWorkspaces.value),
       knowledgeDocuments: toSerializable(allKnowledgeDocuments.value),
-      referenceWorks: toSerializable(referenceWorks.value),
       aiRuns: toSerializable(globalAiRuns.value),
       appSettings: toSerializable(appSettings.value),
       coverWorkbenchHistory: toSerializable(coverWorkbenchHistory.value)
@@ -1168,7 +1128,6 @@ export const useAppStore = defineStore('app', () => {
       projectSkills: payload.project?.projectSkills ?? [],
       skillPolicy: payload.project?.skillPolicy ?? { mode: 'auto', skillIds: [] },
       targetPlatform: payload.project?.targetPlatform?.trim() || '',
-      selectedReferenceWorkIds: payload.project?.selectedReferenceWorkIds ?? [],
       coverHistory: payload.project?.coverHistory ?? []
     }
 
@@ -1459,56 +1418,11 @@ export const useAppStore = defineStore('app', () => {
   }
 
   /**
-   * 打开拆书知识库独立页面（v1.25 起 redirect 至工作台 → 全局 Tab，签名保留兼容旧调用方）
-   * - 不再切换 currentView === 'deconstruction-library'（App.vue 已移除对应分支）
-   * - 统一走 openWorkbench('global') 单一入口
+   * 打开网文风向标独立页面（全局功能，不依赖项目）
    */
-  function openDeconstructionLibrary(): void {
-    openWorkbench('global')
-  }
-
-  /**
-   * 打开文章拆解改编页（依赖 referenceWorkId）
-   * - 若无 referenceWorkId 直接不切换（UI 错误页兜底）
-   */
-  function openDeconstructionAdaptation(referenceWorkId: string): void {
-    const trimmed = String(referenceWorkId ?? '').trim()
-    if (!trimmed) return
-    pendingChapterInsertion.value = null
-    pendingAdaptationReferenceWorkId.value = trimmed
-    currentView.value = 'deconstruction-adaptation'
-    schedulePersist('fast')
-  }
-
-  /**
-   * 打开工作台顶级容器（v1.25 新增）
-   * - 单一入口：所有"打开工作台"的入口（菜单 / openDeconstructionLibrary / setPanel('deconstruction') / closeDeconstructionAdaptation）统一走此函数
-   * - tab 缺省 = 不改（沿用上次偏好；由双向 watch 持久化）
-   * - 切 currentView 到 'workbench-container'（与项目级 'workbench' 区分）
-   */
-  function openWorkbench(tab?: 'project' | 'global'): void {
-    if (tab === 'project' || tab === 'global') {
-      workbenchActiveTab.value = tab
-    }
-    pendingChapterInsertion.value = null
-    currentView.value = 'workbench-container'
-    // 不显式 schedulePersist：workbenchActiveTab 由 watch 自动持久化；currentView 是视图层状态不入 appSettings
-  }
-
-  /**
-   * 退出文章拆解改编页（v1.25 起回到工作台 → 全局 Tab；不再回 'deconstruction-library'）
-   * - 软迁移：保留函数签名（外部旧调用方不需改）
-   * - 统一走 openWorkbench('global') 单一入口
-   */
-  function closeDeconstructionAdaptation(): void {
-    pendingAdaptationReferenceWorkId.value = ''
-    openWorkbench('global')
-  }
-
-  /** 打开网文风向标独立页面（全局功能，不依赖项目） */
   function openFanqieTrends(): void {
     pendingChapterInsertion.value = null
-    currentView.value = 'deconstruction-adaptation'
+    currentView.value = 'fanqie-trends'
   }
 
   /** 打开资产库聚合页（v1.30.0 起仅服务「当前项目」，按分类浏览与编辑 4 类资产） */
@@ -1594,7 +1508,6 @@ export const useAppStore = defineStore('app', () => {
       projectSkills: payload.project.projectSkills ?? [],
       skillPolicy: payload.project.skillPolicy ?? { mode: 'auto', skillIds: [] },
       targetPlatform: payload.project.targetPlatform?.trim() || '',
-      selectedReferenceWorkIds: payload.project.selectedReferenceWorkIds ?? [],
       coverHistory: payload.project.coverHistory ?? []
     }))
 
@@ -1748,9 +1661,6 @@ export const useAppStore = defineStore('app', () => {
             projectSkills: payload.projectSkills !== undefined ? payload.projectSkills : project.projectSkills,
             skillPolicy: payload.skillPolicy !== undefined ? payload.skillPolicy : project.skillPolicy,
             targetPlatform: payload.targetPlatform !== undefined ? payload.targetPlatform.trim() : project.targetPlatform,
-            selectedReferenceWorkIds: payload.selectedReferenceWorkIds !== undefined
-              ? payload.selectedReferenceWorkIds
-              : project.selectedReferenceWorkIds,
             coverHistory: payload.coverHistory !== undefined ? payload.coverHistory : project.coverHistory,
             projectVisualStyle:
               payload.projectVisualStyle !== undefined ? payload.projectVisualStyle : project.projectVisualStyle
@@ -1877,286 +1787,6 @@ export const useAppStore = defineStore('app', () => {
       return
     }
     removeKnowledgeDocuments([trimmedId])
-  }
-
-  function upsertReferenceWork(work: ReferenceWorkItem): void {
-    const existingIndex = referenceWorks.value.findIndex((item) => item.id === work.id)
-    if (existingIndex >= 0) {
-      const next = [...referenceWorks.value]
-      next[existingIndex] = work
-      referenceWorks.value = next
-    } else {
-      referenceWorks.value = [...referenceWorks.value, work]
-    }
-    schedulePersist('fast')
-  }
-
-  function removeReferenceWork(referenceWorkId: string): void {
-    const trimmedId = String(referenceWorkId ?? '').trim()
-    if (!trimmedId) return
-    referenceWorks.value = referenceWorks.value.filter((item) => item.id !== trimmedId)
-    for (const project of projects.value) {
-      const ids = project.selectedReferenceWorkIds ?? []
-      if (ids.includes(trimmedId)) {
-        updateProject(project.id, {
-          selectedReferenceWorkIds: ids.filter((id) => id !== trimmedId)
-        })
-      }
-    }
-    // 级联：关联 AdaptationRun 标 archived 而非真删（PRD §4.3 Q6 双层架构前端内存层）
-    const now = toIsoTimestamp()
-    const currentWorkspaceData = currentWorkspace.value
-    if (currentWorkspaceData && Array.isArray(currentWorkspaceData.adaptationRuns)) {
-      const updatedRuns = currentWorkspaceData.adaptationRuns.map((run) =>
-        run.referenceWorkId === trimmedId && run.status !== 'archived'
-          ? { ...run, status: 'archived' as const, updatedAt: now }
-          : run
-      )
-      currentWorkspaceData.adaptationRuns = updatedRuns
-      persistAdaptationRunsIncrementally()
-    }
-    schedulePersist('fast')
-  }
-
-  /* ============================================================
-   * 文章拆解改编运行（AdaptationRun）CRUD
-   * - 7 步同步链路 stores/app.ts 一处；其余通过 workspace 快照落盘
-   * - 实体含 6 个内嵌数组 + 状态机 + 主线判定 / 对白防伪工具调用
-   * ============================================================ */
-
-  function adaptationRunsForProject(projectId: string) {
-    const projectWorkspace = projectWorkspaces.value[projectId]
-    return projectWorkspace?.adaptationRuns ?? []
-  }
-
-  function adaptationRunForReference(referenceWorkId: string): AdaptationRun | null {
-    const workspaceData = currentWorkspace.value
-    if (!workspaceData || !Array.isArray(workspaceData.adaptationRuns)) return null
-    const matching = workspaceData.adaptationRuns.filter((run) => run.referenceWorkId === referenceWorkId)
-    // 取最新未 archived 的 run；若无则取任意最新 run
-    const active = matching.filter((run) => run.status !== 'archived')
-    if (active.length > 0) {
-      return active.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0]
-    }
-    if (matching.length > 0) {
-      return matching.sort((left, right) => right.updatedAt.localeCompare(left.updatedAt))[0]
-    }
-    return null
-  }
-
-  function createAdaptationRun(payload: Partial<AdaptationRun> & { referenceWorkId: string }): string {
-    const trimmedId = String(payload.referenceWorkId ?? '').trim()
-    if (!trimmedId) throw new Error('referenceWorkId 不能为空')
-    const now = toIsoTimestamp()
-    const id = uniqueId('adapt-run')
-    const referenceWork = referenceWorks.value.find((item) => item.id === trimmedId)
-    const sourceTitle = String(payload.sourceTitle ?? referenceWork?.title ?? '未命名参考作品').trim() || '未命名参考作品'
-    const sourceContentHash = String(payload.sourceContentHash ?? '').trim()
-    const sourceChapterCount = Number.isFinite(payload.sourceChapterCount) ? Math.max(0, Number(payload.sourceChapterCount)) : 0
-    const targetEpisodeCount = Number.isFinite(payload.targetEpisodeCount)
-      ? Math.max(10, Math.min(200, Number(payload.targetEpisodeCount)))
-      : 80
-    const newRun: AdaptationRun = {
-      id,
-      referenceWorkId: trimmedId,
-      sourceTitle,
-      sourceContentHash,
-      sourceChapterCount,
-      targetEpisodeCount,
-      requestedWorkKind: 'novel-to-short-drama',
-      adaptationMode: 'faithful-adaptation',
-      status: 'draft',
-      activeStage: 'lead',
-      leadCandidates: Array.isArray(payload.leadCandidates) ? payload.leadCandidates : [],
-      leadSelection: payload.leadSelection ?? null,
-      stages: Array.isArray(payload.stages) ? payload.stages : [],
-      plotCards: Array.isArray(payload.plotCards) ? payload.plotCards : [],
-      characters: Array.isArray(payload.characters) ? payload.characters : [],
-      relationships: Array.isArray(payload.relationships) ? payload.relationships : [],
-      characterMergeLedger: Array.isArray(payload.characterMergeLedger) ? payload.characterMergeLedger : [],
-      toneProfile: payload.toneProfile ?? null,
-      bookUnderstanding: payload.bookUnderstanding ?? null,
-      selectedCardIds: Array.isArray(payload.selectedCardIds) ? payload.selectedCardIds : [],
-      stageStates: Array.isArray(payload.stageStates) && payload.stageStates.length > 0
-        ? payload.stageStates
-        : getInitialStageStatesFromMachine(now),
-      fusionImport: null,
-      error: '',
-      createdAt: now,
-      updatedAt: now
-    }
-    updateCurrentWorkspace((workspace) => ({
-      ...workspace,
-      adaptationRuns: [...(workspace.adaptationRuns ?? []), newRun]
-    }))
-    persistAdaptationRunsIncrementally()
-    schedulePersist('fast')
-    return id
-  }
-
-  function updateAdaptationRun(runId: string, payload: Partial<AdaptationRun>): void {
-    const trimmedId = String(runId ?? '').trim()
-    if (!trimmedId) return
-    const now = toIsoTimestamp()
-    updateCurrentWorkspace((workspace) => ({
-      ...workspace,
-      adaptationRuns: (workspace.adaptationRuns ?? []).map((run) =>
-        run.id === trimmedId
-          ? { ...run, ...payload, updatedAt: now, fusionImport: null }
-          : run
-      )
-    }))
-    persistAdaptationRunsIncrementally()
-    schedulePersist('fast')
-  }
-
-  function archiveAdaptationRun(runId: string): void {
-    updateAdaptationRun(runId, { status: 'archived' })
-  }
-
-  function setActiveAdaptationStage(runId: string, stageId: AdaptationStageId): void {
-    updateAdaptationRun(runId, { activeStage: stageId })
-  }
-
-  function transitionAdaptationStageState(
-    runId: string,
-    stageId: AdaptationStageId,
-    status: AdaptationStageState['status'],
-    error = ''
-  ): void {
-    const trimmedId = String(runId ?? '').trim()
-    if (!trimmedId) return
-    const now = toIsoTimestamp()
-    updateCurrentWorkspace((workspace) => ({
-      ...workspace,
-      adaptationRuns: (workspace.adaptationRuns ?? []).map((run) => {
-        if (run.id !== trimmedId) return run
-        const states = Array.isArray(run.stageStates) && run.stageStates.length > 0
-          ? run.stageStates
-          : getInitialStageStatesFromMachine(now)
-        const nextStates = states.map((state) =>
-          state.id === stageId
-            ? { ...state, status, error: error ?? '', updatedAt: now }
-            : state
-        )
-        return { ...run, stageStates: nextStates, updatedAt: now }
-      })
-    }))
-    persistAdaptationRunsIncrementally()
-    schedulePersist('fast')
-  }
-
-  function markDownstreamAdaptationStagesStale(runId: string, fromStageId: AdaptationStageId): void {
-    const trimmedId = String(runId ?? '').trim()
-    if (!trimmedId) return
-    const now = toIsoTimestamp()
-    updateCurrentWorkspace((workspace) => ({
-      ...workspace,
-      adaptationRuns: (workspace.adaptationRuns ?? []).map((run) => {
-        if (run.id !== trimmedId) return run
-        const states = Array.isArray(run.stageStates) && run.stageStates.length > 0
-          ? run.stageStates
-          : getInitialStageStatesFromMachine(now)
-        const nextStates = markDownstreamStagesStale(fromStageId, states, now)
-        return { ...run, stageStates: nextStates, updatedAt: now }
-      })
-    }))
-    persistAdaptationRunsIncrementally()
-    schedulePersist('fast')
-  }
-
-  /**
-   * 重算人物统计字段（participationCount / mainlineCardCount）
-   * - AI 禁止填的字段（PRD §4.2 反幻觉硬约束）
-   * - 主线判定 + 关系"参与卡 ID"由本地脚本计算
-   */
-  function recalculateAdaptationCharacterStats(runId: string): void {
-    const trimmedId = String(runId ?? '').trim()
-    if (!trimmedId) return
-    const now = toIsoTimestamp()
-    updateCurrentWorkspace((workspace) => ({
-      ...workspace,
-      adaptationRuns: (workspace.adaptationRuns ?? []).map((run) => {
-        if (run.id !== trimmedId) return run
-        const nextCharacters = run.characters.map((character) => {
-          const participationCount = run.plotCards.filter((card) =>
-            Array.isArray(card.participatingCharacterIds)
-            && card.participatingCharacterIds.includes(character.id)
-          ).length
-          const mainlineCardCount = run.plotCards.filter((card) =>
-            isMainlineProtagonistCard(card)
-            && Array.isArray(card.participatingCharacterIds)
-            && card.participatingCharacterIds.includes(character.id)
-          ).length
-          return { ...character, participationCount, mainlineCardCount }
-        })
-        // 关系"参与卡 ID"由本地脚本计算
-        const nextRelationships = run.relationships.map((rel) => {
-          const participatingCardIds = run.plotCards
-            .filter((card) =>
-              isMainlineProtagonistCard(card)
-              && Array.isArray(card.participatingCharacterIds)
-              && card.participatingCharacterIds.includes(rel.fromCharacterId)
-              && card.participatingCharacterIds.includes(rel.toCharacterId)
-            )
-            .map((card) => card.id)
-          return { ...rel, participatingCardIds }
-        })
-        return {
-          ...run,
-          characters: nextCharacters,
-          relationships: nextRelationships,
-          updatedAt: now
-        }
-      })
-    }))
-    persistAdaptationRunsIncrementally()
-    schedulePersist('fast')
-  }
-
-  /**
-   * 增量持久化 adaptationRuns（PRD §3.4 7 步同步）
-   * - 仅当前工作区 → 通过 scheduleWorkspaceEntitiesPersist 走白名单合并
-   * - 旧版本存于顶层 snapshot，本函数确保新增/更新走 IPC 增量通道
-   */
-  function persistAdaptationRunsIncrementally(): void {
-    const workspaceData = currentWorkspace.value
-    const projectId = selectedProjectId.value
-    if (!workspaceData || !projectId) return
-    const runs = workspaceData.adaptationRuns ?? []
-    if (runs.length === 0) return
-    const records: PersistedAdaptationRunRecord[] = runs.map((run) => ({
-      id: run.id,
-      referenceWorkId: run.referenceWorkId,
-      sourceTitle: run.sourceTitle,
-      sourceContentHash: run.sourceContentHash,
-      sourceChapterCount: run.sourceChapterCount,
-      targetEpisodeCount: run.targetEpisodeCount,
-      status: run.status,
-      payloadJson: JSON.stringify({
-        activeStage: run.activeStage,
-        leadCandidates: run.leadCandidates,
-        leadSelection: run.leadSelection,
-        stages: run.stages,
-        plotCards: run.plotCards,
-        characters: run.characters,
-        relationships: run.relationships,
-        characterMergeLedger: run.characterMergeLedger,
-        toneProfile: run.toneProfile,
-        bookUnderstanding: run.bookUnderstanding,
-        selectedCardIds: run.selectedCardIds,
-        stageStates: run.stageStates,
-        error: run.error,
-        createdAt: run.createdAt,
-        updatedAt: run.updatedAt
-      }),
-      createdAt: run.createdAt,
-      updatedAt: run.updatedAt
-    }))
-    scheduleWorkspaceEntitiesPersist({
-      projectId,
-      adaptationRuns: records
-    })
   }
 
   function appendAiRun(projectId: string, record: Omit<AiRunRecord, 'projectId'>): void {
@@ -3116,12 +2746,6 @@ export const useAppStore = defineStore('app', () => {
   function setPanel(panel: PanelName): void {
     if (panel === 'chapters') {
       openChapterStudio()
-      return
-    }
-
-    if (panel === 'deconstruction') {
-      // v1.25 起 redirect 至工作台 → 全局 Tab（原 openDeconstructionLibrary 方法体改写）
-      openWorkbench('global')
       return
     }
 
@@ -4733,12 +4357,6 @@ export const useAppStore = defineStore('app', () => {
     moveOutlineVolume,
     applyOutlineArrangement,
     openChapterStudio,
-    openDeconstructionLibrary,
-    openDeconstructionAdaptation,
-    closeDeconstructionAdaptation,
-    openWorkbench,
-    workbenchActiveTab,
-    pendingAdaptationReferenceWorkId,
     openFanqieTrends,
     openAssetLibrary,
     openProject,
@@ -4805,19 +4423,6 @@ export const useAppStore = defineStore('app', () => {
     projectConstraints,
     upsertProjectConstraint,
     removeProjectConstraint,
-    referenceWorks,
-    upsertReferenceWork,
-    removeReferenceWork,
-    adaptationRunsForProject,
-    adaptationRunForReference,
-    createAdaptationRun,
-    updateAdaptationRun,
-    archiveAdaptationRun,
-    setActiveAdaptationStage,
-    transitionAdaptationStageState,
-    markDownstreamAdaptationStagesStale,
-    recalculateAdaptationCharacterStats,
-    persistAdaptationRunsIncrementally,
     knowledgeDocuments,
     updateWorkflowDocument,
     updateWorkflowDocuments,

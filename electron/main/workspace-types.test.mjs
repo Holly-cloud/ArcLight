@@ -21,7 +21,6 @@ test('保存 AI 设置时刷新内存快照并保留未落盘的工作区数据'
     projects: [],
     workspaces: { 'project-old': workspaceMarker },
     knowledgeDocuments: [],
-    referenceWorks: [],
     coverWorkbenchHistory: [],
     appSettings: {
       provider: 'deepseek',
@@ -72,7 +71,6 @@ test('旧 AI 设置和配置档案缺少协议时迁移为 auto', () => {
     projects: [],
     workspaces: {},
     knowledgeDocuments: [],
-    referenceWorks: [],
     coverWorkbenchHistory: [],
     appSettings: {
       provider: 'opencode-zen',
@@ -168,7 +166,6 @@ test('工作台菜单顺序按应用设置保存并清理重复值', () => {
     projects: [],
     workspaces: {},
     knowledgeDocuments: [],
-    referenceWorks: [],
     coverWorkbenchHistory: [],
     appSettings: {
       workspaceMenuOrder: ['chapters', 'overview', 'chapters', '  outline  ', '']
@@ -206,7 +203,6 @@ test('全局 AI 日志会合并旧项目级记录并按 ID 去重', () => {
       'project-1': { aiRuns: [legacyRun] }
     },
     knowledgeDocuments: [],
-    referenceWorks: [],
     aiRuns: [globalRun],
     coverWorkbenchHistory: [],
     appSettings: {}

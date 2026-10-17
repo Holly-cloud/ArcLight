@@ -96,10 +96,8 @@ function createWorkbenchInput(): CoverPromptWorkbenchInput | null {
       novelWorkflowStages: [],
       projectSkills: [],
       skillPolicy: { mode: 'auto', skillIds: [] },
-      selectedReferenceWorkIds: [],
       coverHistory: []
     },
-    referenceWorks: [],
     authorName: workbench.authorName,
     extraNotes: workbench.extraNotes
   }

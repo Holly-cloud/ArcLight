@@ -26,10 +26,8 @@ declare global {
     | 'chapterVersions'
     | 'workflowDocuments'
     | 'knowledgeDocuments'
-    | 'referenceWorks'
     | 'aiRuns'
     | 'assistantSessions'
-    | 'referenceNovelAssets'
 
   type CharacterArcProjectArchiveImportMode = 'new-project' | 'overwrite-project'
 
@@ -108,44 +106,6 @@ declare global {
         oldContent: string
         newContent: string
       }
-
-  type CharacterArcReferenceImportPayload = {
-    settings: import('@/types/app').AppSettings
-    projectId?: string
-    projectTitle?: string
-    projectGenre?: string
-    projectPlatform?: string
-    preferredTitle?: string
-    preferredSource?: string
-    projectSkills?: Array<{
-      id: string
-      name: string
-      description: string
-      content: string
-    }>
-  }
-
-  type CharacterArcReferenceImportResult = {
-    referenceWork: import('@/types/app').ReferenceWorkItem
-    suggestedWritingStylePrompt: string
-    knowledgeDocuments: import('@/types/app').KnowledgeDocument[]
-  }
-
-  type CharacterArcReferenceImportProgressPayload = {
-    phase: 'extracting' | 'chunking' | 'chunk-analysis' | 'aggregating' | 'saving' | 'done'
-    message: string
-    current: number
-    total: number
-    percent: number
-    sourceTitle?: string
-    bookId?: string
-    bookIndex?: number
-    bookTotal?: number
-    status?: 'queued' | 'running' | 'success' | 'error' | 'canceled'
-    chunkIndex?: number
-    chunkTotal?: number
-    chunkLabel?: string
-  }
 
   type CharacterArcProjectArchiveImportProgressPayload = {
     phase: 'preparing' | 'reading' | 'mapping' | 'merging' | 'writing' | 'assistant' | 'assets' | 'syncing' | 'done' | 'error'
@@ -562,38 +522,6 @@ declare global {
         filePath?: string
         error?: string
       }>
-      importReferenceNovelAnalysis: (payload: CharacterArcReferenceImportPayload) => Promise<{
-        success: boolean
-        canceled: boolean
-        result?: CharacterArcReferenceImportResult
-        error?: string
-      }>
-      importReferenceNovelBatch: (payload: CharacterArcReferenceImportPayload & { filePaths?: string[]; concurrency?: number }) => Promise<{
-        success: boolean
-        canceled: boolean
-        results?: Array<{
-          bookId: string
-          success: boolean
-          result?: CharacterArcReferenceImportResult
-          error?: string
-          fileName: string
-        }>
-        error?: string
-      }>
-      pickReferenceNovelFiles: () => Promise<{
-        success: boolean
-        canceled: boolean
-        files?: Array<{ filePath: string; fileName: string; size: number }>
-      }>
-      cancelReferenceNovelBook: (bookId?: string) => Promise<{
-        success: boolean
-        error?: string
-      }>
-      readReferenceNovelText: (refId: string) => Promise<{
-        success: boolean
-        content?: string
-        error?: string
-      }>
       scanProjectSkills: (projectId: string) => Promise<{
         success: boolean
         skills?: Array<import('@/types/app').ProjectSkillItem>
@@ -627,7 +555,6 @@ declare global {
       onChapterMutation: (
         callback: (payload: import('@shared/ipc-types').ChapterMutationEvent) => void
       ) => () => void
-      onReferenceImportProgress: (callback: (payload: CharacterArcReferenceImportProgressPayload) => void) => () => void
       onProjectArchiveImportProgress: (callback: (payload: CharacterArcProjectArchiveImportProgressPayload) => void) => () => void
       checkUpdate: () => Promise<{
         success: boolean

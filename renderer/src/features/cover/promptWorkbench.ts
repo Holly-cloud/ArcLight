@@ -1,4 +1,4 @@
-import type { KnowledgeDocument, ProjectSummary, ReferenceWorkItem } from '@/types/app'
+import type { KnowledgeDocument, ProjectSummary } from '@/types/app'
 
 type CoverPlatformStyle = {
   platformLabel: string
@@ -16,7 +16,6 @@ type CoverGenreStyle = {
 
 export type CoverPromptWorkbenchInput = {
   project: ProjectSummary
-  referenceWorks: ReferenceWorkItem[]
   authorName: string
   extraNotes: string
 }
@@ -133,27 +132,6 @@ function resolveGenreStyle(genre: string): CoverGenreStyle {
   }
 }
 
-function collectReferenceSignals(referenceWorks: ReferenceWorkItem[]): string {
-  const analyzedWorks = referenceWorks.filter((work) => work.analysis)
-  if (!analyzedWorks.length) {
-    return 'No direct benchmark references provided; build a commercially readable cover with strong genre clarity.'
-  }
-
-  const styleRules = analyzedWorks
-    .flatMap((work) => work.analysis?.styleRules ?? [])
-    .map((rule) => rule.trim())
-    .filter(Boolean)
-    .slice(0, 4)
-
-  const titles = analyzedWorks.map((work) => work.title.trim()).filter(Boolean).slice(0, 3)
-  const signals = [
-    titles.length ? `Benchmark inspirations: ${titles.join(', ')}.` : '',
-    styleRules.length ? `Visual translation hints from references: ${styleRules.join('; ')}.` : ''
-  ].filter(Boolean)
-
-  return signals.join(' ')
-}
-
 function normalizeAuthorName(value: string): string {
   return value.trim() || '作者名待定'
 }
@@ -165,7 +143,6 @@ export function buildCoverPromptWorkbenchResult(input: CoverPromptWorkbenchInput
   const targetPlatform = input.project.targetPlatform.trim()
   const platformStyle = resolvePlatformStyle(targetPlatform)
   const genreStyle = resolveGenreStyle(genre)
-  const referenceSignal = collectReferenceSignals(input.referenceWorks)
   const extraNotes = input.extraNotes.trim()
 
   const prompt = [
@@ -177,7 +154,6 @@ export function buildCoverPromptWorkbenchResult(input: CoverPromptWorkbenchInput
     `Color palette: ${genreStyle.palette}.`,
     `Character direction: ${genreStyle.characterDirection}.`,
     `Background direction: ${genreStyle.backgroundDirection}.`,
-    referenceSignal,
     extraNotes ? `Additional art direction: ${extraNotes}.` : '',
     'Professional book cover, high detail digital painting, portrait 2:3 ratio, strong readability, no watermark.',
     'Based on story-cover skill v1.0.0 prompt formula.'
@@ -218,7 +194,6 @@ export function buildCoverPromptKnowledgeDocument(
       sourceTitle: result.title,
       authorName: normalizeAuthorName(input.authorName),
       targetPlatform: input.project.targetPlatform,
-      referenceTitles: input.referenceWorks.map((work) => work.title).slice(0, 5),
       extraNotes: input.extraNotes.trim()
     },
     createdAt: now,

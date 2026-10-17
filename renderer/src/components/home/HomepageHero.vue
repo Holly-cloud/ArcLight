@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { Bell, BookOpen, BookUp2, Flame, ImagePlus, LibraryBig, Plus, RefreshCw, Settings2, Upload, Wrench } from 'lucide-vue-next'
+import { Bell, BookOpen, BookUp2, Flame, ImagePlus, Plus, RefreshCw, Settings2, Upload, Wrench } from 'lucide-vue-next'
 import { NButton } from 'naive-ui'
 import type { StatusIndicator } from '@/composables/useStartupCheck'
 
@@ -12,7 +12,6 @@ const emit = defineEmits<{
   (e: 'create'): void
   (e: 'continueImport'): void
   (e: 'import'): void
-  (e: 'openDeconstruction'): void
   (e: 'openFanqieTrends'): void
   (e: 'openCoverWorkbench'): void
   (e: 'openSkills'): void
@@ -47,9 +46,6 @@ const emit = defineEmits<{
       </button>
 
       <div class="action-group secondary-actions">
-        <n-button quaternary circle size="large" title="拆书知识库" @click="emit('openDeconstruction')">
-          <template #icon><LibraryBig :size="20" /></template>
-        </n-button>
         <n-button quaternary circle size="large" title="Skills" @click="emit('openSkills')">
           <template #icon><Wrench :size="20" /></template>
         </n-button>

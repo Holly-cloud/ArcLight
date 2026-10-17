@@ -26,7 +26,7 @@ export { readChapterMutationPayload, writeChapterOrder, writeChapterRows } from 
 
 const WORKSPACE_DB = 'workspace.db'
 const WORKSPACE_FILE = 'workspace.json'
-export const WORKSPACE_SCHEMA_VERSION = 3
+export const WORKSPACE_SCHEMA_VERSION = 4
 
 export type WorkspaceUpgradeProgress = {
   phase: 'schema' | 'chapters' | 'chapter-versions' | 'validation'
@@ -119,7 +119,6 @@ export async function ensureWorkspaceDb(options: {
       cover TEXT NOT NULL,
       target_platform TEXT NOT NULL DEFAULT '',
       cover_history_json TEXT NOT NULL DEFAULT '[]',
-      reference_works_json TEXT NOT NULL DEFAULT '[]',
       writing_style_preset_id TEXT NOT NULL DEFAULT 'cinematic-cool',
       writing_style_prompt TEXT NOT NULL DEFAULT '',
       novel_workflow_stages_json TEXT NOT NULL DEFAULT '[]',
@@ -316,17 +315,6 @@ export async function ensureWorkspaceDb(options: {
       updated_at TEXT NOT NULL
     ) STRICT;
 
-    CREATE TABLE IF NOT EXISTS reference_works (
-      id TEXT PRIMARY KEY,
-      title TEXT NOT NULL,
-      source TEXT NOT NULL,
-      notes TEXT NOT NULL DEFAULT '',
-      file_name TEXT NOT NULL DEFAULT '',
-      analysis_json TEXT NOT NULL DEFAULT '{}',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL
-    ) STRICT;
-
     CREATE TABLE IF NOT EXISTS ai_runs (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL,
@@ -418,24 +406,6 @@ export async function ensureWorkspaceDb(options: {
       updated_at TEXT NOT NULL,
       FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
     ) STRICT;
-
-    CREATE TABLE IF NOT EXISTS adaptation_runs (
-      id TEXT PRIMARY KEY,
-      project_id TEXT NOT NULL,
-      reference_work_id TEXT NOT NULL,
-      source_title TEXT NOT NULL,
-      source_content_hash TEXT NOT NULL,
-      source_chapter_count INTEGER NOT NULL,
-      target_episode_count INTEGER NOT NULL,
-      status TEXT NOT NULL DEFAULT 'draft',
-      payload_json TEXT NOT NULL DEFAULT '{}',
-      created_at TEXT NOT NULL,
-      updated_at TEXT NOT NULL,
-      FOREIGN KEY (project_id) REFERENCES projects (id) ON DELETE CASCADE
-    ) STRICT;
-
-    CREATE INDEX IF NOT EXISTS idx_adaptation_runs_project_status
-      ON adaptation_runs (project_id, status);
 
     CREATE TABLE IF NOT EXISTS app_settings (
       id INTEGER PRIMARY KEY CHECK (id = 1),
@@ -536,6 +506,7 @@ export async function ensureWorkspaceDb(options: {
   ensureVolumeColumns(db)
   ensureOutlineItemColumns(db)
   ensureEntityVisualColumns(db)
+  ensureWorkbenchDissolutionSchema(db)
   ensureWorkflowDocumentColumns(db)
   ensureKnowledgeDocumentSchema(db)
   initStoryStateSchema(db)
@@ -714,8 +685,7 @@ function ensureProjectScopedColumns(db: DatabaseSync): void {
     'outline_items',
     'chapters',
     'chapter_versions',
-    'ai_messages',
-    'adaptation_runs'
+    'ai_messages'
   ]
 
   for (const tableName of projectScopedTables) {
@@ -905,9 +875,54 @@ function ensureProjectColumns(db: DatabaseSync): void {
   if (!columnNames.has('cover_history_json')) {
     db.exec(`ALTER TABLE projects ADD COLUMN cover_history_json TEXT NOT NULL DEFAULT '[]';`)
   }
+}
 
-  if (!columnNames.has('reference_works_json')) {
-    db.exec(`ALTER TABLE projects ADD COLUMN reference_works_json TEXT NOT NULL DEFAULT '[]';`)
+/**
+ * v1.32.0 schema 3→4 破坏性迁移（幂等）：
+ * - 删除参考作品库 / 改编运行两张表
+ * - 重建 projects，去掉 reference_works_json 列（INSERT ... SELECT 保留其余列）
+ * 迁移前由 workspace-upgrade.ts 依 schema 版本差异自动触发升级前备份。
+ */
+export function ensureWorkbenchDissolutionSchema(db: DatabaseSync): void {
+  const columns = db
+    .prepare(`PRAGMA table_info('projects')`)
+    .all() as Array<{ name: string; type: string; notnull: number; dflt_value: string | null; pk: number }>
+  const hasReferenceColumn = columns.some((column) => column.name === 'reference_works_json')
+
+  const keptColumns = hasReferenceColumn
+    ? columns.filter((column) => column.name !== 'reference_works_json')
+    : columns
+  const columnDefs = keptColumns
+    .map((column) => {
+      const primaryKey = column.pk ? ' PRIMARY KEY' : ''
+      const notNull = column.notnull ? ' NOT NULL' : ''
+      const defaultValue = column.dflt_value === null ? '' : ` DEFAULT ${column.dflt_value}`
+      return `${column.name} ${column.type}${primaryKey}${notNull}${defaultValue}`
+    })
+    .join(',\n        ')
+  const columnList = keptColumns.map((column) => column.name).join(', ')
+
+  // ⚠️ 破坏性 DDL 必须关闭外键：`PRAGMA foreign_keys = ON` 时 DROP TABLE 会先执行隐式 DELETE FROM，
+  // 经子表 `REFERENCES projects(id) ON DELETE CASCADE` 级联清空 worldview / characters / chapters 等
+  // 全部项目子表数据。关闭后执行、完事恢复。
+  db.exec('PRAGMA foreign_keys = OFF;')
+  try {
+    db.exec(`DROP TABLE IF EXISTS reference_works;`)
+    db.exec(`DROP TABLE IF EXISTS adaptation_runs;`)
+
+    if (!hasReferenceColumn) return
+
+    db.exec(`
+    CREATE TABLE projects__new (
+        ${columnDefs}
+      ) STRICT;
+    INSERT INTO projects__new (${columnList})
+      SELECT ${columnList} FROM projects;
+    DROP TABLE projects;
+    ALTER TABLE projects__new RENAME TO projects;
+  `)
+  } finally {
+    db.exec('PRAGMA foreign_keys = ON;')
   }
 }
 
@@ -938,7 +953,6 @@ export function readWorkspaceSnapshot(
       cover_history_json AS coverHistoryJson,
       writing_style_preset_id AS writingStylePresetId,
       writing_style_prompt AS writingStylePrompt,
-      reference_works_json AS referenceWorksJson,
       novel_workflow_stages_json AS novelWorkflowStagesJson,
       project_skills_json AS projectSkillsJson,
       skill_policy_json AS skillPolicyJson,
@@ -947,9 +961,8 @@ export function readWorkspaceSnapshot(
     FROM projects
     ORDER BY rowid ASC
   `).all() as Array<
-    Omit<WorkspacePayload['projects'][number], 'chapterAssistantTemplates' | 'novelWorkflowStages' | 'projectSkills' | 'skillPolicy' | 'coverHistory' | 'selectedReferenceWorkIds'> & {
+    Omit<WorkspacePayload['projects'][number], 'chapterAssistantTemplates' | 'novelWorkflowStages' | 'projectSkills' | 'skillPolicy' | 'coverHistory'> & {
       coverHistoryJson?: string
-      referenceWorksJson?: string
       chapterAssistantTemplatesJson?: string
       novelWorkflowStagesJson?: string
       projectSkillsJson?: string
@@ -962,7 +975,6 @@ export function readWorkspaceSnapshot(
     normalizeProjectRecord({
       ...project,
       coverHistory: parseJson(project.coverHistoryJson, []),
-      selectedReferenceWorkIds: parseJson(project.referenceWorksJson, [] as string[]),
       novelWorkflowStages: parseJson(project.novelWorkflowStagesJson, []),
       projectSkills: parseJson(project.projectSkillsJson, []),
       skillPolicy: parseJson(project.skillPolicyJson, { mode: 'auto', skillIds: [] }),
@@ -1045,22 +1057,6 @@ export function readWorkspaceSnapshot(
       updatedAt: row.updatedAt as string
     })) as WorkspacePayload['knowledgeDocuments']
 
-    const referenceWorks = db.prepare(`
-      SELECT id, title, source, notes, file_name AS fileName, analysis_json AS analysisJson, created_at AS createdAt, updated_at AS updatedAt
-      FROM reference_works
-      ORDER BY created_at DESC, rowid DESC
-    `).all().map((row) => {
-      const analysis = parseJson<WorkspacePayload['referenceWorks'][number]['analysis'] | null>(row.analysisJson as string, null)
-      return {
-        id: row.id as string,
-        title: row.title as string,
-        source: row.source as string,
-        notes: row.notes as string,
-        fileName: row.fileName as string,
-        ...(analysis ? { analysis } : {})
-      }
-    }) as WorkspacePayload['referenceWorks']
-
     const aiRuns = db.prepare(`
       SELECT project_id AS projectId, id, chapter_id AS chapterId, task, provider, model, status,
         started_at AS startedAt, finished_at AS finishedAt, duration_ms AS durationMs,
@@ -1092,7 +1088,6 @@ export function readWorkspaceSnapshot(
       theme: settings?.theme ?? 'ocean',
       selectedProjectId: '',
       knowledgeDocuments,
-      referenceWorks,
       aiRuns,
       projects: [],
       workspaces: {},
@@ -1392,22 +1387,6 @@ export function readWorkspaceSnapshot(
     updatedAt: row.updatedAt as string
   })) as WorkspacePayload['knowledgeDocuments']
 
-  const referenceWorks = db.prepare(`
-    SELECT id, title, source, notes, file_name AS fileName, analysis_json AS analysisJson, created_at AS createdAt, updated_at AS updatedAt
-    FROM reference_works
-    ORDER BY created_at DESC, rowid DESC
-  `).all().map((row) => {
-    const analysis = parseJson<WorkspacePayload['referenceWorks'][number]['analysis'] | null>(row.analysisJson as string, null)
-    return {
-      id: row.id as string,
-      title: row.title as string,
-      source: row.source as string,
-      notes: row.notes as string,
-      fileName: row.fileName as string,
-      ...(analysis ? { analysis } : {})
-    }
-  }) as WorkspacePayload['referenceWorks']
-
   // 旧版本按项目存储日志；迁移到无项目外键的全局历史表，保留 project_id 作为可选上下文。
   db.exec(`
     INSERT OR IGNORE INTO global_ai_runs (
@@ -1475,27 +1454,6 @@ export function readWorkspaceSnapshot(
     status: 'open' | 'resolved'
     closedInChapterId: string
     tagsJson: string
-    createdAt: string
-    updatedAt: string
-  }>
-
-  const adaptationRuns = db.prepare(`
-    SELECT project_id AS projectId, id, reference_work_id AS referenceWorkId,
-      source_title AS sourceTitle, source_content_hash AS sourceContentHash,
-      source_chapter_count AS sourceChapterCount, target_episode_count AS targetEpisodeCount,
-      status, payload_json AS payloadJson, created_at AS createdAt, updated_at AS updatedAt
-    FROM adaptation_runs
-    ORDER BY project_id ASC, created_at ASC
-  `).all() as Array<{
-    projectId: string
-    id: string
-    referenceWorkId: string
-    sourceTitle: string
-    sourceContentHash: string
-    sourceChapterCount: number
-    targetEpisodeCount: number
-    status: 'draft' | 'running' | 'completed' | 'archived'
-    payloadJson: string
     createdAt: string
     updatedAt: string
   }>
@@ -1584,7 +1542,6 @@ export function readWorkspaceSnapshot(
   const messagesByProject = groupBy(messages)
   const assistantSessionsByProject = groupBy(assistantSessions)
   const plotThreadsByProject = groupBy(plotThreads)
-  const adaptationRunsByProject = groupBy(adaptationRuns)
 
   // workflow documents need compound key: projectId + volumeId
   const workflowByProjectVolume = new Map<string, typeof workflowDocuments>()
@@ -1644,14 +1601,7 @@ export function readWorkspaceSnapshot(
           .map(({ projectId: _projectId, tagsJson, ...thread }) => ({
             ...thread,
             tags: parseJson(tagsJson, [] as string[])
-          })),
-        /**
-         * 文章拆解改编运行列表
-         * - 顶层冗余字段直接返回
-         * - 其余字段解析 payloadJson（前端再合并成顶层 AdaptationRun）
-         */
-        adaptationRuns: (adaptationRunsByProject.get(project.id) ?? [])
-          .map(({ projectId: _projectId, ...run }) => run)
+          }))
       }
     ])
   ) as WorkspacePayload['workspaces']
@@ -1660,7 +1610,6 @@ export function readWorkspaceSnapshot(
     theme: settings.theme,
     selectedProjectId: settings.selectedProjectId,
     knowledgeDocuments,
-    referenceWorks,
     aiRuns,
     projects,
     workspaces,
@@ -1724,17 +1673,15 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
       chapter_versions: new Set(),
       ai_messages: new Set(),
       knowledge_documents: new Set(),
-      reference_works: new Set(),
       workflow_documents: new Set(),
       plot_threads: new Set(),
-      adaptation_runs: new Set(),
       assistant_sessions: new Set(),
       cover_workbench_history: new Set()
     }
 
     const insertProject = db.prepare(`
-      INSERT INTO projects (id, title, premise, genre, novel_length, word_count, last_edited, cover, target_platform, cover_history_json, reference_works_json, writing_style_preset_id, writing_style_prompt, novel_workflow_stages_json, project_skills_json, skill_policy_json, chapter_assistant_templates_json, project_visual_style_json)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO projects (id, title, premise, genre, novel_length, word_count, last_edited, cover, target_platform, cover_history_json, writing_style_preset_id, writing_style_prompt, novel_workflow_stages_json, project_skills_json, skill_policy_json, chapter_assistant_templates_json, project_visual_style_json)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       ON CONFLICT(id) DO UPDATE SET
         title = excluded.title,
         premise = excluded.premise,
@@ -1745,7 +1692,6 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
         cover = excluded.cover,
         target_platform = excluded.target_platform,
         cover_history_json = excluded.cover_history_json,
-        reference_works_json = excluded.reference_works_json,
         writing_style_preset_id = excluded.writing_style_preset_id,
         writing_style_prompt = excluded.writing_style_prompt,
         novel_workflow_stages_json = excluded.novel_workflow_stages_json,
@@ -1767,7 +1713,6 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
         project.cover,
         project.targetPlatform,
         JSON.stringify(project.coverHistory ?? []),
-        JSON.stringify(project.selectedReferenceWorkIds ?? []),
         project.writingStylePresetId,
         project.writingStylePrompt,
         JSON.stringify(project.novelWorkflowStages ?? []),
@@ -1865,11 +1810,6 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
 
-    const insertReferenceWork = db.prepare(`
-      INSERT OR REPLACE INTO reference_works (id, title, source, notes, file_name, analysis_json, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-
     const insertAiRun = db.prepare(`
       INSERT OR REPLACE INTO global_ai_runs (id, project_id, chapter_id, task, provider, model, status, started_at, finished_at, duration_ms, used_knowledge_json, tool_calls_json, usage_json, repair_triggered, error, response_preview, sort_order)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
@@ -1883,11 +1823,6 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
     const insertPlotThread = db.prepare(`
       INSERT OR REPLACE INTO plot_threads (id, project_id, title, description, opened_in_chapter_id, status, closed_in_chapter_id, tags_json, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `)
-
-    const insertAdaptationRun = db.prepare(`
-      INSERT OR REPLACE INTO adaptation_runs (id, project_id, reference_work_id, source_title, source_content_hash, source_chapter_count, target_episode_count, status, payload_json, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
 
     for (const project of payload.projects) {
@@ -2210,23 +2145,6 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
           thread.updatedAt
         )
       })
-
-      ;(workspace.adaptationRuns ?? []).forEach((run) => {
-        allIds.adaptation_runs.add(run.id)
-        insertAdaptationRun.run(
-          run.id,
-          project.id,
-          run.referenceWorkId,
-          run.sourceTitle,
-          run.sourceContentHash,
-          run.sourceChapterCount,
-          run.targetEpisodeCount,
-          run.status,
-          run.payloadJson,
-          run.createdAt,
-          run.updatedAt
-        )
-      })
     }
 
     const normalizedAppSettings = normalizeAppSettings(payload.appSettings)
@@ -2246,22 +2164,6 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
         JSON.stringify(document.metadata ?? {}),
         document.createdAt,
         document.updatedAt
-      )
-    })
-
-    const globalReferenceWorks = Array.isArray(payload.referenceWorks) ? payload.referenceWorks : []
-    globalReferenceWorks.forEach((work) => {
-      allIds.reference_works.add(work.id)
-      const now = new Date().toISOString()
-      insertReferenceWork.run(
-        work.id,
-        work.title,
-        work.source,
-        work.notes ?? '',
-        work.fileName ?? '',
-        JSON.stringify(work.analysis ?? null),
-        work.analysis?.createdAt ?? now,
-        now
       )
     })
 
@@ -2354,10 +2256,6 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
 
     // 孤儿 embedding 清理
     const activeChapterIds = allIds.chapters
-    const activeReferenceWorkIds = new Set<string>()
-    for (const work of payload.referenceWorks ?? []) {
-      if (work?.id) activeReferenceWorkIds.add(String(work.id))
-    }
 
     const embeddingRows = db.prepare(`SELECT id, source_type, source_id FROM story_embeddings`).all() as Array<{
       id: string
@@ -2368,9 +2266,8 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
     for (const row of embeddingRows) {
       const isChapterSegment = row.source_type === 'chapter_segment'
       const isReferenceSegment = row.source_type === 'reference_novel'
-      const orphaned =
-        (isChapterSegment && !activeChapterIds.has(row.source_id)) ||
-        (isReferenceSegment && !activeReferenceWorkIds.has(row.source_id))
+      // v1.32.0 参考作品库已删除：reference_novel 类 embedding 一律视为孤儿一并清理
+      const orphaned = (isChapterSegment && !activeChapterIds.has(row.source_id)) || isReferenceSegment
       if (orphaned) deleteEmbedding.run(row.id)
     }
 

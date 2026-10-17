@@ -32,18 +32,14 @@ function stripSkillFrontmatter(content: string): string {
 
 /**
  * 非流式 agent 各任务的工具循环步数上限。
- * 默认 8 步对深度任务太紧：reference-deep-analyze 要多轮读参考文件 + 项目数据，
- * outline-batch 需读大纲/角色再成稿，撞上限会被静默掐断导致结果残缺。
+ * 默认 8 步对深度任务太紧：outline-batch 需读大纲/角色再成稿，撞上限会被静默掐断导致结果残缺。
  */
 function resolveAgentMaxSteps(taskName: AiTaskPayload['task']): number {
   switch (taskName) {
-    case 'reference-deep-analyze':
-      return 16
     case 'global-assistant':
       return 12
     case 'outline-batch':
       return 10
-    case 'style-fingerprint-extract':
     default:
       return 8
   }

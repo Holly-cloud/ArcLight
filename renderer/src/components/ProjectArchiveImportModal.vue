@@ -32,10 +32,8 @@ const archiveModuleOptions: Array<{ label: string; value: CharacterArcProjectArc
   { label: '章节版本', value: 'chapterVersions' },
   { label: '创作记忆', value: 'workflowDocuments' },
   { label: '知识文档', value: 'knowledgeDocuments' },
-  { label: '参考作品', value: 'referenceWorks' },
   { label: 'AI 运行记录', value: 'aiRuns' },
-  { label: '助手会话', value: 'assistantSessions' },
-  { label: '参考原文资产', value: 'referenceNovelAssets' }
+  { label: '助手会话', value: 'assistantSessions' }
 ]
 
 const archiveModeOptions: Array<{ label: string; value: CharacterArcProjectArchiveImportMode }> = [

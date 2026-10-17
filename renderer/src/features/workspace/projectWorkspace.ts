@@ -1,5 +1,4 @@
 import type {
-  AdaptationRun,
   AiRunRecord,
   ChapterDraft,
   ChapterVersion,
@@ -494,15 +493,6 @@ function cloneAiRuns(aiRuns?: AiRunRecord[]): AiRunRecord[] {
     : []
 }
 
-/**
- * 深拷贝 AdaptationRun 列表（PRD §3.4 D2 字段策略：payloadJson 已含全部内嵌字段）
- * - 旧项目无此字段读取默认空数组
- */
-export function cloneAdaptationRuns(runs?: AdaptationRun[]): AdaptationRun[] {
-  if (!Array.isArray(runs) || runs.length === 0) return []
-  return runs.map((run) => structuredClone(run) as AdaptationRun)
-}
-
 // 创建空工作区：对所有集合做标准化处理，保证数据结构完整
 // 可通过 overrides 传入部分数据覆盖默认值
 export function createEmptyWorkspace(overrides?: Partial<ProjectWorkspaceData>): ProjectWorkspaceData {
@@ -540,8 +530,7 @@ export function createEmptyWorkspace(overrides?: Partial<ProjectWorkspaceData>):
     activeGlobalAssistantSessionId: assistantSessionState.activeSessionId,
     aiRuns: cloneAiRuns(overrides?.aiRuns),
     workflowDocuments: normalizeWorkflowDocuments(overrides?.workflowDocuments as WorkflowDocument[] | undefined),
-    plotThreads: Array.isArray(overrides?.plotThreads) ? (overrides.plotThreads as PlotThread[]) : [],
-    adaptationRuns: cloneAdaptationRuns(overrides?.adaptationRuns)
+    plotThreads: Array.isArray(overrides?.plotThreads) ? (overrides.plotThreads as PlotThread[]) : []
   }
 }
 
@@ -601,7 +590,6 @@ export function normalizeWorkspace(
     activeGlobalAssistantSessionId: assistantSessionState.activeSessionId,
     aiRuns: cloneAiRuns(workspace.aiRuns),
     workflowDocuments: normalizeWorkflowDocuments(projectLevelDocs),
-    plotThreads: Array.isArray(workspace.plotThreads) ? (workspace.plotThreads as PlotThread[]) : [],
-    adaptationRuns: cloneAdaptationRuns(workspace.adaptationRuns as AdaptationRun[] | undefined)
+    plotThreads: Array.isArray(workspace.plotThreads) ? (workspace.plotThreads as PlotThread[]) : []
   }
 }

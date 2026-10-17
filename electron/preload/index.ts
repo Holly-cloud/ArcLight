@@ -86,16 +86,6 @@ contextBridge.exposeInMainWorld('characterArc', {
   exportOutlineTemplate: () => ipcRenderer.invoke('characterarc:export-outline-template'),
   /** 将当前项目大纲导出为 Excel */
   exportOutlineSpreadsheet: (payload: unknown) => ipcRenderer.invoke('characterarc:export-outline-spreadsheet', toIpcPayload(payload)),
-  /** 导入参考小说并执行拆书分析 */
-  importReferenceNovelAnalysis: (payload: unknown) => ipcRenderer.invoke('characterarc:import-reference-novel-analysis', toIpcPayload(payload)),
-  /** 批量导入多本参考小说并发拆书分析 */
-  importReferenceNovelBatch: (payload: unknown) => ipcRenderer.invoke('characterarc:import-reference-novel-batch', toIpcPayload(payload)),
-  /** 打开文件选择对话框，返回选中的文件列表（不立即开始拆书） */
-  pickReferenceNovelFiles: () => ipcRenderer.invoke('characterarc:pick-reference-novel-files'),
-  /** 取消单本或全部正在进行的批量拆书任务 */
-  cancelReferenceNovelBook: (bookId?: string) => ipcRenderer.invoke('characterarc:cancel-reference-novel-book', bookId ?? ''),
-  /** 读取已保存的参考小说原文（用于风格指纹提取等） */
-  readReferenceNovelText: (refId: string) => ipcRenderer.invoke('characterarc:read-reference-novel-text', refId),
   /** 加载当前项目可用的 skills（软件内置 + 项目扩展） */
   scanProjectSkills: (projectId: string) => ipcRenderer.invoke('characterarc:project-skills-scan', projectId),
   /** 从本地目录导入一组项目扩展 skills 到应用数据目录 */
@@ -233,14 +223,6 @@ contextBridge.exposeInMainWorld('characterArc', {
     ipcRenderer.on('characterarc:chapter-mutation-event', listener)
     return () => {
       ipcRenderer.removeListener('characterarc:chapter-mutation-event', listener)
-    }
-  },
-  /** 监听参考小说拆书分析进度 */
-  onReferenceImportProgress: (callback: (payload: unknown) => void) => {
-    const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload)
-    ipcRenderer.on('characterarc:reference-import-progress', listener)
-    return () => {
-      ipcRenderer.removeListener('characterarc:reference-import-progress', listener)
     }
   },
   /** 监听项目备份导入进度 */

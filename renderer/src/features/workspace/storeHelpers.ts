@@ -8,7 +8,6 @@ import { getChapterCharacterCount } from '@/features/chapters/editorContent'
 import { createOutlineVolume as createWorkspaceVolume } from '@/features/workspace/outlineVolumes'
 import { createDemoWorkspace, normalizeWorkspace } from '@/features/workspace/projectWorkspace'
 import type {
-  AdaptationRun,
   AiProfile,
   AiRunRecord,
   AppSettings,
@@ -29,9 +28,6 @@ import type {
   PlotThread,
   ProjectSummary,
   ProjectSkillItem,
-  ReferenceWorkItem,
-  ReferenceStyleAnalysis,
-  ReferenceStyleMetric,
   ProjectWorkspaceData,
   ThemeName,
   WorldviewEntry
@@ -45,7 +41,6 @@ export interface StoredState {
   projects: ProjectSummary[]
   workspaces: Record<string, ProjectWorkspaceData>
   knowledgeDocuments: KnowledgeDocument[]
-  referenceWorks: ReferenceWorkItem[]
   aiRuns: AiRunRecord[]
   appSettings: AppSettings
   coverWorkbenchHistory: import('@/types/app').CoverWorkbenchHistoryItem[]
@@ -108,9 +103,6 @@ export function normalizeProjectSummary(project: ProjectSummary): ProjectSummary
     projectSkills: normalizeProjectSkills(project.projectSkills),
     skillPolicy: normalizeSkillUsePolicy(project.skillPolicy),
     targetPlatform: project.targetPlatform?.trim() || '',
-    selectedReferenceWorkIds: Array.isArray(project.selectedReferenceWorkIds)
-      ? project.selectedReferenceWorkIds.map((id) => String(id).trim()).filter(Boolean)
-      : [],
     coverHistory: normalizeCoverHistory(project.coverHistory)
   }
 }
@@ -168,68 +160,6 @@ export function normalizeProjectSkills(skills?: ProjectSkillItem[] | null): Proj
         referencesCount: Number.isFinite(skill.referencesCount) ? Math.max(0, Number(skill.referencesCount)) : 0,
         enabled: Boolean(skill.enabled),
         stageIds: Array.isArray(skill.stageIds) ? skill.stageIds : []
-      }))
-    : []
-}
-
-function normalizeReferenceStyleMetrics(metrics?: ReferenceStyleMetric[] | null): ReferenceStyleMetric[] {
-  return Array.isArray(metrics)
-    ? metrics
-        .map((metric) => ({
-          label: metric.label?.trim() || '未命名指标',
-          value: metric.value?.trim() || '待补充'
-        }))
-        .slice(0, 8)
-    : []
-}
-
-function normalizeReferenceStyleAnalysis(
-  analysis?: ReferenceStyleAnalysis | null,
-  fileNameFallback = ''
-): ReferenceStyleAnalysis | undefined {
-  if (!analysis) {
-    return undefined
-  }
-
-  const fileType = analysis.fileType === 'md' || analysis.fileType === 'docx' ? analysis.fileType : 'txt'
-
-  return {
-    createdAt: analysis.createdAt || new Date().toISOString(),
-    fileName: analysis.fileName?.trim() || fileNameFallback,
-    fileType,
-    characterCount: Number.isFinite(analysis.characterCount) ? Math.max(0, analysis.characterCount) : 0,
-    chapterCount: Number.isFinite(analysis.chapterCount) ? Math.max(0, analysis.chapterCount) : 0,
-    excerpt: analysis.excerpt?.trim() || '',
-    topKeywords: Array.isArray(analysis.topKeywords)
-      ? analysis.topKeywords.map((keyword) => String(keyword).trim()).filter(Boolean).slice(0, 10)
-      : [],
-    metrics: normalizeReferenceStyleMetrics(analysis.metrics),
-    overview: analysis.overview?.trim() || '',
-    sentenceStyle: analysis.sentenceStyle?.trim() || '',
-    dialogueRatio: analysis.dialogueRatio?.trim() || '',
-    pacingControl: analysis.pacingControl?.trim() || '',
-    emotionExpression: analysis.emotionExpression?.trim() || '',
-    narrativePerspective: analysis.narrativePerspective?.trim() || '',
-    styleRules: Array.isArray(analysis.styleRules)
-      ? analysis.styleRules.map((rule) => String(rule).trim()).filter(Boolean).slice(0, 6)
-      : [],
-    plotOutline: analysis.plotOutline?.trim() || '',
-    reusableStylePrompt: analysis.reusableStylePrompt?.trim() || '',
-    avoidRules: Array.isArray(analysis.avoidRules)
-      ? analysis.avoidRules.map((rule) => String(rule).trim()).filter(Boolean).slice(0, 6)
-      : []
-  }
-}
-
-export function normalizeReferenceWorks(works?: ReferenceWorkItem[] | null): ReferenceWorkItem[] {
-  return Array.isArray(works)
-    ? works.map((work) => ({
-        ...work,
-        title: work.title?.trim() || '未命名参考作品',
-        source: work.source?.trim() || '未标注来源',
-        notes: work.notes?.trim() || '',
-        fileName: work.fileName?.trim() || '',
-        analysis: normalizeReferenceStyleAnalysis(work.analysis, work.fileName?.trim() || '')
       }))
     : []
 }
@@ -458,7 +388,6 @@ export function loadStoredState(): StoredState {
     projects: defaultProjects,
     workspaces: {},
     knowledgeDocuments: [],
-    referenceWorks: [],
     aiRuns: [],
     appSettings: defaultAppSettings,
     coverWorkbenchHistory: []
@@ -532,8 +461,7 @@ export function normalizeProjectWorkspaceData(
     activeGlobalAssistantSessionId: normalized.activeGlobalAssistantSessionId,
     aiRuns: normalizeAiRuns(normalized.aiRuns),
     workflowDocuments: normalizeWorkflowDocuments(normalized.workflowDocuments),
-    plotThreads: normalized.plotThreads,
-    adaptationRuns: normalized.adaptationRuns ?? []
+    plotThreads: normalized.plotThreads
   }
 }
 

@@ -23,10 +23,6 @@ import chapterAudit from './chapter-audit'
 import chapterHumanize from './chapter-humanize'
 import plotThreadDetect from './plot-thread-detect'
 import workflowDocuments from './workflow-documents'
-import referenceStyleChunk from './reference-style-chunk'
-import referenceStyleAnalysis from './reference-style-analysis'
-import referenceDeepAnalyze from './reference-deep-analyze'
-import styleFingerprintExtract from './style-fingerprint-extract'
 import storyDeepAudit from './story-deep-audit'
 import chapterRepair from './chapter-repair'
 import chapterSessionNote from './chapter-session-note'
@@ -52,12 +48,6 @@ import continuationImportChunk from './continuation-import-chunk'
 import continuationImportAggregate from './continuation-import-aggregate'
 import rankingStyleAnalysis from './ranking-style-analysis'
 import rankingIdeaCombinations from './ranking-idea-combinations'
-
-import adaptationLeadIdentify from './adaptation-lead-identify'
-import adaptationStageMap from './adaptation-stage-map'
-import adaptationPlotCards from './adaptation-plot-cards'
-import adaptationCharacterBible from './adaptation-character-bible'
-import adaptationToneProfile from './adaptation-tone-profile'
 
 /** 任务处理器注册表，按任务名称映射 */
 const TASK_REGISTRY = new Map<AiTaskName, TaskHandler>()
@@ -92,10 +82,6 @@ register(chapterAudit)
 register(chapterHumanize)
 register(plotThreadDetect)
 register(workflowDocuments)
-register(referenceStyleChunk)
-register(referenceStyleAnalysis)
-register(referenceDeepAnalyze)
-register(styleFingerprintExtract)
 register(storyDeepAudit)
 register(chapterRepair)
 register(chapterSessionNote)
@@ -119,13 +105,6 @@ register(continuationImportChunk)
 register(continuationImportAggregate)
 register(rankingStyleAnalysis)
 register(rankingIdeaCombinations)
-
-// 文章拆解改编页 5 段 AI handler（PRD §3.2 P0-4 + Q8：不入 AGENT_TASK_WHITELIST）
-register(adaptationLeadIdentify)
-register(adaptationStageMap)
-register(adaptationPlotCards)
-register(adaptationCharacterBible)
-register(adaptationToneProfile)
 
 /**
  * 根据任务名称获取对应的任务处理器

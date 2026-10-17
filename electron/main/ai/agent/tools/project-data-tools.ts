@@ -23,9 +23,6 @@ type EntityType =
   | 'plot_threads'
   | 'inspiration'
   | 'knowledge'
-  | 'available_deconstructions'
-  | 'deconstruction_library'
-  | 'reference_works'
   | 'workflow_documents'
   | 'project_constraints'
 
@@ -40,9 +37,6 @@ const ENTITY_TYPES: readonly EntityType[] = [
   'plot_threads',
   'inspiration',
   'knowledge',
-  'available_deconstructions',
-  'deconstruction_library',
-  'reference_works',
   'workflow_documents',
   'project_constraints'
 ]
@@ -53,7 +47,7 @@ export function createProjectDataTools(): Tool[] {
   const readProjectData: Tool = {
     definition: {
       name: 'read_project_data',
-      description: 'Read current project data by module. Omit entity_type to get a lightweight index first. Use available_deconstructions for the public deconstruction/reference-work library available to all projects. Supports targeted reads with entity_id, summary_only, limit, offset, content_offset, content_limit, and doc_key (for workflow_documents). Use the returned Next offset to page through a module without repeating the same call. Use Next content_offset to continue long entity content.',
+      description: 'Read current project data by module. Omit entity_type to get a lightweight index first. Supports targeted reads with entity_id, summary_only, limit, offset, content_offset, content_limit, and doc_key (for workflow_documents). Use the returned Next offset to page through a module without repeating the same call. Use Next content_offset to continue long entity content.',
       inputSchema: {
         type: 'object',
         properties: {
@@ -176,17 +170,6 @@ async function buildIndex(projectId: string): Promise<string> {
 
   const knowledge = db.prepare('SELECT id, title FROM knowledge_documents WHERE project_id = ?').all(projectId) as { id: string; title: string }[]
   if (knowledge.length) sections.push(`## Knowledge (${knowledge.length})\n${knowledge.map((item) => `- [${item.id}] ${item.title}`).join('\n')}`)
-
-  const availableDeconstructions = readPublicReferenceWorks(db)
-  if (availableDeconstructions.rows.length) {
-    sections.push(`## Available Deconstructions (${availableDeconstructions.rows.length})\n${availableDeconstructions.rows.map((item) => `- [${String(item.id)}] ${String(item.title)}`).join('\n')}`)
-  }
-
-  const deconstruction = db.prepare("SELECT id, title FROM knowledge_documents WHERE project_id = '' OR project_id IS NULL").all() as { id: string; title: string }[]
-  if (deconstruction.length) sections.push(`## Deconstruction Library (${deconstruction.length})\n${deconstruction.map((item) => `- [${item.id}] ${item.title}`).join('\n')}`)
-
-  const referenceWorks = db.prepare('SELECT id, title FROM reference_works ORDER BY created_at DESC, rowid DESC').all() as { id: string; title: string }[]
-  if (referenceWorks.length) sections.push(`## Reference Works (${referenceWorks.length})\n${referenceWorks.map((item) => `- [${item.id}] ${item.title}`).join('\n')}`)
 
   const workflowDocuments = db.prepare('SELECT id, title, doc_key FROM workflow_documents WHERE project_id = ? ORDER BY sort_order').all(projectId) as { id: string; title: string; doc_key: string }[]
   if (workflowDocuments.length) sections.push(`## Creative Memory (${workflowDocuments.length})\n${workflowDocuments.map((item) => `- [${item.id}] ${item.title} (${item.doc_key})`).join('\n')}`)
@@ -536,70 +519,6 @@ async function readEntities(projectId: string, options: ReadEntitiesOptions): Pr
       const body = limitedRows.map((row) => `- [${row.id}] ${row.title}: ${row.summary || '(no summary)'}`).join('\n')
       return withLimitNote(body, rows.length, limit, offset)
     }
-    case 'available_deconstructions': {
-      const available = readPublicReferenceWorks(db)
-      if (entityId) {
-        const row = available.rows.find((item) => String(item.id) === entityId)
-        if (!row) return `Available deconstruction not found: ${entityId}`
-        const analysis = safeParseJson(String(row.analysis_json ?? '{}'))
-        const analysisText = formatReferenceAnalysis(analysis, summaryOnly)
-        const analysisBlock = summaryOnly ? analysisText : formatWindowedValue(analysisText, options, 'Reference analysis')
-        return [
-          `# ${String(row.title)}`,
-          String(row.source) ? `Source: ${String(row.source)}` : '',
-          String(row.file_name) ? `File: ${String(row.file_name)}` : '',
-          'Scope: public deconstruction library',
-          `Updated: ${String(row.updated_at ?? '')}`,
-          String(row.notes) ? `Notes: ${String(row.notes)}` : '',
-          analysisText ? `\n${analysisBlock}` : ''
-        ].filter(Boolean).join('\n')
-      }
-      if (!available.rows.length) {
-        return 'No available deconstructions. No reference works have been imported.'
-      }
-      const limitedRows = applyLimit(available.rows, limit, offset)
-      const body = [
-        `Public deconstruction library: ${available.rows.length} reference work(s).`,
-        limitedRows.map(formatReferenceWorkListItem).join('\n')
-      ].filter(Boolean).join('\n')
-      return withLimitNote(body, available.rows.length, limit, offset)
-    }
-    case 'deconstruction_library': {
-      if (entityId) {
-        const row = db.prepare("SELECT title, content, summary FROM knowledge_documents WHERE id = ? AND (project_id = '' OR project_id IS NULL)").get(entityId) as { title: string; content: string; summary: string } | undefined
-        if (!row) return `Deconstruction document not found: ${entityId}`
-        return summaryOnly
-          ? [`# ${row.title}`, row.summary ? `Summary: ${row.summary}` : '', '', truncateText(row.content, 500)].filter(Boolean).join('\n')
-          : [`# ${row.title}`, row.summary ? `Summary: ${row.summary}` : '', '', formatWindowedValue(row.content, options)].filter(Boolean).join('\n')
-      }
-      const rows = db.prepare("SELECT id, title, summary, source_type FROM knowledge_documents WHERE project_id = '' OR project_id IS NULL ORDER BY updated_at DESC").all() as { id: string; title: string; summary: string; source_type: string }[]
-      if (!rows.length) return 'No deconstruction documents.'
-      const limitedRows = applyLimit(rows, limit, offset)
-      const body = limitedRows.map((row) => `- [${row.id}] ${row.title}${row.source_type ? ` (${row.source_type})` : ''}: ${row.summary || '(no summary)'}`).join('\n')
-      return withLimitNote(body, rows.length, limit, offset)
-    }
-    case 'reference_works': {
-      if (entityId) {
-        const row = db.prepare('SELECT title, source, notes, file_name, analysis_json, updated_at FROM reference_works WHERE id = ?').get(entityId) as Record<string, unknown> | undefined
-        if (!row) return `Reference work not found: ${entityId}`
-        const analysis = safeParseJson(String(row.analysis_json ?? '{}'))
-        const analysisText = formatReferenceAnalysis(analysis, summaryOnly)
-        const analysisBlock = summaryOnly ? analysisText : formatWindowedValue(analysisText, options, 'Reference analysis')
-        return [
-          `# ${String(row.title)}`,
-          String(row.source) ? `Source: ${String(row.source)}` : '',
-          String(row.file_name) ? `File: ${String(row.file_name)}` : '',
-          `Updated: ${String(row.updated_at ?? '')}`,
-          String(row.notes) ? `Notes: ${String(row.notes)}` : '',
-          analysisText ? `\n${analysisBlock}` : ''
-        ].filter(Boolean).join('\n')
-      }
-      const rows = db.prepare('SELECT id, title, source, notes, file_name, analysis_json FROM reference_works ORDER BY created_at DESC, rowid DESC').all() as Array<Record<string, unknown>>
-      if (!rows.length) return 'No reference works.'
-      const limitedRows = applyLimit(rows, limit, offset)
-      const body = limitedRows.map(formatReferenceWorkListItem).join('\n')
-      return withLimitNote(body, rows.length, limit, offset)
-    }
     case 'workflow_documents': {
       if (docKey) {
         const row = db.prepare('SELECT id, title, doc_key, content, updated_at FROM workflow_documents WHERE doc_key = ? AND project_id = ?').get(docKey, projectId) as { id: string; title: string; doc_key: string; content: string; updated_at: string } | undefined
@@ -667,21 +586,6 @@ function safeParseJson(value: string): Record<string, unknown> {
   }
 }
 
-type PublicReferenceWorks = {
-  rows: Array<Record<string, unknown>>
-}
-
-function readPublicReferenceWorks(db: WorkspaceDb): PublicReferenceWorks {
-  const rows = db.prepare('SELECT id, title, source, notes, file_name, analysis_json, updated_at FROM reference_works ORDER BY created_at DESC, rowid DESC').all() as Array<Record<string, unknown>>
-  return { rows }
-}
-
-function formatReferenceWorkListItem(row: Record<string, unknown>): string {
-  const analysis = safeParseJson(String(row.analysis_json ?? '{}'))
-  const overview = typeof analysis.overview === 'string' ? analysis.overview : ''
-  return `- [${String(row.id)}] ${String(row.title)}${row.file_name ? ` (${String(row.file_name)})` : ''}: ${truncateText(overview || String(row.notes ?? ''), 160)}`
-}
-
 function safeParseArray(value: unknown): string[] {
   try {
     const parsed = JSON.parse(String(value ?? '[]'))
@@ -700,29 +604,6 @@ function stripHtml(value: string): string {
     .replace(/&gt;/g, '>')
     .replace(/&quot;/g, '"')
     .trim()
-}
-
-function formatReferenceAnalysis(analysis: Record<string, unknown>, summaryOnly: boolean): string {
-  const fields = [
-    ['Overview', analysis.overview],
-    ['Sentence Style', analysis.sentenceStyle],
-    ['Dialogue Ratio', analysis.dialogueRatio],
-    ['Pacing Control', analysis.pacingControl],
-    ['Emotion Expression', analysis.emotionExpression],
-    ['Narrative Perspective', analysis.narrativePerspective],
-    ['Reusable Style Prompt', analysis.reusableStylePrompt]
-  ]
-    .filter(([, value]) => typeof value === 'string' && value.trim())
-    .map(([label, value]) => `${label}: ${summaryOnly ? truncateText(String(value), 360) : String(value)}`)
-
-  const topKeywords = Array.isArray(analysis.topKeywords)
-    ? analysis.topKeywords.map((item) => String(item).trim()).filter(Boolean)
-    : []
-  if (topKeywords.length) {
-    fields.unshift(`Keywords: ${topKeywords.join(', ')}`)
-  }
-
-  return fields.join('\n\n')
 }
 
 function truncateText(value: string, maxLength: number): string {
