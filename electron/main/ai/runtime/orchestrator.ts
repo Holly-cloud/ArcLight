@@ -247,7 +247,8 @@ export async function runAiTask(
 
 /**
  * 以流式方式执行 AI 任务，通过 handlers 回调逐步返回生成内容。
- * 仅支持 chapter-assistant 和 chapter-first-draft 两种任务。
+ * 仅支持 chapter-assistant / global-assistant / chapter-first-draft / chapter-memo /
+ * chapter-audit / chapter-repair / chapter-humanize / chapter-session-note 共 8 种任务。
  * @param task - AI 任务载荷
  * @param handlers - 流式输出回调（onChunk / onDone）
  * @param signal - 中止信号

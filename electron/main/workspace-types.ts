@@ -722,7 +722,7 @@ export function normalizeWorkspacePayload(payload: WorkspacePayload | LegacyWork
           projectId,
           {
             ...workspace,
-            chapters: workspace.chapters.map((chapter, index) => ({
+            chapters: (workspace.chapters ?? []).map((chapter, index) => ({
               ...chapter,
               sortOrder: Number.isSafeInteger(chapter.sortOrder)
                 ? chapter.sortOrder

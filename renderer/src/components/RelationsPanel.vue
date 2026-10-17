@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // v1.25 起 RelationsPanel 硬迁移：移除 `scenes` / `props` 段切换
-// - 场景 / 道具入口已迁至「工作台 → 项目内 Tab」内的 ScenePropSection 组件
+// - 场景 / 道具编辑入口现为「资产库」的实体编辑弹窗（SceneLocationEditModal / PropItemEditModal）
 // - 不再保留跳转链接 / Header 提示（用户裁定硬迁移）
 // - 角色图谱仅保留：组织势力 / 人物关系 / 成员归属 三段
 import { computed, reactive, ref } from 'vue'
@@ -122,8 +122,8 @@ const organizationOptions = computed(() =>
 const characterMap = computed(() => new Map(appStore.characters.map((character) => [character.id, character])))
 // 组织 ID 到组织对象的映射表
 const organizationMap = computed(() => new Map(appStore.organizations.map((organization) => [organization.id, organization])))
-// v1.25 起：relationsGraph 不再包含 scene/prop（硬迁移到工作台项目内 Tab）
-// 传空数组占位：buildRelationsGraphData 签名未变；scene/prop 编辑入口在 ScenePropSection
+// v1.25 起：relationsGraph 不再包含 scene/prop（场景 / 道具编辑入口现为「资产库」实体编辑弹窗）
+// 传空数组占位：buildRelationsGraphData 签名未变
 const relationsGraph = computed(() =>
   buildRelationsGraphData({
     characters: appStore.characters,
@@ -503,7 +503,7 @@ function confirmDeleteMembership(membership: { id: string; characterName: string
   })
 }
 
-// ── v1.25 起：场景 / 道具编辑器已迁至「工作台 → 项目内 Tab」内的 ScenePropSection ──
+// ── v1.25 起：场景 / 道具编辑器现为「资产库」实体编辑弹窗（SceneLocationEditModal / PropItemEditModal） ──
 // 角色图谱仅保留组织 / 关系 / 归属 3 段
 
 function setViewMode(mode: 'list' | 'graph'): void {

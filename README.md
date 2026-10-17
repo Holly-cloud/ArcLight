@@ -324,7 +324,7 @@ CharacterArc/
 
 | 来源 | 数量 | 代表 Skill | 说明 |
 |---|---:|---|---|
-| `oh-story-claudecode` | 12 | `story-long-write`、`story-short-write`、`story-chapter-exec` | 核心网文写作工作流，覆盖长篇、短篇、章节执行、拆文、扫榜、封面、去 AI 味、故事蓝图与番茄排版 |
+| `oh-story-claudecode` | 13 | `story-long-write`、`story-short-write`、`story` | 核心网文写作工作流，覆盖长篇 / 短篇的写作、拆文、扫榜，以及导入、审校、去 AI 味、封面与浏览器 CDP 辅助 |
 | `community-skills` | 2 | `humanizer-zh`、`style-fusion` | 通用风格与润色能力，适合中文去 AI 味和风格融合 |
 | `Distilled-Novel-Toolbox` | 13 | `novel-pacing`、`novel-worldbuilding`、`novel-commercialization` | 工程化网文知识库，覆盖题材、人设、世界观、节奏、情绪、爽点、润色、平台、合规与反检测 |
 
@@ -332,8 +332,8 @@ CharacterArc/
 
 - `story-long-write`、`story-long-analyze`、`story-long-scan`
 - `story-short-write`、`story-short-analyze`、`story-short-scan`
-- `story-chapter-exec`、`story-chapter-repair`
-- `story-blueprint`、`story-cover`、`story-deslop`、`story-format-tomato`
+- `story`、`story-setup`、`story-review`、`story-import`
+- `story-deslop`、`story-cover`、`browser-cdp`
 
 ### `community-skills`
 

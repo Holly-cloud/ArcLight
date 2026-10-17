@@ -14,7 +14,7 @@ pnpm run preview      # run the production build locally
 pnpm run dist         # type check + build + electron-builder (Windows NSIS installer)
 ```
 
-There is no test runner, linter, or formatter configured. "Build = type check" — `vue-tsc --noEmit` is the only static gate, and `pnpm run build` will fail loudly on TS errors. Run it before declaring work done.
+There is no linter or formatter configured, but a test runner exists: `pnpm test` uses Node's built-in test runner over `*.test.mjs` files, executed under Electron via `set ELECTRON_RUN_AS_NODE=1&& electron --test …`. Focused suites are exposed as `test:asset-extraction`, `test:workspace-entities`, `test:visual-consistency`, etc. "Build = type check" — `vue-tsc --noEmit` is the only static gate, and `pnpm run build` will fail loudly on TS errors. Run it before declaring work done.
 
 ## Architecture
 
@@ -38,7 +38,7 @@ The renderer **never** touches the filesystem or AI providers directly. Everythi
 
 ### SQLite (workspace store)
 
-`electron/main/workspace-store.ts` uses Node's built-in `node:sqlite` (`DatabaseSync`), not better-sqlite3 — node ≥18 with the experimental flag, or the bundled Electron Node. Schema is created idempotently via `CREATE TABLE IF NOT EXISTS` on first `ensureWorkspaceDb()` call. Tables include `projects`, `worldview_entries`, `characters`, `organizations`, `character_relationships`, `organization_memberships`, `inspiration_entries`, `outline_volumes`, `outline_items`, `chapters`, `chapter_versions`, `ai_messages`, `knowledge_documents`, `ai_runs`, `workflow_documents`, `plot_threads`, `app_settings`, `cover_workbench_history`, `assistant_sessions`. Story-state tables are initialized separately in `story-state-store.ts`.
+`electron/main/workspace-store.ts` uses Node's built-in `node:sqlite` (`DatabaseSync`), not better-sqlite3 — node ≥18 with the experimental flag, or the bundled Electron Node. Schema is created idempotently via `CREATE TABLE IF NOT EXISTS` on first `ensureWorkspaceDb()` call. Tables include `projects`, `worldview_entries`, `characters`, `organizations`, `character_relationships`, `organization_memberships`, `inspiration_entries`, `outline_volumes`, `outline_items`, `chapters`, `chapter_versions`, `ai_messages`, `knowledge_documents`, `ai_runs`, `workflow_documents`, `plot_threads`, `app_settings`, `cover_workbench_history`, `assistant_sessions`. The v2 assistant runtime schema (created via `initAssistantRuntimeSchema()` on the same DB) adds `assistant_sessions_v2`, `assistant_turns`, `assistant_events`, `assistant_staged_changes`, `assistant_turn_states`. Story-state tables are initialized separately in `story-state-store.ts`.
 
 The DB lives under `<userData>/data/workspace.db`. `configureCanonicalUserDataPath()` migrates legacy `characterarc/` userData to `CharacterArc/` on first launch — preserve this path discipline if you touch boot code.
 

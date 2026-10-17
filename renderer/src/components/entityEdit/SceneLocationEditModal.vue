@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// 场景编辑弹窗（v1.26.0 从 ScenePropSection.vue 抽取为可复用组件）
+// 场景编辑弹窗（「资产库」实体编辑弹窗入口；v1.26.0 抽取为可复用组件）
 // - 面板与资产库聚合页共用；保存时双侧镜像同步关联道具（syncSceneProps）
 // - props.scene 为空 → 新建；非空 → 编辑
 import { computed, reactive, watch } from 'vue'

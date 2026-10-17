@@ -1,11 +1,29 @@
 import assert from 'node:assert/strict'
+import { existsSync } from 'node:fs'
+import { registerHooks } from 'node:module'
 import test from 'node:test'
 
-import { AgentLoopCore } from './agent-loop-core.ts'
-import { createEvidenceLedger, wrapToolsWithRuntimeBudget } from './evidence-ledger.ts'
-import { createRuntimePlan } from './planner.ts'
-import { StagedChangesStore } from './staged-changes-store.ts'
-import { normalizeTurnAttachments } from '../../../shared/assistant-runtime.ts'
+// agent-loop-core.ts 等模块使用打包器风格导入（无扩展名相对导入 + @shared 别名），
+// 需借助 node:module 的 registerHooks 解析（沿用 workspace-visual-migration.test.mjs 范式）。
+registerHooks({
+  resolve(specifier, context, nextResolve) {
+    if (specifier.startsWith('@shared/')) {
+      return nextResolve(new URL(`../../../shared/${specifier.slice(8)}.ts`, import.meta.url).href, context)
+    }
+    if (specifier.startsWith('.') && context.parentURL) {
+      if (specifier.endsWith('.ts') || specifier.endsWith('.js')) return nextResolve(specifier, context)
+      const candidate = new URL(`${specifier}.ts`, context.parentURL)
+      if (existsSync(candidate)) return nextResolve(candidate.href, context)
+    }
+    return nextResolve(specifier, context)
+  }
+})
+
+const { AgentLoopCore } = await import('./agent-loop-core.ts')
+const { createEvidenceLedger, wrapToolsWithRuntimeBudget } = await import('./evidence-ledger.ts')
+const { createRuntimePlan } = await import('./planner.ts')
+const { StagedChangesStore } = await import('./staged-changes-store.ts')
+const { normalizeTurnAttachments } = await import('../../../shared/assistant-runtime.ts')
 
 function makeConversation() {
   const persistedEvents = []
