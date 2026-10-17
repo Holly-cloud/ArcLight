@@ -120,6 +120,49 @@ export interface ProjectVisualStyle {
   moodWords: string[]
 }
 
+/** 资产图库支持的资产类型（v1.33.0） */
+export type AssetImageKind = 'character' | 'scene' | 'prop'
+
+/** 资产图库条目元数据（v1.33.0）；渲染层不持有图片字节，显示走 arc-asset:// 或 IPC 读取通道 */
+export interface AssetImageItem {
+  /** 图库条目唯一标识 */
+  id: string
+  /** 所属项目 ID */
+  projectId: string
+  /** 资产类型 */
+  assetKind: AssetImageKind
+  /** 所属资产 ID */
+  assetId: string
+  /** 图像文件名（相对项目图像目录，如 `<id>.png`） */
+  fileName: string
+  /** 图像 MIME 类型 */
+  mime: string
+  /** 生成时使用的原始提示词 */
+  prompt: string
+  /** 服务端回写的修订提示词 */
+  revisedPrompt: string
+  /** 生图渠道标识，如 'grsai' */
+  provider: string
+  /** 生图模型名称 */
+  model: string
+  /** 画幅比，如 '3:4' */
+  aspectRatio: string
+  /** 分辨率，如 '1K' */
+  imageSize: string
+  /** 参考图来源（图库 id 列表） */
+  referenceIds: string[]
+  /** 是否为该资产的基准立绘（角色一致性）；每资产至多 1 张 */
+  isPrimary: boolean
+  /** 生成状态 */
+  status: 'succeeded' | 'failed'
+  /** 失败原因（status='failed' 时非空） */
+  error: string
+  /** 创建时间 ISO 时间戳 */
+  createdAt: string
+  /** 最后更新时间 ISO 时间戳 */
+  updatedAt: string
+}
+
 export interface PersistedCharacterRecord {
   id: string
   name: string
@@ -212,7 +255,14 @@ export const IPC_CHANNELS = {
   BACKUP_CURRENT_DATABASE: 'characterarc:backup-current-database',
   LIST_DATABASE_BACKUPS: 'characterarc:list-database-backups',
   DELETE_DATABASE_BACKUP: 'characterarc:delete-database-backup',
-  ROLLBACK_DATABASE: 'characterarc:rollback-database'
+  ROLLBACK_DATABASE: 'characterarc:rollback-database',
+  // ── 资产图库（v1.33.0）──
+  LIST_ASSET_IMAGES: 'characterarc:list-asset-images',
+  DELETE_ASSET_IMAGE: 'characterarc:delete-asset-image',
+  SET_PRIMARY_IMAGE: 'characterarc:set-primary-image',
+  EXPORT_ASSET_IMAGE: 'characterarc:export-asset-image',
+  PICK_REFERENCE_IMAGE: 'characterarc:pick-reference-image',
+  PRUNE_ASSET_IMAGES: 'characterarc:prune-asset-images'
 } as const
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS]

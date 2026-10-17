@@ -450,6 +450,28 @@ export async function ensureWorkspaceDb(options: {
       sort_order INTEGER NOT NULL DEFAULT 0
     ) STRICT;
 
+    CREATE TABLE IF NOT EXISTS asset_images (
+      id                TEXT PRIMARY KEY,
+      project_id        TEXT NOT NULL,
+      asset_kind        TEXT NOT NULL,
+      asset_id          TEXT NOT NULL,
+      file_name         TEXT NOT NULL,
+      mime              TEXT NOT NULL,
+      prompt            TEXT NOT NULL DEFAULT '',
+      revised_prompt    TEXT NOT NULL DEFAULT '',
+      provider          TEXT NOT NULL DEFAULT '',
+      model             TEXT NOT NULL DEFAULT '',
+      aspect_ratio      TEXT NOT NULL DEFAULT '',
+      image_size        TEXT NOT NULL DEFAULT '',
+      reference_ids_json TEXT NOT NULL DEFAULT '[]',
+      is_primary        INTEGER NOT NULL DEFAULT 0,
+      status            TEXT NOT NULL DEFAULT 'succeeded',
+      error             TEXT NOT NULL DEFAULT '',
+      run_id            TEXT NOT NULL DEFAULT '',
+      created_at        TEXT NOT NULL,
+      updated_at        TEXT NOT NULL
+    ) STRICT;
+
     CREATE TABLE IF NOT EXISTS assistant_sessions (
       id TEXT PRIMARY KEY,
       project_id TEXT NOT NULL,
@@ -466,6 +488,8 @@ export async function ensureWorkspaceDb(options: {
       ON chapters (project_id, volume_id, sort_order);
     CREATE INDEX IF NOT EXISTS idx_chapter_versions_chapter_created
       ON chapter_versions (chapter_id, created_at DESC);
+    CREATE INDEX IF NOT EXISTS idx_asset_images_asset
+      ON asset_images (project_id, asset_kind, asset_id);
   `)
 
   const worldviewColumns = db.prepare(`PRAGMA table_info(worldview_entries)`).all() as Array<{ name: string }>

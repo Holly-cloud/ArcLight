@@ -42,8 +42,20 @@ import {
 } from './archive/project-archive'
 import type { WorkspacePayload } from './workspace-types'
 import type { WindowManager } from './window-manager'
+import {
+  copyAssetImageTo,
+  deleteAssetImage,
+  listAssetImages,
+  pruneAssetImagesForAsset,
+  pruneAssetImagesForProject,
+  setPrimaryAssetImage
+} from './asset-images'
+import type { AssetImageKind } from '@shared/ipc-types'
 
 let xlsxModulePromise: Promise<typeof import('xlsx')> | null = null
+
+/** 参考图本地选择时的体积上限（字节），避免超大图片随请求发送 */
+const REFERENCE_IMAGE_MAX_BYTES = 8 * 1024 * 1024
 
 const OUTLINE_SPREADSHEET_HEADERS = ['分卷名称', '分卷目标字数', '分卷摘要', '章节序号', '章节标题', '目标字数', '核心冲突', '剧情摘要', '状态']
 
@@ -787,7 +799,109 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-ipcMain.handle('characterarc:workspace-sync-publish', (event, payload: unknown) => {
+  // ── 资产图库（v1.33.0）──
+  ipcMain.handle(IPC_CHANNELS.LIST_ASSET_IMAGES, async (_event, payload: unknown) => {
+    try {
+      const req = payload as { projectId?: string; kind?: string; assetId?: string }
+      const projectId = String(req?.projectId ?? '').trim()
+      const kind = String(req?.kind ?? '').trim() as AssetImageKind
+      const assetId = String(req?.assetId ?? '').trim()
+      if (!projectId || !assetId) throw new Error('缺少 projectId 或 assetId。')
+      return { success: true, result: await listAssetImages(projectId, kind, assetId) }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : '读取资产图库失败' }
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.DELETE_ASSET_IMAGE, async (_event, imageId: unknown) => {
+    try {
+      const id = String(imageId ?? '').trim()
+      if (!id) throw new Error('缺少图像 ID。')
+      const removed = await deleteAssetImage(id)
+      return { success: removed, error: removed ? undefined : '图库中找不到该图像。' }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : '删除资产图像失败' }
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.SET_PRIMARY_IMAGE, async (_event, imageId: unknown) => {
+    try {
+      const id = String(imageId ?? '').trim()
+      if (!id) throw new Error('缺少图像 ID。')
+      const ok = await setPrimaryAssetImage(id)
+      return { success: ok, error: ok ? undefined : '图库中找不到该图像。' }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : '设置基准立绘失败' }
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.EXPORT_ASSET_IMAGE, async (_event, payload: unknown) => {
+    const window = deps.windowManager.getActiveWindow()
+    if (!window) return { success: false, canceled: true }
+    const req = payload as { imageId?: string; defaultFileName?: string }
+    const imageId = String(req?.imageId ?? '').trim()
+    if (!imageId) return { success: false, error: '缺少图像 ID。' }
+    const defaultName = req?.defaultFileName?.trim() || `asset-image-${Date.now()}.png`
+    const result = await dialog.showSaveDialog(window, {
+      title: '导出资产图像',
+      defaultPath: defaultName,
+      filters: [{ name: '图片文件', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
+    })
+    if (result.canceled || !result.filePath) return { success: false, canceled: true }
+    try {
+      const filePath = await copyAssetImageTo(imageId, result.filePath)
+      return { success: true, canceled: false, filePath }
+    } catch (error) {
+      return { success: false, canceled: false, error: error instanceof Error ? error.message : '导出资产图像失败' }
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.PICK_REFERENCE_IMAGE, async () => {
+    const window = deps.windowManager.getActiveWindow()
+    if (!window) return { success: false, canceled: true }
+    const result = await dialog.showOpenDialog(window, {
+      title: '选择参考图',
+      properties: ['openFile'],
+      filters: [{ name: '图片文件', extensions: ['png', 'jpg', 'jpeg', 'webp'] }]
+    })
+    if (result.canceled || result.filePaths.length === 0) return { success: false, canceled: true }
+    try {
+      const filePath = result.filePaths[0]
+      const buffer = await readFile(filePath)
+      if (buffer.byteLength > REFERENCE_IMAGE_MAX_BYTES) {
+        return { success: false, canceled: false, error: '参考图体积过大，请选择小于 8MB 的图片。' }
+      }
+      const mime = deps.resolveImageMime(filePath)
+      return {
+        success: true,
+        canceled: false,
+        dataUrl: `data:${mime};base64,${buffer.toString('base64')}`,
+        fileName: basename(filePath)
+      }
+    } catch (error) {
+      return { success: false, canceled: false, error: error instanceof Error ? error.message : '读取参考图失败' }
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.PRUNE_ASSET_IMAGES, async (_event, payload: unknown) => {
+    try {
+      const req = payload as { projectId?: string; kind?: string; assetId?: string }
+      const projectId = String(req?.projectId ?? '').trim()
+      if (!projectId) throw new Error('缺少 projectId。')
+      const kind = String(req?.kind ?? '').trim()
+      const assetId = String(req?.assetId ?? '').trim()
+      if (kind && assetId) {
+        await pruneAssetImagesForAsset(projectId, kind as AssetImageKind, assetId)
+      } else {
+        await pruneAssetImagesForProject(projectId)
+      }
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : '清理资产图库失败' }
+    }
+  })
+
+  ipcMain.handle('characterarc:workspace-sync-publish', (event, payload: unknown) => {
     if (payload && typeof payload === 'object') {
       deps.setLatestWorkspaceSnapshot(deps.normalizeWorkspacePayload(payload))
     }
