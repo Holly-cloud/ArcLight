@@ -229,7 +229,14 @@ async function handleImageError(item: AssetImageItem): Promise<void> {
 
     <div v-if="images.length" class="gallery-grid arc-scrollbar">
       <figure v-for="item in images" :key="item.id" class="gallery-card">
-        <n-image :src="imageSrc(item)" object-fit="cover" class="gallery-thumb" :alt="assetName" :on-error="() => handleImageError(item)" />
+        <n-image
+          :src="imageSrc(item)"
+          class="gallery-thumb"
+          :alt="assetName"
+          object-fit="cover"
+          :img-props="{ style: { display: 'block', width: '100%', aspectRatio: '16 / 9', objectFit: 'cover' } }"
+          :on-error="() => handleImageError(item)"
+        />
         <n-tag v-if="imageBadgeLabel(item)" class="gallery-badge" size="tiny" :type="item.status === 'failed' ? 'error' : 'warning'">
           {{ imageBadgeLabel(item) }}
         </n-tag>
