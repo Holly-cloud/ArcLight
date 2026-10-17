@@ -78,7 +78,7 @@ const overviewCards = computed(() => [
     value: `${totalCharacters.value} 名`,
     hint: '已建角色',
     icon: Users,
-    target: 'characters' as PanelName
+    target: 'assetLibrary' as PanelName | 'assetLibrary'
   },
   {
     key: 'relations',
@@ -168,8 +168,12 @@ const quickEntries = computed(() => {
 // 当前聚焦的章节，优先使用已选章节，否则取第一章
 const recentChapter = computed(() => appStore.selectedChapter ?? appStore.chapters[0])
 
-// 导航到指定面板
-function goToPanel(panel: PanelName): void {
+// 导航到指定面板；资产库为独立页面（非工作台面板）
+function goToPanel(panel: PanelName | 'assetLibrary'): void {
+  if (panel === 'assetLibrary') {
+    appStore.openAssetLibrary()
+    return
+  }
   appStore.setPanel(panel)
 }
 
@@ -184,7 +188,7 @@ function openEntry(type: string, title: string): void {
   }
 
   if (type === '角色') {
-    appStore.setPanel('characters')
+    appStore.openAssetLibrary()
     return
   }
 

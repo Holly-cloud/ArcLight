@@ -443,10 +443,10 @@ export function useGlobalAssistant(options: UseGlobalAssistantOptions = {}) {
   const projectConstraintSummary = computed(() => appStore.projectConstraints.slice(0, 4))
 
   const assetLinks = computed<
-    Array<{ id: string; label: string; panel: PanelName; count: number; icon: typeof Globe2 }>
+    Array<{ id: string; label: string; panel: PanelName | 'assetLibrary'; count: number; icon: typeof Globe2 }>
   >(() => [
     { id: 'world', label: '世界观', panel: 'world', count: appStore.worldviewEntries.length, icon: Globe2 },
-    { id: 'characters', label: '角色卡', panel: 'characters', count: appStore.characters.length, icon: Users },
+    { id: 'characters', label: '角色卡', panel: 'assetLibrary', count: appStore.characters.length, icon: Users },
     { id: 'relations', label: '关系', panel: 'relations', count: appStore.characterRelationships.length, icon: Network },
     { id: 'threads', label: '线索', panel: 'threads', count: appStore.plotThreads.length, icon: BookMarked },
     { id: 'project-knowledge', label: '知识', panel: 'project-knowledge', count: appStore.knowledgeDocuments.length, icon: FileCheck2 }
@@ -652,7 +652,11 @@ export function useGlobalAssistant(options: UseGlobalAssistantOptions = {}) {
     composerValue.value = action.prompt
   }
 
-  function openAsset(panel: PanelName): void {
+  function openAsset(panel: PanelName | 'assetLibrary'): void {
+    if (panel === 'assetLibrary') {
+      appStore.openAssetLibrary()
+      return
+    }
     appStore.setPanel(panel)
   }
 

@@ -79,6 +79,7 @@ const currentMode = computed(() =>
   modeOptions.find((mode) => mode.id === activeMode.value) ?? modeOptions[0]
 )
 
+// 「角色」跳转资产库独立页面（角色图鉴面板已下线）
 const assetLinks = computed(() => [
   { id: 'world', label: '世界观', count: appStore.worldviewEntries.length, icon: Globe2 },
   { id: 'characters', label: '角色', count: appStore.characters.length, icon: Users },
@@ -87,6 +88,15 @@ const assetLinks = computed(() => [
   { id: 'threads', label: '伏笔', count: appStore.plotThreads.length, icon: ShieldCheck },
   { id: 'project-knowledge', label: '知识', count: appStore.knowledgeDocuments.length, icon: FileCheck2 }
 ])
+
+/** 资产入口跳转：角色 → 资产库独立页面；其余 → 工作台面板 */
+function openAssetLink(id: string): void {
+  if (id === 'characters') {
+    appStore.openAssetLibrary()
+    return
+  }
+  appStore.setPanel(id as never)
+}
 
 function modeIcon(mode: AssistantMode) {
   if (mode === 'audit') return ShieldCheck
@@ -427,7 +437,7 @@ async function handleCommit(ids?: string[]): Promise<void> {
               :key="item.id"
               type="button"
               class="asset-pill"
-              @click="appStore.setPanel(item.id as never)"
+              @click="openAssetLink(item.id)"
             >
               <component :is="item.icon" :size="14" />
               <span>{{ item.count }}</span>

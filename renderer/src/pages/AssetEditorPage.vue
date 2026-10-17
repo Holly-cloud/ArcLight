@@ -2,13 +2,18 @@
 // v1.34.0 资产编辑页：独立页（非弹窗），三栏单一职责 —— 左同类列表 / 中「基础信息」/ 右「图库」
 // - 一屏内完成：页面锁高，三栏各自内部滚动，无页面级滚动条
 // - 中栏只留「基础信息」一张卡（视觉风格已上收为资产库级「图片主风格」）
+// - v1.34.1：顶栏新增角色「AI 补充」（自「角色图鉴」弹窗迁入）
 // - 返回资产库自动保存；仅 Naive UI + lucide；颜色全走 --arc-* 令牌
 import { computed, reactive, ref, watch } from 'vue'
-import { ArrowLeft, Search } from 'lucide-vue-next'
-import { NButton, NEmpty, NInput } from 'naive-ui'
+import { ArrowLeft, Search, Sparkles } from 'lucide-vue-next'
+import { NButton, NEmpty, NInput, useMessage } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
+import { toIpcPayload } from '@/utils/ipcPayload'
+import { buildProjectWritingStyleContext } from '@/features/writingStyles/presets'
 import FeatureHelp from '@/components/FeatureHelp.vue'
 import AssetGallerySection from '@/components/assetImage/AssetGallerySection.vue'
+import AiEnhancePreview from '@/components/AiEnhancePreview.vue'
+import type { EnhanceFieldDiff } from '@/components/AiEnhancePreview.vue'
 import CharacterEditForm from '@/components/entityEdit/CharacterEditForm.vue'
 import SceneLocationEditForm from '@/components/entityEdit/SceneLocationEditForm.vue'
 import PropItemEditForm from '@/components/entityEdit/PropItemEditForm.vue'
@@ -22,6 +27,7 @@ import type { AssetImageKind } from '@/types/app'
 import type { AssetImagePromptAsset } from '@/features/assetImage/composeAssetImagePrompt'
 
 const appStore = useAppStore()
+const message = useMessage()
 
 const target = computed(() => appStore.assetEditorTarget)
 const kind = computed<AssetImageKind>(() => target.value?.kind ?? 'character')
@@ -234,6 +240,91 @@ function goBack(): void {
   }
   appStore.backToAssetLibrary()
 }
+
+// ── 角色「AI 补充」（v1.34.1：自「角色图鉴」面板的编辑弹窗迁入；仅角色可用） ──
+const writingStyle = computed(() => buildProjectWritingStyleContext(appStore.currentProject))
+const ENHANCE_TASK_KEY = 'character-enhance'
+const enhanceLoading = computed(() => appStore.isAiTaskRunning(ENHANCE_TASK_KEY))
+const enhanceVisible = ref(false)
+const enhanceFields = ref<EnhanceFieldDiff[]>([])
+
+function buildAiWorldviewContext() {
+  return appStore.worldviewEntries.slice(0, 12).map((entry) => ({
+    type: entry.type,
+    title: entry.title,
+    content: entry.content.slice(0, 320)
+  }))
+}
+
+async function handleAiEnhance(): Promise<void> {
+  if (kind.value !== 'character' || enhanceLoading.value) return
+  if (!assetId.value) {
+    message.warning('请先保存角色后再使用 AI 补充')
+    return
+  }
+
+  try {
+    const result = await appStore.runTrackedAiTask(
+      {
+        key: ENHANCE_TASK_KEY,
+        kind: 'character',
+        label: 'AI 补充角色',
+        description: '正在根据上下文补充角色信息',
+        panel: 'asset-library'
+      },
+      () =>
+        window.characterArc.generateAi(toIpcPayload({
+          task: 'character-enhance',
+          settings: appStore.appSettings,
+          context: {
+            projectId: appStore.currentProject?.id,
+            currentForm: {
+              name: characterForm.name,
+              role: characterForm.role,
+              description: characterForm.description,
+              tags: characterForm.tags
+            },
+            projectTitle: appStore.currentProject?.title,
+            projectGenre: appStore.currentProject?.genre,
+            writingStyleLabel: writingStyle.value.label,
+            writingStylePrompt: writingStyle.value.prompt,
+            characterNames: appStore.characters.map((c) => c.name),
+            worldviewTitles: appStore.worldviewEntries.map((e) => e.title),
+            worldviewEntries: buildAiWorldviewContext(),
+            organizations: appStore.organizations,
+            characterRelationships: appStore.characterRelationships,
+            organizationMemberships: appStore.organizationMemberships,
+            characters: appStore.characters.map((c) => ({ id: c.id, name: c.name, role: c.role, description: c.description }))
+          }
+        }))
+    )
+
+    if (!result.success || !result.result) {
+      throw new Error(result.error ?? 'AI 补充失败，请检查模型配置')
+    }
+
+    const suggested = result.result as { name?: string; role?: string; description?: string; tags?: string[] }
+    const suggestedTags = Array.isArray(suggested.tags) ? suggested.tags : []
+
+    enhanceFields.value = [
+      { key: 'name', label: '角色名称', type: 'text', original: characterForm.name, suggested: suggested.name ?? '', changed: (suggested.name ?? '') !== characterForm.name && Boolean(suggested.name?.trim()) },
+      { key: 'role', label: '角色定位', type: 'text', original: characterForm.role, suggested: suggested.role ?? '', changed: (suggested.role ?? '') !== characterForm.role && Boolean(suggested.role?.trim()) },
+      { key: 'description', label: '角色简介', type: 'textarea', original: characterForm.description, suggested: suggested.description ?? '', changed: (suggested.description ?? '') !== characterForm.description && Boolean(suggested.description?.trim()) },
+      { key: 'tags', label: '角色标签', type: 'tags', original: characterForm.tags, suggested: suggestedTags, changed: JSON.stringify(suggestedTags) !== JSON.stringify(characterForm.tags) && suggestedTags.length > 0 }
+    ]
+    enhanceVisible.value = true
+  } catch (error) {
+    message.error(error instanceof Error ? error.message : 'AI 补充失败，请检查模型配置')
+  }
+}
+
+function handleEnhanceApply(accepted: Record<string, string | string[]>): void {
+  if (accepted.name != null) characterForm.name = accepted.name as string
+  if (accepted.role != null) characterForm.role = accepted.role as string
+  if (accepted.description != null) characterForm.description = accepted.description as string
+  if (accepted.tags != null) characterForm.tags = accepted.tags as string[]
+  enhanceVisible.value = false
+}
 </script>
 
 <template>
@@ -249,6 +340,10 @@ function goBack(): void {
         {{ saveState === 'saved' ? '✓ 已自动保存' : '改动将自动保存' }}
       </span>
       <span class="editor-spacer" />
+      <n-button v-if="kind === 'character'" size="small" :loading="enhanceLoading" @click="handleAiEnhance">
+        <template #icon><Sparkles :size="14" /></template>
+        AI 补充
+      </n-button>
       <FeatureHelp feature-id="asset-library" placement="bottom-end" />
     </header>
 
@@ -308,6 +403,14 @@ function goBack(): void {
         />
       </aside>
     </div>
+
+    <AiEnhancePreview
+      :show="enhanceVisible"
+      :fields="enhanceFields"
+      :loading="enhanceLoading"
+      @apply="handleEnhanceApply"
+      @close="enhanceVisible = false"
+    />
   </section>
 </template>
 

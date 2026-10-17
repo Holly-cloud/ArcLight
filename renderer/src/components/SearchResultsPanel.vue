@@ -13,7 +13,7 @@ const props = defineProps<{
 
 // 点击搜索结果时触发的事件，携带目标面板和可选的章节 ID
 const emit = defineEmits<{
-  openResult: [payload: { panel: PanelName; chapterId?: string }]
+  openResult: [payload: { panel: PanelName | 'assetLibrary'; chapterId?: string }]
 }>()
 
 const appStore = useAppStore()
@@ -22,7 +22,8 @@ const appStore = useAppStore()
 type ResultGroup = {
   id: string
   label: string
-  panel: PanelName
+  /** 目标：工作台面板；'assetLibrary' 为资产库独立页面 */
+  panel: PanelName | 'assetLibrary'
   icon: typeof Globe2
   accent: string
   items: Array<{
@@ -176,8 +177,8 @@ const resultGroups = computed<ResultGroup[]>(() => {
     },
     {
       id: 'characters',
-      label: '角色图鉴',
-      panel: 'characters' as PanelName,
+      label: '角色资产',
+      panel: 'assetLibrary' as PanelName | 'assetLibrary',
       icon: Users,
       accent: 'rgba(244, 114, 182, 0.12)',
       items: characterItems

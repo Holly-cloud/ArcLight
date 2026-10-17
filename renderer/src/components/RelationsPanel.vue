@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // v1.25 起 RelationsPanel 硬迁移：移除 `scenes` / `props` 段切换
-// - 场景 / 道具编辑入口现为「资产库」的实体编辑弹窗（SceneLocationEditModal / PropItemEditModal）
+// - 场景 / 道具编辑入口现为「资产库 → 资产编辑页」（v1.34.1 起实体编辑弹窗已随「角色图鉴」一并下线）
 // - 不再保留跳转链接 / Header 提示（用户裁定硬迁移）
 // - 角色图谱仅保留：组织势力 / 人物关系 / 成员归属 三段
 import { computed, reactive, ref } from 'vue'
@@ -503,7 +503,7 @@ function confirmDeleteMembership(membership: { id: string; characterName: string
   })
 }
 
-// ── v1.25 起：场景 / 道具编辑器现为「资产库」实体编辑弹窗（SceneLocationEditModal / PropItemEditModal） ──
+// ── v1.34.1 起：场景 / 道具编辑走「资产库 → 资产编辑页」（实体编辑弹窗已下线） ──
 // 角色图谱仅保留组织 / 关系 / 归属 3 段
 
 function setViewMode(mode: 'list' | 'graph'): void {

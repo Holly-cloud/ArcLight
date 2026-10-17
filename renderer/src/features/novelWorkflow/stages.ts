@@ -5,16 +5,19 @@ import type {
   PanelName
 } from '@/types/app'
 
+/** 流程阶段的目标入口：工作台面板，或资产库独立页面 */
+export type NovelWorkflowStageTarget = PanelName | 'assetLibrary'
+
 export type NovelWorkflowStageDefinition = {
   id: NovelWorkflowStageId
   title: string
   description: string
-  targetPanel: PanelName
+  targetPanel: NovelWorkflowStageTarget
   focus: string
   summary: string
   actions: Array<{
     label: string
-    panel: PanelName
+    panel: NovelWorkflowStageTarget
   }>
 }
 
@@ -46,11 +49,11 @@ export const novelWorkflowStageDefinitions: NovelWorkflowStageDefinition[] = [
     id: 'setting',
     title: '设定搭建',
     description: '补角色、势力、关系和关键设定，把后续冲突需要的抓手和人脉盘先立出来。',
-    targetPanel: 'characters',
+    targetPanel: 'assetLibrary',
     focus: '角色、关系、势力、关键设定',
     summary: '对应 1.md / 3.md 中的人物构建、关系盘、配角逻辑和设定工作。',
     actions: [
-      { label: '进入角色图鉴', panel: 'characters' },
+      { label: '进入资产库', panel: 'assetLibrary' },
       { label: '进入关系组织', panel: 'relations' }
     ]
   },

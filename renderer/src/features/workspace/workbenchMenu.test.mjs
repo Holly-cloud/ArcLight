@@ -12,7 +12,6 @@ test('默认顺序将资产库置顶并保持其他菜单排列（工作台已�
   assert.deepEqual(DEFAULT_WORKBENCH_MENU_ORDER, [
     'assetLibrary',
     'overview',
-    'characters',
     'relations',
     'world',
     'outline',
@@ -31,7 +30,6 @@ test('标准化会过滤无效和重复菜单并将缺失菜单追加到末尾',
       'assetLibrary',
       'chapters',
       'overview',
-      'characters',
       'relations',
       'world',
       'outline',
@@ -46,7 +44,6 @@ test('标准化会过滤无效和重复菜单并将缺失菜单追加到末尾',
 test('升级场景：旧顺序（不含 assetLibrary）→ assetLibrary 置顶且其余顺序不变', () => {
   const legacyOrder = [
     'overview',
-    'characters',
     'relations',
     'world',
     'outline',

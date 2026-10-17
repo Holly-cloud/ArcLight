@@ -2,12 +2,11 @@
  * v1.32.0 功能说明（FeatureHelp）公共类型与查表函数
  * - 数据按模块拆分（v1.23 sceneprop / v1.26 assetLibrary / v1.27 visualStyle / v1.28 assetExtraction）
  * - 数据层纯静态常量导出（不接 IPC / 不进 store / 不持久化）
- * - TS 类型严格：FeatureId 联合类型 7 条穷举；新增 featureId 必须 TS 报错
+ * - TS 类型严格：FeatureId 联合类型 6 条穷举；新增 featureId 必须 TS 报错
  */
 
 import { SCENEPROP_HELP } from '@/features/sceneprop/help/sceneprop-help'
 import { ASSET_LIBRARY_HELP } from '@/features/assetLibrary/help/asset-library-help'
-import { VISUAL_CONSISTENCY_HELP } from '@/features/visualStyle/help/visual-consistency-help'
 import { NOVEL_EXTRACTION_HELP } from '@/features/assetExtraction/help/novel-extraction-help'
 import { ASSET_IMAGE_HELP } from '@/features/assetImage/help/asset-image-help'
 
@@ -15,10 +14,10 @@ import { ASSET_IMAGE_HELP } from '@/features/assetImage/help/asset-image-help'
  * 功能 id 的严格联合类型（避免拼写错）
  * - v1.23 sceneprop（3）
  * - v1.26 assetLibrary（1）
- * - v1.27 visualStyle（1）
  * - v1.28 assetExtraction（1）
  * - v1.33 assetImage（1）
  *
+ * v1.34.1 起：移除 `visual-consistency`（视觉风格区块随「角色图鉴」一并下线，风格上收为项目级）
  * 新增 featureId 必须 TS 报错（防止漏写 / 拼写错）
  */
 export type FeatureId =
@@ -28,8 +27,6 @@ export type FeatureId =
   | 'relations-graph'
   // v1.26 assetLibrary（1）
   | 'asset-library'
-  // v1.27 visualStyle（1）
-  | 'visual-consistency'
   // v1.28 assetExtraction（1）
   | 'novel-extraction'
   // v1.33 assetImage（1）
@@ -60,10 +57,10 @@ export interface FeatureDescription {
 }
 
 /**
- * 7 条 featureId 的总表（聚合 5 个模块的 HELP_DATA）
+ * 6 条 featureId 的总表（聚合 4 个模块的 HELP_DATA）
  */
 const ALL_DESCRIPTIONS: ReadonlyMap<FeatureId, FeatureDescription> = new Map(
-  [...SCENEPROP_HELP, ...ASSET_LIBRARY_HELP, ...VISUAL_CONSISTENCY_HELP, ...NOVEL_EXTRACTION_HELP, ...ASSET_IMAGE_HELP].map((desc) => [desc.id, desc])
+  [...SCENEPROP_HELP, ...ASSET_LIBRARY_HELP, ...NOVEL_EXTRACTION_HELP, ...ASSET_IMAGE_HELP].map((desc) => [desc.id, desc])
 )
 
 /**
@@ -86,14 +83,13 @@ export function getFeatureDescriptions(ids: FeatureId[]): FeatureDescription[] {
 }
 
 /**
- * 7 条 featureId 联合类型的常量元组（用于测试 / 静态校验）
+ * 6 条 featureId 联合类型的常量元组（用于测试 / 静态校验）
  */
 export const ALL_FEATURE_IDS: readonly FeatureId[] = [
   'scene-location',
   'prop-item',
   'relations-graph',
   'asset-library',
-  'visual-consistency',
   'novel-extraction',
   'asset-image'
 ] as const

@@ -16,7 +16,6 @@ import {
   Search,
   Settings,
   Sparkles,
-  Users,
   GitMerge
 } from 'lucide-vue-next'
 import { NButton, NInput } from 'naive-ui'
@@ -37,7 +36,6 @@ const GlobalAssistantV2Panel = defineAsyncComponent(() => import('@/components/a
 const GlobalAssistantV2Page = defineAsyncComponent(() => import('@/components/assistantV2/GlobalAssistantV2Page.vue'))
 const ProjectKnowledgePanel = defineAsyncComponent(() => import('@/components/ProjectKnowledgePanel.vue'))
 const WorldviewPanel = defineAsyncComponent(() => import('@/components/WorldviewPanel.vue'))
-const CharactersPanel = defineAsyncComponent(() => import('@/components/CharactersPanel.vue'))
 const RelationsPanel = defineAsyncComponent(() => import('@/components/RelationsPanel.vue'))
 const InspirationPanel = defineAsyncComponent(() => import('@/components/InspirationPanel.vue'))
 const OutlinePanel = defineAsyncComponent(() => import('@/components/OutlinePanel.vue'))
@@ -65,7 +63,6 @@ const panelSearch = reactive<Record<string, string>>({
   overview: '',
   'project-knowledge': '',
   world: '',
-  characters: '',
   relations: '',
   inspiration: '',
   outline: '',
@@ -80,7 +77,6 @@ const searchKeyword = ref(panelSearch[appStore.activePanel] ?? '')
 const sidebarItemPresentation = {
   assetLibrary: { description: '项目内按分类浏览与编辑角色/场景/道具/组织', icon: Boxes, color: '#0891b2' },
   overview: { description: '掌握项目进度与全局信息', icon: LayoutDashboard, color: '#8b5cf6' },
-  characters: { description: '维护人物卡、关系与成长线索', icon: Users, color: '#ec4899' },
   relations: { description: '维护势力结构、人物关系与成员归属', icon: Network, color: '#6b7280' },
   world: { description: '沉淀世界规则、地点与设定条目', icon: Globe2, color: '#06b6d4' },
   outline: { description: '组织卷宗结构与关键情节点', icon: GitMerge, color: '#10b981' },
@@ -168,7 +164,6 @@ const sidebarBadgeMap = computed<Record<string, string | null>>(() => ({
   workflow: null,
   overview: null,
   world: String(appStore.worldviewEntries.length),
-  characters: String(appStore.characters.length),
   relations: String(appStore.organizations.length + appStore.characterRelationships.length),
   inspiration: String(appStore.inspirationEntries.length),
   outline: String(appStore.outlineItems.length),
@@ -269,14 +264,20 @@ function clearSearchForPanel(panel: PanelName): void {
  * @param payload.panel - 目标面板名称
  * @param payload.chapterId - 可选，若为章节搜索则直接定位到具体章节
  */
-function openSearchResult(payload: { panel: PanelName; chapterId?: string }): void {
+function openSearchResult(payload: { panel: PanelName | 'assetLibrary'; chapterId?: string }): void {
   clearSearchForPanel(appStore.activePanel)
-  clearSearchForPanel(payload.panel)
+  if (payload.panel !== 'assetLibrary') clearSearchForPanel(payload.panel)
   searchKeyword.value = ''
 
   // 如果搜索结果指向某个章节，直接选中该章节
   if (payload.chapterId) {
     appStore.selectChapter(payload.chapterId)
+    return
+  }
+
+  // 资产库不是工作台面板，走独立页面入口
+  if (payload.panel === 'assetLibrary') {
+    appStore.openAssetLibrary()
     return
   }
 
@@ -454,7 +455,6 @@ watch(searchKeyword, (value) => {
             <OverviewPanel v-else-if="appStore.activePanel === 'overview'" key="overview" :search-query="normalizedSearch" />
             <ProjectKnowledgePanel v-else-if="appStore.activePanel === 'project-knowledge'" key="project-knowledge" />
             <WorldviewPanel v-else-if="appStore.activePanel === 'world'" key="world" :search-query="normalizedSearch" />
-            <CharactersPanel v-else-if="appStore.activePanel === 'characters'" key="characters" :search-query="normalizedSearch" />
             <RelationsPanel v-else-if="appStore.activePanel === 'relations'" key="relations" :search-query="normalizedSearch" />
             <InspirationPanel v-else-if="appStore.activePanel === 'inspiration'" key="inspiration" :search-query="normalizedSearch" />
             <OutlinePanel v-else-if="appStore.activePanel === 'outline'" key="outline" :search-query="normalizedSearch" />

@@ -100,7 +100,7 @@ import type {
   AssetImageKind
 } from '@/types/app'
 
-type AssistantFocusPanel = 'world' | 'characters' | 'outline' | 'project-knowledge'
+type AssistantFocusPanel = 'world' | 'outline' | 'project-knowledge'
 
 interface AssistantFocusTarget {
   panel: AssistantFocusPanel
