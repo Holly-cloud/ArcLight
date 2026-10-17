@@ -123,7 +123,6 @@ function kindIcon(kind: AiTaskKind) {
     case 'chapter-post-process': return Feather
     case 'plot-thread': return Library
     case 'cover': return ImageIcon
-    case 'reference': return BookOpen
     default: return Brush
   }
 }

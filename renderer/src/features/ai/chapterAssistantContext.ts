@@ -169,7 +169,6 @@ export type ChapterFirstDraftContextInput = {
     title: string
     endingText: string
   }
-  referenceStyleContext?: string
 }
 
 const CONTEXT_CHARACTER_LIMIT = 8
@@ -647,7 +646,6 @@ export function buildChapterFirstDraftContext(input: ChapterFirstDraftContextInp
     userPrompt: input.userPrompt,
     chapterMemo: input.chapterMemo ?? null,
     recentEndingsTrail: input.recentEndingsTrail ?? [],
-    previousChapterHandoff: input.previousChapterHandoff ?? null,
-    referenceStyleContext: input.referenceStyleContext ?? ''
+    previousChapterHandoff: input.previousChapterHandoff ?? null
   }
 }

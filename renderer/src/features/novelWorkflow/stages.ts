@@ -22,10 +22,10 @@ export const novelWorkflowStageDefinitions: NovelWorkflowStageDefinition[] = [
   {
     id: 'reference',
     title: '选题与参考',
-    description: '围绕平台、题材和参考作品做前置判断与提炼，先决定该学什么，不急着直接写正文。',
+    description: '围绕平台与题材做前置判断与提炼，先决定该学什么，不急着直接写正文。',
     targetPanel: 'inspiration',
-    focus: '参考书、风格提炼、平台偏好',
-    summary: '对应 2.md 中的扫榜、下载参考书、提炼写法和题材判断。',
+    focus: '平台偏好、题材判断、写法提炼',
+    summary: '对应 2.md 中的扫榜、提炼写法和题材判断。',
     actions: [
       { label: '打开灵感模块', panel: 'inspiration' }
     ]
