@@ -1,21 +1,19 @@
 <script setup lang="ts">
-// v1.30.0 资产库聚合页：三栏（左分类 / 中卡片网格 / 右详情）
+// v1.34.0 资产库聚合页：两栏（左分类 / 中卡片网格）+「图片主风格」抽屉
 // - 只在项目内、唯一入口：仅展示**当前项目**的角色 / 场景 / 道具 / 组织（已废弃跨项目浏览）
-// - 左栏只保留分类（角色 / 场景 / 道具 / 组织），默认落在「角色」，已移除「全部资产」分类
-// - 当前项目资产可编辑（双击卡片打开抽取出的编辑弹窗）
+// - 单击卡片进入「资产编辑页」；多选模式点击改为切换选中（不再有只读详情栏）
+// - 工具栏「图片主风格」打开项目级主风格抽屉（渲染方式 / 配色 / 氛围词 / 默认画幅比）
 import { computed, ref } from 'vue'
-import { ArrowLeft, Boxes, CheckSquare, RefreshCw, Search, Sparkles, Trash2 } from 'lucide-vue-next'
+import { ArrowLeft, Boxes, CheckSquare, Palette, RefreshCw, Search, Sparkles, Trash2 } from 'lucide-vue-next'
 import { NButton, NEmpty, NInput, NPopconfirm, useMessage } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
 import { toIpcPayload } from '@/utils/ipcPayload'
 import AssetLibraryCard from '@/components/assetLibrary/AssetLibraryCard.vue'
+import ProjectVisualStyleDrawer from '@/components/assetLibrary/ProjectVisualStyleDrawer.vue'
 import AssetExtractionWizard from '@/components/assetExtraction/AssetExtractionWizard.vue'
 import AiEnhancePreview from '@/components/AiEnhancePreview.vue'
 import type { EnhanceFieldDiff } from '@/components/AiEnhancePreview.vue'
 import FeatureHelp from '@/components/FeatureHelp.vue'
-import CharacterEditModal from '@/components/entityEdit/CharacterEditModal.vue'
-import SceneLocationEditModal from '@/components/entityEdit/SceneLocationEditModal.vue'
-import PropItemEditModal from '@/components/entityEdit/PropItemEditModal.vue'
 import { useBatchSelection } from '@/composables/useBatchSelection'
 import {
   buildReextractSuggestions,
@@ -33,14 +31,13 @@ import {
   type AssetEntry,
   type AssetKind
 } from '@/features/assetLibrary/assetLibraryModel'
-import type { CharacterCard, PropItem, SceneLocation } from '@/types/app'
+import type { AssetImageKind } from '@/types/app'
 
 const appStore = useAppStore()
 const message = useMessage()
 
 const kind = ref<AssetKind>('character')
 const query = ref('')
-const selectedKey = ref('')
 
 // 聚合当前项目资产（跨项目浏览已废弃，只保留当前项目）
 const allEntries = computed(() =>
@@ -68,43 +65,25 @@ const visibleEntries = computed(() =>
   queryMatched.value.filter((entry) => entry.kind === kind.value)
 )
 
-const selectedEntry = computed<AssetEntry | null>(
-  () => currentProjectEntries.value.find((entry) => entry.key === selectedKey.value) ?? null
-)
-
 const emptyDescription = computed(() =>
   currentProjectEntries.value.length ? '当前筛选下没有匹配的资产' : '当前项目还没有资产'
 )
 const showCreateAction = computed(() => currentProjectEntries.value.length === 0)
 
-// --- 编辑弹窗 ---
-const characterModalVisible = ref(false)
-const editingCharacter = ref<CharacterCard | null>(null)
-const sceneModalVisible = ref(false)
-const editingScene = ref<SceneLocation | null>(null)
-const propModalVisible = ref(false)
-const editingProp = ref<PropItem | null>(null)
+// --- 项目级「图片主风格」抽屉（v1.34.0）---
+const styleDrawerVisible = ref(false)
 
-function handleOpen(entry: AssetEntry): void {
-  if (selectionMode.value) return
-  if (entry.kind === 'character') {
-    const character = appStore.characters.find((item) => item.id === entry.id)
-    if (!character) return
-    editingCharacter.value = character
-    characterModalVisible.value = true
-  } else if (entry.kind === 'scene') {
-    const scene = appStore.sceneLocations.find((item) => item.id === entry.id)
-    if (!scene) return
-    editingScene.value = scene
-    sceneModalVisible.value = true
-  } else if (entry.kind === 'prop') {
-    const prop = appStore.propItems.find((item) => item.id === entry.id)
-    if (!prop) return
-    editingProp.value = prop
-    propModalVisible.value = true
-  } else {
+function isEditableKind(value: AssetKind): value is AssetImageKind {
+  return value === 'character' || value === 'scene' || value === 'prop'
+}
+
+/** 单击卡片进入「资产编辑页」；组织无编辑页，给出提示 */
+function openEditor(entry: AssetEntry): void {
+  if (!isEditableKind(entry.kind)) {
     message.info('组织编辑请到「关系组织 → 组织势力」面板')
+    return
   }
+  appStore.openAssetEditor(entry.kind, entry.id)
 }
 
 function handleSelect(entry: AssetEntry): void {
@@ -116,7 +95,7 @@ function handleSelect(entry: AssetEntry): void {
     toggleSelection(entry.key)
     return
   }
-  selectedKey.value = entry.key
+  openEditor(entry)
 }
 
 // --- 多选 + 再次提取（v1.28.0）---
@@ -165,7 +144,6 @@ function openExtractWizard(): void {
 function handleClearAssets(): void {
   appStore.clearProjectAssets()
   clearSelection()
-  selectedKey.value = ''
   message.success('已清空当前项目的角色 / 场景 / 道具（组织保留）')
 }
 
@@ -405,6 +383,10 @@ function handlePreviewClose(): void {
           <template #icon><RefreshCw :size="15" /></template>
           再次提取（{{ selectedCount }}）
         </n-button>
+        <n-button @click="styleDrawerVisible = true">
+          <template #icon><Palette :size="15" /></template>
+          图片主风格
+        </n-button>
         <n-popconfirm @positive-click="handleClearAssets">
           <template #trigger>
             <n-button>
@@ -445,12 +427,11 @@ function handlePreviewClose(): void {
             v-for="entry in visibleEntries"
             :key="entry.key"
             :entry="entry"
-            :selected="entry.key === selectedKey"
             :multi-select="selectionMode"
             :checked="selectedIds.has(entry.key)"
             @select="handleSelect(entry)"
-            @open="handleOpen(entry)"
-            @dblclick="handleOpen(entry)"
+            @open="handleSelect(entry)"
+            @dblclick="handleSelect(entry)"
           />
         </div>
         <div v-else class="library-empty">
@@ -463,73 +444,9 @@ function handlePreviewClose(): void {
           </n-empty>
         </div>
       </main>
-
-      <aside class="library-detail">
-        <template v-if="selectedEntry">
-          <div class="detail-kind">{{ ASSET_KIND_LABELS[selectedEntry.kind] }}</div>
-          <h2 class="detail-name">{{ selectedEntry.name || '未命名资产' }}</h2>
-          <dl class="detail-fields">
-            <div class="detail-row">
-              <dt>分类</dt>
-              <dd>{{ ASSET_KIND_LABELS[selectedEntry.kind] }}</dd>
-            </div>
-            <div v-if="selectedEntry.typeLabel" class="detail-row">
-              <dt>{{ selectedEntry.kind === 'character' ? '定位' : '类型' }}</dt>
-              <dd>{{ selectedEntry.typeLabel }}</dd>
-            </div>
-            <div class="detail-row">
-              <dt>所属项目</dt>
-              <dd>{{ selectedEntry.projectName || '未命名项目' }}</dd>
-            </div>
-            <div class="detail-row">
-              <dt>关联计数</dt>
-              <dd>{{ selectedEntry.relationCount }}</dd>
-            </div>
-            <div class="detail-row detail-row--stack">
-              <dt>标签</dt>
-              <dd>
-                <span v-if="selectedEntry.tags.length" class="detail-tags">
-                  <span v-for="tag in selectedEntry.tags" :key="tag" class="detail-tag">{{ tag }}</span>
-                </span>
-                <span v-else class="detail-muted">无</span>
-              </dd>
-            </div>
-            <div class="detail-row detail-row--stack">
-              <dt>描述</dt>
-              <dd class="detail-description">{{ selectedEntry.description || '暂无描述' }}</dd>
-            </div>
-          </dl>
-          <n-button
-            class="detail-edit-btn"
-            type="primary"
-            block
-            title="编辑资产"
-            @click="handleOpen(selectedEntry)"
-          >
-            编辑资产
-          </n-button>
-        </template>
-        <div v-else class="detail-empty">
-          <n-empty description="请选择资产" />
-        </div>
-      </aside>
     </div>
 
-    <CharacterEditModal
-      :show="characterModalVisible"
-      :character="editingCharacter"
-      @update:show="characterModalVisible = $event"
-    />
-    <SceneLocationEditModal
-      :show="sceneModalVisible"
-      :scene="editingScene"
-      @update:show="sceneModalVisible = $event"
-    />
-    <PropItemEditModal
-      :show="propModalVisible"
-      :prop="editingProp"
-      @update:show="propModalVisible = $event"
-    />
+    <ProjectVisualStyleDrawer :show="styleDrawerVisible" @update:show="styleDrawerVisible = $event" />
     <AssetExtractionWizard
       :show="wizardVisible"
       mode="extract"
@@ -596,7 +513,7 @@ function handlePreviewClose(): void {
   display: grid;
   min-height: 0;
   flex: 1;
-  grid-template-columns: 176px minmax(0, 1fr) 300px;
+  grid-template-columns: 176px minmax(0, 1fr);
   gap: 16px;
 }
 
@@ -680,109 +597,9 @@ function handlePreviewClose(): void {
   min-height: 240px;
 }
 
-.library-detail {
-  display: flex;
-  min-height: 0;
-  flex-direction: column;
-  gap: 10px;
-  overflow-y: auto;
-  border: 1px solid var(--arc-border);
-  border-radius: var(--arc-radius-lg);
-  background: var(--arc-bg-mix);
-  padding: 16px;
-}
-
-.detail-kind {
-  display: inline-flex;
-  align-self: flex-start;
-  border-radius: 999px;
-  background: var(--arc-primary-soft);
-  color: var(--arc-primary);
-  padding: 2px 10px;
-  font-size: 11.5px;
-  font-weight: 650;
-}
-
-.detail-name {
-  margin: 0;
-  color: var(--arc-text-primary);
-  font-size: 17px;
-  font-weight: 700;
-}
-
-.detail-fields {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin: 4px 0 0;
-}
-
-.detail-row {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.detail-row--stack {
-  flex-direction: column;
-  gap: 4px;
-}
-
-.detail-row dt {
-  min-width: 62px;
-  color: var(--arc-text-hint);
-  font-size: 12px;
-}
-
-.detail-row dd {
-  margin: 0;
-  color: var(--arc-text-primary);
-  font-size: 13px;
-  word-break: break-word;
-}
-
-.detail-tags {
-  display: flex;
-  gap: 5px;
-  flex-wrap: wrap;
-}
-
-.detail-tag {
-  border-radius: 4px;
-  background: var(--arc-bg-surface-hover);
-  color: var(--arc-text-secondary);
-  padding: 2px 7px;
-  font-size: 11.5px;
-}
-
-.detail-muted {
-  color: var(--arc-text-hint);
-  font-style: italic;
-}
-
-.detail-description {
-  color: var(--arc-text-secondary);
-  line-height: 1.6;
-  white-space: pre-wrap;
-}
-
-.detail-edit-btn {
-  margin-top: auto;
-}
-
-.detail-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 1;
-}
-
 @media (max-width: 1080px) {
   .library-body {
     grid-template-columns: 1fr;
-  }
-  .library-detail {
-    order: 3;
   }
 }
 </style>
