@@ -1,17 +1,13 @@
 <script setup lang="ts">
 // v1.27.0 C-3 场景/道具视觉上下文区块（colorPalette + 光影/季相/材质 + 预览）
 // - v-model 绑 VisualContext | null；未设置时展示默认空档案但不主动落库
-import { computed, ref } from 'vue'
-import { NButton, NColorPicker, NFormItem, NInput, NTooltip } from 'naive-ui'
-import { Eye, Plus, RotateCcw, X } from 'lucide-vue-next'
-import VisualPreviewModal from '@/components/visualStyle/VisualPreviewModal.vue'
+import { computed } from 'vue'
+import { NButton, NColorPicker, NFormItem, NInput } from 'naive-ui'
+import { Plus, RotateCcw, X } from 'lucide-vue-next'
 import type { VisualContext } from '@/types/app'
 
 const props = defineProps<{
   modelValue: VisualContext | null
-  name?: string
-  typeLabel?: string
-  description?: string
 }>()
 
 const emit = defineEmits<{
@@ -30,8 +26,6 @@ const current = computed<VisualContext>(() => props.modelValue ?? DEFAULT_CONTEX
 function patch(next: Partial<VisualContext>): void {
   emit('update:modelValue', { ...current.value, ...next })
 }
-
-const previewVisible = ref(false)
 
 function updatePalette(index: number, color: string): void {
   const colorPalette = [...current.value.colorPalette]
@@ -104,29 +98,11 @@ function clearVisualContext(): void {
     </n-form-item>
 
     <div class="visual-context-actions">
-      <n-tooltip trigger="hover">
-        <template #trigger>
-          <n-button size="small" @click="previewVisible = true">
-            <template #icon><Eye :size="13" /></template>
-            预览
-          </n-button>
-        </template>
-        预览调色板与组装后的生图 Prompt
-      </n-tooltip>
       <n-button v-if="props.modelValue" size="small" quaternary @click="clearVisualContext">
         <template #icon><RotateCcw :size="13" /></template>
         清空视觉上下文
       </n-button>
     </div>
-
-    <VisualPreviewModal
-      :show="previewVisible"
-      :title="props.name ?? ''"
-      :visual-context="props.modelValue"
-      :type-label="props.typeLabel"
-      :description="props.description"
-      @update:show="previewVisible = $event"
-    />
   </section>
 </template>
 

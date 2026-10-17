@@ -2,20 +2,15 @@
 // v1.27.0 C-1 角色视觉风格区块（renderMode + 调色板 + 氛围词 + 关键参照 + 预览）
 // - v-model 绑 VisualStyleProfile | null；未设置时展示默认建议值但不主动落库
 // - 视觉令牌硬约束：全用 --arc-* 令牌，不写硬编码色值
-import { computed, ref } from 'vue'
-import { NButton, NColorPicker, NDynamicTags, NFormItem, NSelect, NTooltip } from 'naive-ui'
+import { computed } from 'vue'
+import { NButton, NColorPicker, NDynamicTags, NFormItem, NSelect } from 'naive-ui'
 import type { SelectOption } from 'naive-ui'
-import { Eye, Plus, RotateCcw, X } from 'lucide-vue-next'
+import { Plus, RotateCcw, X } from 'lucide-vue-next'
 import FeatureHelp from '@/components/FeatureHelp.vue'
-import VisualPreviewModal from '@/components/visualStyle/VisualPreviewModal.vue'
 import type { VisualRenderMode, VisualStyleProfile } from '@/types/app'
 
 const props = defineProps<{
   modelValue: VisualStyleProfile | null
-  /** 可选：预览标题（角色名） */
-  name?: string
-  typeLabel?: string
-  description?: string
 }>()
 
 const emit = defineEmits<{
@@ -44,8 +39,6 @@ const current = computed<VisualStyleProfile>(() => props.modelValue ?? DEFAULT_P
 function patch(next: Partial<VisualStyleProfile>): void {
   emit('update:modelValue', { ...current.value, ...next })
 }
-
-const previewVisible = ref(false)
 
 function updatePalette(index: number, color: string): void {
   const palette = [...current.value.palette]
@@ -117,30 +110,11 @@ function clearVisualStyle(): void {
     </n-form-item>
 
     <div class="visual-style-actions">
-      <n-tooltip trigger="hover">
-        <template #trigger>
-          <n-button size="small" @click="previewVisible = true">
-            <template #icon><Eye :size="13" /></template>
-            预览
-          </n-button>
-        </template>
-        预览调色板与组装后的生图 Prompt
-      </n-tooltip>
       <n-button v-if="props.modelValue" size="small" quaternary @click="clearVisualStyle">
         <template #icon><RotateCcw :size="13" /></template>
         清空视觉风格
       </n-button>
     </div>
-
-    <VisualPreviewModal
-      :show="previewVisible"
-      :title="props.name ?? ''"
-      :render-mode="props.modelValue?.renderMode"
-      :visual-style="props.modelValue"
-      :type-label="props.typeLabel"
-      :description="props.description"
-      @update:show="previewVisible = $event"
-    />
   </section>
 </template>
 

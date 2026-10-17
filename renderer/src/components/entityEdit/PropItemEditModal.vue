@@ -163,12 +163,7 @@ function submitProp(): void {
       <n-form-item label="主色">
         <n-select v-model:value="propForm.color" :options="ENTITY_COLOR_OPTIONS" />
       </n-form-item>
-      <VisualContextSection
-        v-model="propForm.visualContext"
-        :name="propForm.name"
-        :type-label="propForm.type"
-        :description="propForm.description"
-      />
+      <VisualContextSection v-model="propForm.visualContext" />
     </n-form>
 
     <AssetGallerySection

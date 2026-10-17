@@ -157,12 +157,7 @@ function submitScene(): void {
       <n-form-item label="主色">
         <n-select v-model:value="sceneForm.color" :options="ENTITY_COLOR_OPTIONS" />
       </n-form-item>
-      <VisualContextSection
-        v-model="sceneForm.visualContext"
-        :name="sceneForm.name"
-        :type-label="sceneForm.type"
-        :description="sceneForm.description"
-      />
+      <VisualContextSection v-model="sceneForm.visualContext" />
     </n-form>
 
     <AssetGallerySection

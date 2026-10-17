@@ -192,12 +192,7 @@ function handleEnhanceApply(accepted: Record<string, string | string[]>): void {
     @close="close"
   >
     <CharacterEditForm :form="form" />
-    <VisualStyleSection
-      v-model="form.visualStyle"
-      :name="form.name"
-      :type-label="form.role"
-      :description="form.description"
-    />
+    <VisualStyleSection v-model="form.visualStyle" />
 
     <AssetGallerySection
       v-if="props.character"

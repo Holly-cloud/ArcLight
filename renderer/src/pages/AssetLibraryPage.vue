@@ -4,12 +4,11 @@
 // - 左栏只保留分类（角色 / 场景 / 道具 / 组织），默认落在「角色」，已移除「全部资产」分类
 // - 当前项目资产可编辑（双击卡片打开抽取出的编辑弹窗）
 import { computed, ref } from 'vue'
-import { ArrowLeft, Boxes, CheckSquare, Download, RefreshCw, Search, Sparkles, Trash2 } from 'lucide-vue-next'
+import { ArrowLeft, Boxes, CheckSquare, RefreshCw, Search, Sparkles, Trash2 } from 'lucide-vue-next'
 import { NButton, NEmpty, NInput, NPopconfirm, useMessage } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
 import { toIpcPayload } from '@/utils/ipcPayload'
 import AssetLibraryCard from '@/components/assetLibrary/AssetLibraryCard.vue'
-import AssetReferenceExportDialog from '@/components/assetLibrary/AssetReferenceExportDialog.vue'
 import AssetExtractionWizard from '@/components/assetExtraction/AssetExtractionWizard.vue'
 import AiEnhancePreview from '@/components/AiEnhancePreview.vue'
 import type { EnhanceFieldDiff } from '@/components/AiEnhancePreview.vue'
@@ -369,9 +368,6 @@ function handlePreviewApply(accepted: Record<string, string | string[]>): void {
 function handlePreviewClose(): void {
   openPreview(previewIndex + 1)
 }
-
-// --- 导出资产参考表 ---
-const exportDialogVisible = ref(false)
 </script>
 
 <template>
@@ -408,10 +404,6 @@ const exportDialogVisible = ref(false)
         >
           <template #icon><RefreshCw :size="15" /></template>
           再次提取（{{ selectedCount }}）
-        </n-button>
-        <n-button :disabled="visibleEntries.length === 0" @click="exportDialogVisible = true">
-          <template #icon><Download :size="15" /></template>
-          导出资产参考表
         </n-button>
         <n-popconfirm @positive-click="handleClearAssets">
           <template #trigger>
@@ -537,11 +529,6 @@ const exportDialogVisible = ref(false)
       :show="propModalVisible"
       :prop="editingProp"
       @update:show="propModalVisible = $event"
-    />
-    <AssetReferenceExportDialog
-      :show="exportDialogVisible"
-      :entries="visibleEntries"
-      @update:show="exportDialogVisible = $event"
     />
     <AssetExtractionWizard
       :show="wizardVisible"

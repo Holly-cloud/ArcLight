@@ -4,7 +4,7 @@
  * - 复用/扩展 `buildImagePrompt`（视觉字段 → 文本），项目级视觉风格统一注入前缀
  */
 import type { AssetImageKind } from '@/types/app'
-import { buildImagePrompt } from '@/features/visualStyle/exportAssetReference'
+import { buildImagePrompt } from '@/features/assetImage/imagePrompt'
 
 /** 单条资产的提示词来源（AssetEntry 的子集，旧资产缺字段一律兜底为空） */
 export interface AssetImagePromptAsset {
