@@ -4,6 +4,21 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.35.0] - 2026-10-18
+
+### Prompt 中心（只读查看各功能的 prompt + 一键用当前项目试拼）
+
+- **新页面「Prompt 中心」**（工作台侧栏第二入口，与资产库同级）——一屏两栏：左「任务目录」、右「prompt 全文」（`SYSTEM` / `USER` 两段、只读、各自可「复制」）
+- **目录来自真实注册表**——遍历主进程 `TASK_REGISTRY`（当前 47 个任务）：**新增任务自动出现**，不手工维护清单；顶部一行档案 `中文名 · 输出格式 · 能力：a / b / c`（中文能力标签由主进程提供，渲染层不重复维护映射）
+- **prompt 全文来自真实组装链路**——复用 `buildPromptInput` + `handler.buildPrompt`，**代码一改页面立刻是新的**；选中任务**立即显示**基础骨架，无需任何配置
+- **一个按钮到底**——`◈ 用当前项目试拼` 用当前项目**通用上下文**（项目信息 / 角色 / 世界观 / 大纲 / 章节摘要 / 写作风格）一键拼一次，再点恢复骨架；**不弹窗、不加面板、不加开关**（上一版三栏干跑实验室已按用户意见全部砍掉）
+- **Agent 任务有一行提示**——走 Agent 运行时的任务（`settings.AGENT_TASK_WHITELIST` + 渲染层 agent 流任务）在 SYSTEM 段末标注「另有 Agent 系统层」
+- **零副作用 / 零迁移**——不调用模型、不发网络请求、不写 `ai_runs`；**0 新表 / 0 新列 / 不 bump `WORKSPACE_SCHEMA_VERSION`**（保持 4）
+- **文案单一来源**——任务中文名映射从 `TitlebarModelSwitcher.vue` 抽到 `features/ai/taskLabels.ts`，标题栏任务中心与 Prompt 中心共用
+- **与实况修正**——设计稿原列「生图条目（GRS）应出现在任务列表」：实测**生图不走任务注册表**（走独立图片通道 `characterarc:ai-generate-image`），其提示词由渲染层组装，已在资产编辑页「视觉」块与「生成选项」浮层可见，故**本页不列该项**（详见 v1.35.0 子 PRD §四 注）
+- **侧栏顺序变更**——`workbenchMenu` 新增 `promptCenter` 条目（置于资产库之后），`DEFAULT_WORKBENCH_MENU_ORDER` 与相关单测同步更新
+- `pnpm test` **286/285/1**（新增 16 条用例；唯一红仍为 `run-agent-codex-cli` 的 Windows 平台边界）；新增 `test:prompt-center`；`typecheck` 0 错
+
 ## [1.34.3] - 2026-10-17
 
 ### 图库「基准图即首图」+ 资产「视觉提示词」（AI 生成，生图默认取用）
