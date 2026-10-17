@@ -72,13 +72,19 @@ function recomposePrompt(): void {
 }
 
 watch(
-  () => [props.projectId, props.kind, props.assetId, props.projectStyle, props.asset?.visualPrompt],
+  () => [props.projectId, props.kind, props.assetId, props.projectStyle],
   () => {
     references.value = []
     aspectRatio.value = resolveDefaultAspectRatio(props.kind, props.projectStyle ?? null)
     recomposePrompt()
   },
   { immediate: true }
+)
+
+// 资产「视觉提示词」变化（人工编辑或 AI 生成）时仅刷新提示词文本，不重置画幅比 / 参考图
+watch(
+  () => props.asset?.visualPrompt,
+  () => recomposePrompt()
 )
 
 async function addGalleryReference(imageId: string): Promise<void> {
