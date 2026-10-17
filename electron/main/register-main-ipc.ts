@@ -48,6 +48,7 @@ import {
   listAssetImages,
   pruneAssetImagesForAsset,
   pruneAssetImagesForProject,
+  readAssetImageDataUrl,
   setPrimaryAssetImage
 } from './asset-images'
 import type { AssetImageKind } from '@shared/ipc-types'
@@ -880,6 +881,18 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
       }
     } catch (error) {
       return { success: false, canceled: false, error: error instanceof Error ? error.message : '读取参考图失败' }
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.READ_ASSET_IMAGE, async (_event, imageId: unknown) => {
+    try {
+      const id = String(imageId ?? '').trim()
+      if (!id) throw new Error('缺少图像 ID。')
+      const dataUrl = await readAssetImageDataUrl(id)
+      if (!dataUrl) throw new Error('图库中找不到该图像。')
+      return { success: true, dataUrl }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : '读取资产图像失败' }
     }
   })
 

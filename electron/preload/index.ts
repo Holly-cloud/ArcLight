@@ -174,6 +174,8 @@ contextBridge.exposeInMainWorld('characterArc', {
   exportAssetImage: (payload: unknown) => ipcRenderer.invoke(IPC_CHANNELS.EXPORT_ASSET_IMAGE, toIpcPayload(payload)),
   /** 从本地选择一张参考图并返回 data URL */
   pickReferenceImage: () => ipcRenderer.invoke(IPC_CHANNELS.PICK_REFERENCE_IMAGE),
+  /** 把图库图片读成 data URL（参考图 / 回退显示） */
+  readAssetImageDataUrl: (imageId: string) => ipcRenderer.invoke(IPC_CHANNELS.READ_ASSET_IMAGE, imageId),
   /** 资产 / 项目删除时级联清理图库（不传 kind+assetId 时清理整个项目） */
   pruneAssetImages: (payload: unknown) => ipcRenderer.invoke(IPC_CHANNELS.PRUNE_ASSET_IMAGES, toIpcPayload(payload)),
   /** 读取当前项目的结构化世界状态（角色状态、伏笔、关系、时间线、世界规则、倒计时） */

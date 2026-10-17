@@ -7,7 +7,7 @@
  */
 import { app } from 'electron'
 import { randomUUID } from 'node:crypto'
-import { copyFile, mkdir, rm, writeFile } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 
@@ -209,6 +209,14 @@ export async function resolveAssetImageFile(id: string): Promise<{ filePath: str
   const row = getRowById(db, id)
   if (!row) return null
   return { filePath: join(getAssetImageDir(row.project_id), row.file_name), mime: row.mime }
+}
+
+/** 把图库条目的本地文件读成 data URL（供渲染层作参考图 / 回退显示） */
+export async function readAssetImageDataUrl(id: string): Promise<string | null> {
+  const resolved = await resolveAssetImageFile(id)
+  if (!resolved) return null
+  const buffer = await readFile(resolved.filePath)
+  return `data:${resolved.mime};base64,${buffer.toString('base64')}`
 }
 
 /** 删除一张图像：删库行 + 删本地文件（文件缺失不报错） */

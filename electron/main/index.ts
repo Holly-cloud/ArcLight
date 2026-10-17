@@ -1,6 +1,7 @@
-import { app, BrowserWindow } from 'electron'
+import { app, BrowserWindow, protocol } from 'electron'
 import { randomUUID } from 'node:crypto'
 import { cpSync, existsSync, mkdirSync } from 'node:fs'
+import { readFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { ChapterMutationEvent } from '@shared/ipc-types'
 
@@ -38,6 +39,7 @@ import {
   writeWorkspaceSnapshot
 } from './workspace-store'
 import { writeWorkspaceEntities } from './workspace-entity-persistence'
+import { resolveAssetImageFile } from './asset-images'
 
 const APP_DATA_DIR_NAME = 'CharacterArc'
 
@@ -55,6 +57,29 @@ function configureCanonicalUserDataPath(): void {
 }
 
 configureCanonicalUserDataPath()
+
+// ── 资产图库自定义协议（v1.33.0）──
+// `arc-asset://<imageId>` 映射到 userData/asset-images 下的本地文件，
+// 让渲染层无需 base64 即可 `<img src="arc-asset://...">`，dev（http）与 prod（file）均可用。
+protocol.registerSchemesAsPrivileged([
+  { scheme: 'arc-asset', privileges: { standard: true, secure: true, supportFetchAPI: true, stream: true } }
+])
+
+/** 处理 arc-asset 协议请求：按 imageId 读取本地图库文件并返回 */
+async function handleArcAssetProtocol(request: Request): Promise<Response> {
+  try {
+    const url = new URL(request.url)
+    const id = url.hostname || url.pathname.replace(/^\/+/, '')
+    const resolved = await resolveAssetImageFile(id)
+    if (!resolved) {
+      return new Response('Not Found', { status: 404 })
+    }
+    const buffer = await readFile(resolved.filePath)
+    return new Response(buffer, { headers: { 'Content-Type': resolved.mime } })
+  } catch {
+    return new Response('Error', { status: 500 })
+  }
+}
 
 type WorkspaceAiRunEventPayload = {
   projectId: string
@@ -558,6 +583,7 @@ bootstrapAssistantRuntime({
 // ── 应用生命周期 ──
 // macOS 上关闭所有窗口后点击 dock 图标时重新创建主窗口
 app.whenReady().then(async () => {
+  protocol.handle('arc-asset', handleArcAssetProtocol)
   const upgrade = await prepareWorkspaceForLaunch()
   if (upgrade.blocked) return
 

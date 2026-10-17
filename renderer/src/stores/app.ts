@@ -24,6 +24,7 @@ import { toIpcPayload } from '@/utils/ipcPayload'
 import { createEmptyWorkspace, normalizeGlobalAssistantProposal, mergeGlobalAssistantProposals, normalizeOutlineReferenceIds } from '@/features/workspace/projectWorkspace'
 import { createWorkspacePersistence } from '@/features/workspace/persistence'
 import { assignSparseChapterOrder } from '@/features/workspace/chapterOrder'
+import { sortAssetImages } from '@/features/assetImage/assetImageModel'
 import {
   filterKnowledgeDocumentsForProject,
   isProjectKnowledgeSource,
@@ -94,7 +95,9 @@ import type {
   PropItem,
   SceneLocation,
   ThemeName,
-  WorldviewEntry
+  WorldviewEntry,
+  AssetImageItem,
+  AssetImageKind
 } from '@/types/app'
 
 type AssistantFocusPanel = 'world' | 'characters' | 'outline' | 'project-knowledge'
@@ -296,6 +299,11 @@ export const useAppStore = defineStore('app', () => {
   /** 应用全局设置（AI 供应商、模型、自动保存等） */
   const appSettings = ref<AppSettings>(stored.appSettings)
   const coverWorkbenchHistory = ref<import('@/types/app').CoverWorkbenchHistoryItem[]>(stored.coverWorkbenchHistory ?? [])
+  /**
+   * 资产图库内存缓存：key = `${projectId}:${kind}:${assetId}`。
+   * 有意**不进工作区快照**（走专用 IPC 懒加载），避免快照随图库膨胀。
+   */
+  const assetImagesByAsset = ref<Map<string, AssetImageItem[]>>(new Map())
   /** 待执行的章节正文插入请求 */
   const pendingChapterInsertion = ref<ChapterInsertionRequest | null>(null)
   /** 用户在编辑器中当前选中的文本状态 */
@@ -1635,6 +1643,7 @@ export const useAppStore = defineStore('app', () => {
     }
 
     schedulePersist('fast')
+    pruneAssetImagesInMemory(projectId)
   }
 
   /** 更新项目摘要信息（标题、题材、封面等） */
@@ -2078,6 +2087,7 @@ export const useAppStore = defineStore('app', () => {
     persistCharactersIncrementally()
     persistSceneLocationsIncrementally()
     persistPropItemsIncrementally()
+    pruneAssetImagesInMemory(selectedProjectId.value, 'character', characterId)
   }
 
   // ── 组织 CRUD ──
@@ -2219,6 +2229,7 @@ export const useAppStore = defineStore('app', () => {
     }))
     persistSceneLocationsIncrementally()
     persistPropItemsIncrementally()
+    pruneAssetImagesInMemory(selectedProjectId.value, 'scene', sceneId)
   }
 
   // ── 道具 CRUD ──
@@ -2298,6 +2309,7 @@ export const useAppStore = defineStore('app', () => {
     }))
     persistPropItemsIncrementally()
     persistSceneLocationsIncrementally()
+    pruneAssetImagesInMemory(selectedProjectId.value, 'prop', propId)
   }
 
   /**
@@ -2322,6 +2334,7 @@ export const useAppStore = defineStore('app', () => {
     persistCharactersIncrementally()
     persistSceneLocationsIncrementally()
     persistPropItemsIncrementally()
+    pruneAssetImagesInMemory(selectedProjectId.value)
   }
 
   /**
@@ -4247,6 +4260,88 @@ export const useAppStore = defineStore('app', () => {
     finalizeAiTask(key, stage, error)
   }
 
+  // ── 资产图库（v1.33.0）──
+  function assetImageKey(projectId: string, kind: AssetImageKind, assetId: string): string {
+    return `${projectId}:${kind}:${assetId}`
+  }
+
+  function setAssetImages(key: string, items: AssetImageItem[]): void {
+    const next = new Map(assetImagesByAsset.value)
+    next.set(key, sortAssetImages(items))
+    assetImagesByAsset.value = next
+  }
+
+  /** 读取某资产图库缓存（未加载时返回空数组） */
+  function getAssetImages(projectId: string, kind: AssetImageKind, assetId: string): AssetImageItem[] {
+    return assetImagesByAsset.value.get(assetImageKey(projectId, kind, assetId)) ?? []
+  }
+
+  /** 懒加载某资产图库（走专用 IPC），返回排序后的条目 */
+  async function loadAssetImages(projectId: string, kind: AssetImageKind, assetId: string): Promise<AssetImageItem[]> {
+    const response = await window.characterArc.listAssetImages({ projectId, kind, assetId })
+    if (!response.success) {
+      throw new Error(response.error ?? '读取资产图库失败')
+    }
+    const items = sortAssetImages(response.result ?? [])
+    setAssetImages(assetImageKey(projectId, kind, assetId), items)
+    return items
+  }
+
+  /** 生图成功后把回传的图库条目写入内存缓存 */
+  function addAssetImage(item: AssetImageItem): void {
+    const current = getAssetImages(item.projectId, item.assetKind, item.assetId)
+    setAssetImages(assetImageKey(item.projectId, item.assetKind, item.assetId), [item, ...current])
+  }
+
+  /** 删除一张图库图片：调 IPC 删库行 + 本地文件，并同步内存 */
+  async function removeAssetImage(
+    imageId: string,
+    projectId: string,
+    kind: AssetImageKind,
+    assetId: string
+  ): Promise<void> {
+    const response = await window.characterArc.deleteAssetImage(imageId)
+    if (!response.success) {
+      throw new Error(response.error ?? '删除资产图像失败')
+    }
+    setAssetImages(
+      assetImageKey(projectId, kind, assetId),
+      getAssetImages(projectId, kind, assetId).filter((item) => item.id !== imageId)
+    )
+  }
+
+  /** 设置基准立绘：同资产内互斥 */
+  async function setPrimaryAssetImage(
+    imageId: string,
+    projectId: string,
+    kind: AssetImageKind,
+    assetId: string
+  ): Promise<void> {
+    const response = await window.characterArc.setPrimaryAssetImage(imageId)
+    if (!response.success) {
+      throw new Error(response.error ?? '设置基准立绘失败')
+    }
+    setAssetImages(
+      assetImageKey(projectId, kind, assetId),
+      getAssetImages(projectId, kind, assetId).map((item) => ({ ...item, isPrimary: item.id === imageId }))
+    )
+  }
+
+  /** 内存层级联：清掉某资产（或整项目）的图库缓存，并通知主进程删库行 + 本地文件 */
+  function pruneAssetImagesInMemory(projectId: string, kind?: AssetImageKind, assetId?: string): void {
+    if (!projectId) return
+    const next = new Map(assetImagesByAsset.value)
+    for (const key of next.keys()) {
+      if (kind && assetId) {
+        if (key === assetImageKey(projectId, kind, assetId)) next.delete(key)
+      } else if (key.startsWith(`${projectId}:`)) {
+        next.delete(key)
+      }
+    }
+    assetImagesByAsset.value = next
+    void window.characterArc.pruneAssetImages({ projectId, kind, assetId })
+  }
+
   // ── 事件监听注册 ──
   window.characterArc.onWorkspaceSync(handleRemoteWorkspaceSync)
   window.characterArc.onChapterMutation(handleRemoteChapterMutation)
@@ -4285,6 +4380,12 @@ export const useAppStore = defineStore('app', () => {
     activeGlobalAssistantSessionId,
     assistantFocusTarget,
     coverWorkbenchHistory,
+    assetImagesByAsset,
+    getAssetImages,
+    loadAssetImages,
+    addAssetImage,
+    removeAssetImage,
+    setPrimaryAssetImage,
     backToProjects,
     backToWorkbench,
     chapterVersions,

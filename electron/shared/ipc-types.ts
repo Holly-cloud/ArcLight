@@ -262,6 +262,7 @@ export const IPC_CHANNELS = {
   SET_PRIMARY_IMAGE: 'characterarc:set-primary-image',
   EXPORT_ASSET_IMAGE: 'characterarc:export-asset-image',
   PICK_REFERENCE_IMAGE: 'characterarc:pick-reference-image',
+  READ_ASSET_IMAGE: 'characterarc:read-asset-image',
   PRUNE_ASSET_IMAGES: 'characterarc:prune-asset-images'
 } as const
 

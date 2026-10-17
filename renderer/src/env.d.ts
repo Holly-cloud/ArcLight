@@ -477,6 +477,7 @@ declare global {
         fileName?: string
         error?: string
       }>
+      readAssetImageDataUrl: (imageId: string) => Promise<{ success: boolean; dataUrl?: string; error?: string }>
       pruneAssetImages: (payload: {
         projectId: string
         kind?: import('@/types/app').AssetImageKind
