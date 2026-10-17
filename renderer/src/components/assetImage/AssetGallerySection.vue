@@ -251,8 +251,28 @@ async function handleExport(item: AssetImageItem): Promise<void> {
   message.success('已导出图像')
 }
 
+/** 自定义协议 arc-asset:// 加载失败时的 data URL 回退表（CSP 已允许 data:） */
+const protocolBlockedFallback = ref<Record<string, string>>({})
+
+/**
+ * 图库缩略图地址：优先走自定义协议 arc-asset://（渲染层不持有 base64，省内存）；
+ * 若该协议被 CSP / 运行环境阻止，`handleImageError` 会回退为 IPC 读取的 data URL。
+ */
 function imageSrc(item: AssetImageItem): string {
-  return `arc-asset://${item.id}`
+  return protocolBlockedFallback.value[item.id] || `arc-asset://${item.id}`
+}
+
+/** arc-asset:// 加载失败时回退到 IPC 读图（返回 data URL），保证图库始终可见 */
+async function handleImageError(item: AssetImageItem): Promise<void> {
+  if (protocolBlockedFallback.value[item.id]) return
+  try {
+    const response = await window.characterArc.readAssetImageDataUrl(item.id)
+    if (response.success && response.dataUrl) {
+      protocolBlockedFallback.value = { ...protocolBlockedFallback.value, [item.id]: response.dataUrl }
+    }
+  } catch {
+    /* 读取失败则保留占位，不阻断图库 */
+  }
 }
 </script>
 
@@ -315,7 +335,7 @@ function imageSrc(item: AssetImageItem): string {
 
     <div v-if="images.length" class="gallery-grid">
       <figure v-for="item in images" :key="item.id" class="gallery-card">
-        <n-image :src="imageSrc(item)" object-fit="cover" class="gallery-thumb" :alt="assetName" />
+        <n-image :src="imageSrc(item)" object-fit="cover" class="gallery-thumb" :alt="assetName" :on-error="() => handleImageError(item)" />
         <n-tag v-if="imageBadgeLabel(item)" class="gallery-badge" size="tiny" :type="item.status === 'failed' ? 'error' : 'warning'">
           {{ imageBadgeLabel(item) }}
         </n-tag>

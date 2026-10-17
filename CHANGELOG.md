@@ -26,6 +26,13 @@
 - 新增子套件 `test:asset-image`（提示词组装 / 图库模型 / GRS 响应解析，**全用桩数据、不发真实网络请求**）；`pnpm test` 基线 **232/231/1 → 260/259/1**（新增 28 项用例），唯一红仍为 `run-agent-codex-cli` 的 Windows 平台边界
 - `test:workspace-entities` 14/14、`test:visual-consistency` 19/19、`test:asset-extraction` 47/47；`typecheck` 0 错
 
+### 验收修复（2026-10-17）
+
+- **修复生图报错被吞**——`readErrorMessage` 未识别 `{error:string}` 型错误体（GRS AI 即此形态），导致只显示 “400 Bad Request”；现原样回传服务端错误文案
+- **按主机识别 GRS 渠道**——Base URL 指向 `grsai.dakka.com.cn` 时即走 GRS 协议（不依赖渠道下拉），防误配
+- **请求体字段强制字符串**——杜绝 GRS 「参数数据类型错误」
+- **修复图库缩略图不显示**——CSP `img-src` 未含自定义协议，`arc-asset://` 被拦导致破损占位；现补 `arc-asset:` 到 CSP，并在加载失败时自动回退到 IPC 读图（data URL）
+
 ## [1.32.1] - 2026-10-17
 
 ### 技术债 + 收尾批次（`pnpm test` 5 红 → 1 红）
