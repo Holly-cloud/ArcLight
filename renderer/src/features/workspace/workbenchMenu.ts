@@ -1,5 +1,6 @@
 export const WORKBENCH_MENU_DEFINITIONS = [
   { id: 'assetLibrary', label: '资产库' },
+  { id: 'promptCenter', label: 'Prompt 中心' },
   { id: 'overview', label: '作品概览' },
   { id: 'relations', label: '关系组织' },
   { id: 'world', label: '世界观设定' },

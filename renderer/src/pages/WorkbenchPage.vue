@@ -6,6 +6,7 @@ import {
   Boxes,
   ChevronLeft,
   FileCheck2,
+  FileCode2,
   FileText,
   Globe2,
   LayoutDashboard,
@@ -76,6 +77,7 @@ const searchKeyword = ref(panelSearch[appStore.activePanel] ?? '')
 
 const sidebarItemPresentation = {
   assetLibrary: { description: '项目内按分类浏览与编辑角色/场景/道具/组织', icon: Boxes, color: '#0891b2' },
+  promptCenter: { description: '只读查看各功能发给模型的 prompt，可用当前项目试拼', icon: FileCode2, color: '#7c3aed' },
   overview: { description: '掌握项目进度与全局信息', icon: LayoutDashboard, color: '#8b5cf6' },
   relations: { description: '维护势力结构、人物关系与成员归属', icon: Network, color: '#6b7280' },
   world: { description: '沉淀世界规则、地点与设定条目', icon: Globe2, color: '#06b6d4' },
@@ -109,11 +111,16 @@ const sidebarItems = computed(() => {
 /**
  * 处理侧边栏菜单点击。
  * - id === 'assetLibrary'：跳转到资产库聚合页
+ * - id === 'promptCenter'：跳转到 Prompt 中心（只读查看 prompt）
  * - 其他：沿用既有 setPanel 路径
  */
 function handleSidebarItemClick(itemId: WorkbenchMenuId): void {
   if (itemId === 'assetLibrary') {
     appStore.openAssetLibrary()
+    return
+  }
+  if (itemId === 'promptCenter') {
+    appStore.openPromptCenter()
     return
   }
   appStore.setPanel(itemId)

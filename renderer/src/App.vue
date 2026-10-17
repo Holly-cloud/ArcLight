@@ -14,6 +14,7 @@ const ContinuationImportPage = defineAsyncComponent(() => import('@/pages/Contin
 const WorkbenchPage = defineAsyncComponent(() => import('@/pages/WorkbenchPage.vue'))
 const AssetLibraryPage = defineAsyncComponent(() => import('@/pages/AssetLibraryPage.vue'))
 const AssetEditorPage = defineAsyncComponent(() => import('@/pages/AssetEditorPage.vue'))
+const PromptCenterPage = defineAsyncComponent(() => import('@/pages/PromptCenterPage.vue'))
 const ChapterStudioPage = defineAsyncComponent(() => import('@/pages/ChapterStudioPage.vue'))
 const SkillsPage = defineAsyncComponent(() => import('@/pages/SkillsPage.vue'))
 const CoverWorkbenchPage = defineAsyncComponent(() => import('@/pages/CoverWorkbenchPage.vue'))
@@ -253,6 +254,7 @@ onBeforeUnmount(() => {
               <ContinuationImportPage v-else-if="appStore.currentView === 'continuation-import'" key="continuation-import" />
               <AssetLibraryPage v-else-if="appStore.currentView === 'asset-library'" key="asset-library" />
               <AssetEditorPage v-else-if="appStore.currentView === 'asset-editor'" key="asset-editor" />
+              <PromptCenterPage v-else-if="appStore.currentView === 'prompt-center'" key="prompt-center" />
               <ChapterStudioPage v-else-if="appStore.currentView === 'chapter-studio'" key="chapter-studio" />
               <SkillsPage v-else-if="appStore.currentView === 'skills'" key="skills" />
               <CoverWorkbenchPage v-else-if="appStore.currentView === 'cover-workbench'" key="cover-workbench" />

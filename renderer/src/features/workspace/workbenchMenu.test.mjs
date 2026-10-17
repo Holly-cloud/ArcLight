@@ -8,9 +8,10 @@ import {
   shiftWorkbenchMenuItem
 } from './workbenchMenu.ts'
 
-test('默认顺序将资产库置顶并保持其他菜单排列（工作台已下线）', () => {
+test('默认顺序将资产库 / Prompt 中心置顶并保持其他菜单排列（工作台已下线）', () => {
   assert.deepEqual(DEFAULT_WORKBENCH_MENU_ORDER, [
     'assetLibrary',
+    'promptCenter',
     'overview',
     'relations',
     'world',
@@ -30,6 +31,7 @@ test('标准化会过滤无效和重复菜单并将缺失菜单追加到末尾',
       'assetLibrary',
       'chapters',
       'overview',
+      'promptCenter',
       'relations',
       'world',
       'outline',
@@ -41,7 +43,7 @@ test('标准化会过滤无效和重复菜单并将缺失菜单追加到末尾',
   )
 })
 
-test('升级场景：旧顺序（不含 assetLibrary）→ assetLibrary 置顶且其余顺序不变', () => {
+test('升级场景：旧顺序（不含 assetLibrary）→ assetLibrary 置顶、其余顺序不变且补齐新菜单', () => {
   const legacyOrder = [
     'overview',
     'relations',
@@ -55,8 +57,9 @@ test('升级场景：旧顺序（不含 assetLibrary）→ assetLibrary 置顶�
   ]
   const normalized = normalizeWorkbenchMenuOrder(legacyOrder)
   assert.equal(normalized[0], 'assetLibrary', 'assetLibrary 必须置顶（v1.32 决策）')
-  // 其余顺序保持相对位置（仅在前插入 assetLibrary）
-  assert.deepEqual(normalized.slice(1), legacyOrder)
+  // 其余旧项相对位置不变；新增项（Prompt 中心）按 DEFAULT 顺序补到末尾
+  assert.deepEqual(normalized.slice(1, 1 + legacyOrder.length), legacyOrder)
+  assert.deepEqual(normalized.slice(1 + legacyOrder.length), ['promptCenter'])
 })
 
 test('升级场景：空数组 / null / undefined → assetLibrary 在首位且补齐全部默认项', () => {
@@ -75,13 +78,11 @@ test('用户已自定义 assetLibrary 位置 → 尊重用户位置且不重复'
 
 test('拖拽和按钮移动都保持完整菜单集合', () => {
   const dragged = moveWorkbenchMenuItem(DEFAULT_WORKBENCH_MENU_ORDER, 'chapters', 'overview', 'before')
-  // assetLibrary 在 DEFAULT 前置；chapters 移至 overview 之前
-  assert.equal(dragged[0], 'assetLibrary')
-  assert.equal(dragged[1], 'chapters')
-  assert.equal(dragged[2], 'overview')
+  // assetLibrary / promptCenter 固定在前；chapters 移至 overview 之前
+  assert.deepEqual(dragged.slice(0, 4), ['assetLibrary', 'promptCenter', 'chapters', 'overview'])
   assert.deepEqual(new Set(dragged), new Set(DEFAULT_WORKBENCH_MENU_ORDER))
 
   const shifted = shiftWorkbenchMenuItem(dragged, 'chapters', -1)
-  // chapters 上移一位后，chapters / assetLibrary / overview 在前三
-  assert.deepEqual(shifted.slice(0, 3), ['chapters', 'assetLibrary', 'overview'])
+  // chapters 上移一位后，assetLibrary / chapters / promptCenter / overview 在前四
+  assert.deepEqual(shifted.slice(0, 4), ['assetLibrary', 'chapters', 'promptCenter', 'overview'])
 })

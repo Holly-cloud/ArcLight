@@ -280,7 +280,7 @@ export const useAppStore = defineStore('app', () => {
   /** 是否已完成初始化水合（从 SQLite 加载数据） */
   const hasHydrated = ref(false)
   /** 当前视图：项目列表 / 新建向导 / 工作台 / 章节写作 / 独立能力页 */
-  const currentView = ref<'projects' | 'wizard' | 'continuation-import' | 'workbench' | 'chapter-studio' | 'skills' | 'cover-workbench' | 'fanqie-trends' | 'asset-library' | 'asset-editor'>('projects')
+  const currentView = ref<'projects' | 'wizard' | 'continuation-import' | 'workbench' | 'chapter-studio' | 'skills' | 'cover-workbench' | 'fanqie-trends' | 'asset-library' | 'asset-editor' | 'prompt-center'>('projects')
   const pendingWizardDraft = ref<{ title?: string; genre?: string; premise?: string } | null>(null)
   /** 工作台中当前激活的面板 */
   const activePanel = ref<PanelName>('outline')
@@ -1442,6 +1442,12 @@ export const useAppStore = defineStore('app', () => {
   function openAssetLibrary(): void {
     pendingChapterInsertion.value = null
     currentView.value = 'asset-library'
+  }
+
+  /** 打开 Prompt 中心（v1.35.0）：只读查看各功能的 prompt 与「用当前项目试拼」 */
+  function openPromptCenter(): void {
+    pendingChapterInsertion.value = null
+    currentView.value = 'prompt-center'
   }
 
   /** 打开资产编辑页（v1.34.0）：单击资产卡片进入，定位到指定资产 */
@@ -4480,6 +4486,7 @@ export const useAppStore = defineStore('app', () => {
     openChapterStudio,
     openFanqieTrends,
     openAssetLibrary,
+    openPromptCenter,
     openAssetEditor,
     backToAssetLibrary,
     assetEditorTarget,
