@@ -4,6 +4,27 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.34.0] - 2026-10-17
+
+### 资产编辑页重构 + 资产库「图片主风格」（界面 / 导航重构）
+
+资产卡从「弹窗一次性平铺（字段 → 视觉风格 → 图库）」升级为**独立编辑页**：单击卡片进入，三栏单一职责（左同类列表 / 中「基础信息」/ 右「图库」），整页一屏、各栏内部滚动；视觉风格上收为**资产库级「图片主风格」**。
+
+- **新增资产编辑页**——`pages/AssetEditorPage.vue` 三栏壳 + 顶栏面包屑 + `✓ 已自动保存`；`stores/app.ts` 新增 `currentView='asset-editor'` 与 `openAssetEditor(kind,id)` / `backToAssetLibrary()`
+- **基础信息表单块**——抽出 `entityEdit/{Character,SceneLocation,PropItem}EditForm.vue`，编辑页中栏与编辑弹窗共用一份实现（横向排布、宽松密度）；编辑页中栏**只留「基础信息」一张卡**
+- **图库改造**——网格 + `⚙ 生成选项` **锚定浮层**（位置稳定，不再被网格推走）+ `✦ 生成立绘` 一键直发；移除常驻计费警告条（移入浮层）
+- **非阻塞可排队生成**——点一次即发起受跟踪任务，界面不阻塞；连点继续排队多张，完成后图库自动刷新
+- **图片主风格（项目级）**——资产库工具栏 `⚙ 图片主风格` 抽屉（渲染方式 / 主配色 / 氛围词 / 默认画幅比）；复用 `projects.project_visual_style_json` 扩展 `renderMode` / `defaultAspectRatio`（**0 新表 / 0 列 / 不 bump schemaVersion**）
+- **默认画幅比 16:9**——角色 / 场景默认 16:9、道具 1:1；提示词前缀注入「项目渲染方式」
+- **下线**——移除「导出资产参考表」（`AssetReferenceExportDialog.vue` + `exportAssetReference.ts` 导出函数与单测）与「视觉预览」（`VisualPreviewModal.vue`）；`buildImagePrompt` 迁至 `features/assetImage/imagePrompt.ts` 保留（生图仍在用）
+- **资产库页**——单击卡片进编辑页（移除只读详情栏，多选模式点击仍为切换选中）；工具栏新增 `⚙ 图片主风格`
+- **文案留痕**——CHANGELOG / announcements / tutorial 同步；FeatureHelp 文案按新布局更新
+
+### patch 级变更
+
+- 新增 `renderer/src/features/assetImage/imagePrompt.test.mjs`（`buildImagePrompt` 迁移回归）；`composeAssetImagePrompt.test.mjs` 增加 `resolveDefaultAspectRatio` / 项目渲染方式注入用例
+- `pnpm test` 基线 **260/259/1 → 264/263/1**（新增 4 项用例），唯一红仍为 `run-agent-codex-cli` 的 Windows 平台边界；`test:visual-consistency` 移除 `exportAssetReference.test.mjs` 后 8/8；`typecheck` 0 错
+
 ## [1.33.0] - 2026-10-17
 
 ### 资产卡生图能力（**放开「本期不引入外部 API」约束**，接入 GRS AI）
