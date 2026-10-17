@@ -1,6 +1,6 @@
 /**
  * v1.32.0 FeatureHelp 工具函数单测
- * - 6 条 featureId 穷举覆盖
+ * - 7 条 featureId 穷举覆盖
  * - getFeatureDescription 单条查表 + null 兜底
  * - getFeatureDescriptions 聚合 + 顺序 + 空数组 + 非法 id 过滤
  * - keyConcepts 单条 ≤ 60 字（PRD §5.3）
@@ -80,7 +80,7 @@ test('getFeatureDescriptions 含非法 id 自动过滤（不抛错）', () => {
   assert.equal(descs[1].id, 'prop-item')
 })
 
-test('6 条全部含必填字段且 keyConcepts 单条 ≤ 60 字', () => {
+test('7 条全部含必填字段且 keyConcepts 单条 ≤ 60 字', () => {
   for (const id of ALL_FEATURE_IDS) {
     const desc = getFeatureDescription(id)
     assert.ok(desc)
@@ -90,7 +90,7 @@ test('6 条全部含必填字段且 keyConcepts 单条 ≤ 60 字', () => {
   }
 })
 
-test('docLink 可选字段：本期 6 条全部含 docLink', () => {
+test('docLink 可选字段：本期 7 条全部含 docLink', () => {
   for (const id of ALL_FEATURE_IDS) {
     const desc = getFeatureDescription(id)
     assert.ok(desc)

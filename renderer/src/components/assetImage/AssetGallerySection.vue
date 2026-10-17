@@ -153,7 +153,7 @@ async function collectReferencePayload(): Promise<{ images: string[]; referenceI
     urls.push(ref.dataUrl)
     if (ref.id) ids.push(ref.id)
   }
-  if (props.primaryCapable && primaryImage.value && !ids.includes(primaryImage.value.id)) {
+  if (isGrsai.value && props.primaryCapable && primaryImage.value && !ids.includes(primaryImage.value.id)) {
     try {
       const response = await window.characterArc.readAssetImageDataUrl(primaryImage.value.id)
       if (response.success && response.dataUrl) {
