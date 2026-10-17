@@ -23,6 +23,7 @@ import {
   filterAssets,
   type AssetEntry
 } from '@/features/assetLibrary/assetLibraryModel'
+import { pickPrimaryImage } from '@/features/assetImage/assetImageModel'
 import type { AssetImageKind } from '@/types/app'
 import type { AssetImagePromptAsset } from '@/features/assetImage/composeAssetImagePrompt'
 
@@ -121,6 +122,40 @@ function openEntry(entry: AssetEntry): void {
   if (entry.id === assetId.value) return
   appStore.openAssetEditor(kind.value, entry.id)
 }
+
+/** 左栏头像：优先显示该资产的「基准图片」（arc-asset:// 居中裁切），无则回退字母头像 */
+function primaryThumb(entry: AssetEntry): string {
+  const primary = pickPrimaryImage(appStore.getAssetImages(appStore.selectedProjectId, kind.value, entry.id))
+  return primary ? `arc-asset://${primary.id}` : ''
+}
+
+/** 已尝试加载过图库的资产（避免重复 IPC 拉取） */
+const thumbAttempted = new Set<string>()
+
+/** 为左栏列表逐个懒加载图库元数据，用于显示各自「基准图片」头像 */
+async function ensureListThumbs(): Promise<void> {
+  const projectId = appStore.selectedProjectId
+  if (!projectId) return
+  const targetKind = kind.value
+  await Promise.all(sameKindEntries.value.map(async (entry) => {
+    const key = `${projectId}:${targetKind}:${entry.id}`
+    if (thumbAttempted.has(key)) return
+    thumbAttempted.add(key)
+    try {
+      await appStore.loadAssetImages(projectId, targetKind, entry.id)
+    } catch {
+      /* 单个资产图库读取失败不影响列表渲染 */
+    }
+  }))
+}
+
+watch(
+  () => [appStore.selectedProjectId, kind.value, sameKindEntries.value.map((entry) => entry.id).join(',')],
+  () => {
+    void ensureListThumbs()
+  },
+  { immediate: true }
+)
 
 // ── 自动保存状态（防抖落库，返回无需确认） ──
 const saveState = ref<'idle' | 'saved'>('idle')
@@ -364,7 +399,10 @@ function handleEnhanceApply(accepted: Record<string, string | string[]>): void {
             :class="{ active: entry.id === assetId }"
             @click="openEntry(entry)"
           >
-            <span class="list-dot" :style="dotStyle(entry)">{{ (entry.name || '?').slice(0, 1) }}</span>
+            <span class="list-dot" :style="dotStyle(entry)">
+              <img v-if="primaryThumb(entry)" class="list-dot-img" :src="primaryThumb(entry)" :alt="entry.name" />
+              <template v-else>{{ (entry.name || '?').slice(0, 1) }}</template>
+            </span>
             <span class="list-text">
               <span class="list-name">{{ entry.name || '未命名资产' }}</span>
               <small class="list-sub">{{ entry.typeLabel || '未设定' }}</small>
@@ -462,7 +500,7 @@ function handleEnhanceApply(accepted: Record<string, string | string[]>): void {
   display: grid;
   min-height: 0;
   flex: 1;
-  grid-template-columns: 250px minmax(0, 1fr) 400px;
+  grid-template-columns: 300px minmax(0, 1fr) 400px;
   gap: 14px;
   padding: 14px 20px;
 }
@@ -519,13 +557,22 @@ function handleEnhanceApply(accepted: Record<string, string | string[]>): void {
 .list-dot {
   display: grid;
   flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   place-items: center;
+  overflow: hidden;
   border-radius: 50%;
   color: var(--arc-text-primary);
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 700;
+}
+
+/* 头像位显示该资产的「基准图片」：居中裁切铺满圆形 */
+.list-dot-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
 }
 
 .list-text {

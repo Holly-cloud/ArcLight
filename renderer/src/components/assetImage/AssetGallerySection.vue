@@ -228,7 +228,12 @@ async function handleImageError(item: AssetImageItem): Promise<void> {
     </div>
 
     <div v-if="images.length" class="gallery-grid arc-scrollbar">
-      <figure v-for="item in images" :key="item.id" class="gallery-card">
+      <figure
+        v-for="item in images"
+        :key="item.id"
+        class="gallery-card"
+        :class="{ 'gallery-card--primary': item.isPrimary }"
+      >
         <n-image
           :src="imageSrc(item)"
           class="gallery-thumb"
@@ -320,6 +325,11 @@ async function handleImageError(item: AssetImageItem): Promise<void> {
   border-radius: var(--arc-radius-md);
   overflow: hidden;
   background: var(--arc-bg-surface);
+}
+
+/* 基准图占满一整行（跨两列），突出显示 */
+.gallery-card--primary {
+  grid-column: 1 / -1;
 }
 
 .gallery-thumb {
