@@ -106,6 +106,19 @@ function buildVisualContext(existing: VisualContext | null, visualPrompt: string
   return { ...base, visualPrompt: prompt || null }
 }
 
+/** 把视觉提示词直接写回「指定资产」（不经过共享表单），用于生成期间用户已切换资产的场景 */
+function persistVisualPromptFor(targetKind: AssetImageKind, targetId: string, visualPrompt: string): void {
+  if (targetKind === 'character') {
+    appStore.updateCharacter(targetId, {
+      visualStyle: buildCharacterVisualStyle(readAssetVisual('character', targetId) as VisualStyleProfile | null, visualPrompt)
+    })
+    return
+  }
+  const visualContext = buildVisualContext(readAssetVisual(targetKind, targetId) as VisualContext | null, visualPrompt)
+  if (targetKind === 'scene') appStore.updateSceneLocation(targetId, { visualContext })
+  else appStore.updatePropItem(targetId, { visualContext })
+}
+
 /** 组装图库生成提示词所需的资产视觉字段（保留历史视觉字段，虽不再在编辑页编辑） */
 const galleryAsset = computed<AssetImagePromptAsset>(() => {
   if (kind.value === 'character') {
@@ -441,6 +454,11 @@ async function handleGenerateVisualPrompt(): Promise<void> {
     return
   }
 
+  // 记录发起时的资产：用户中途切换资产时，结果仍写回原资产，避免落到新资产
+  const requestKind = kind.value
+  const requestId = assetId.value
+  const requestName = assetName.value
+
   // 章节正文按需懒加载，抽取包含该资产名的原文片段作为一致性依据（读取失败不阻断，仅依据简介生成）
   let snippet = ''
   try {
@@ -448,7 +466,7 @@ async function handleGenerateVisualPrompt(): Promise<void> {
     const texts = chapters
       .map((chapter) => chapterContentToPlainText(chapter.content))
       .filter((text) => text.trim())
-    if (texts.length) snippet = extractEntitySnippet(texts, [assetName.value])
+    if (texts.length) snippet = extractEntitySnippet(texts, [requestName])
   } catch {
     /* 原文片段读取失败时退化为仅依据简介生成 */
   }
@@ -457,9 +475,9 @@ async function handleGenerateVisualPrompt(): Promise<void> {
     const response = await appStore.runTrackedAiTask(
       {
         key: VISUAL_PROMPT_TASK_KEY,
-        kind: kind.value === 'character' ? 'character' : 'other',
+        kind: requestKind === 'character' ? 'character' : 'other',
         label: 'AI 生成视觉提示词',
-        description: `正在为「${assetName.value || '未命名资产'}」生成视觉提示词`,
+        description: `正在为「${requestName || '未命名资产'}」生成视觉提示词`,
         panel: 'asset-library'
       },
       () => window.characterArc.generateAi(toIpcPayload({
@@ -468,8 +486,8 @@ async function handleGenerateVisualPrompt(): Promise<void> {
         settings: appStore.appSettings,
         context: {
           projectId: appStore.currentProject?.id,
-          kind: kind.value,
-          name: assetName.value,
+          kind: requestKind,
+          name: requestName,
           typeLabel: currentTypeLabel.value,
           tags: currentTags.value,
           description: currentDescription.value,
@@ -489,8 +507,14 @@ async function handleGenerateVisualPrompt(): Promise<void> {
     }
     const content = ((response.result as { content?: string }).content ?? '').trim()
     if (!content) throw new Error('模型未返回有效提示词，请重试')
-    currentVisualPrompt.value = content
-    message.success('已生成视觉提示词，生图默认取用本段')
+    if (kind.value === requestKind && assetId.value === requestId) {
+      // 仍在同一资产：写回表单（签名变化会触发自动保存）
+      currentVisualPrompt.value = content
+    } else {
+      // 已切换资产：直接写回发起时的资产，避免把结果落到新资产
+      persistVisualPromptFor(requestKind, requestId, content)
+    }
+    message.success(`已为「${requestName || '未命名资产'}」生成视觉提示词，生图默认取用本段`)
   } catch (error) {
     message.error(error instanceof Error ? error.message : '生成视觉提示词失败，请检查模型配置')
   }
