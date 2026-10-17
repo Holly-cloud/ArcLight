@@ -144,9 +144,9 @@ function handleGenerate(): void {
 async function handleSetPrimary(item: AssetImageItem): Promise<void> {
   try {
     await appStore.setPrimaryAssetImage(item.id, props.projectId, props.kind, props.assetId)
-    message.success('已设为基准立绘')
+    message.success('已设为基准图（移到第一位）')
   } catch (error) {
-    message.error(error instanceof Error ? error.message : '设置基准立绘失败')
+    message.error(error instanceof Error ? error.message : '设置基准图失败')
   }
 }
 
@@ -246,7 +246,7 @@ async function handleImageError(item: AssetImageItem): Promise<void> {
           {{ imageBadgeLabel(item) }}
         </n-tag>
         <figcaption class="gallery-actions">
-          <n-button v-if="primaryCapable && !item.isPrimary" quaternary size="tiny" title="设为基准立绘" @click="handleSetPrimary(item)">
+          <n-button v-if="!item.isPrimary" quaternary size="tiny" title="设为基准图（移到第一位）" @click="handleSetPrimary(item)">
             <template #icon><Star :size="13" /></template>
           </n-button>
           <n-button quaternary size="tiny" title="导出" @click="handleExport(item)">

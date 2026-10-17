@@ -156,6 +156,12 @@ export async function saveAssetImage(
 
   await writeFile(join(dir, fileName), buffer)
 
+  // v1.34.3：图库首图默认成为基准图（该资产尚无基准时，本次保存的图即基准）
+  const existingPrimary = db.prepare(
+    'SELECT id FROM asset_images WHERE project_id = ? AND asset_kind = ? AND asset_id = ? AND is_primary = 1 LIMIT 1'
+  ).get(projectId, kind, assetId)
+  const shouldBePrimary = meta.isPrimary === true || !existingPrimary
+
   db.prepare(
     `INSERT INTO asset_images (
       id, project_id, asset_kind, asset_id, file_name, mime, prompt, revised_prompt, provider, model,
@@ -175,7 +181,7 @@ export async function saveAssetImage(
     meta.aspectRatio ?? '',
     meta.imageSize ?? '',
     JSON.stringify(referenceIds),
-    meta.isPrimary ? 1 : 0,
+    shouldBePrimary ? 1 : 0,
     meta.status === 'failed' ? 'failed' : 'succeeded',
     meta.error ?? '',
     meta.runId ?? '',
@@ -200,6 +206,14 @@ export async function listAssetImages(
      WHERE project_id = ? AND asset_kind = ? AND asset_id = ?
      ORDER BY created_at DESC`
   ).all(projectId, kind, assetId) as AssetImageRow[]
+
+  // v1.34.3 兜底：历史数据若「有图但无基准」，把最新一张补为基准（幂等，保证非空图库恒有基准）
+  if (rows.length && !rows.some((row) => row.is_primary === 1)) {
+    const newest = rows[0]
+    db.prepare('UPDATE asset_images SET is_primary = 1, updated_at = ? WHERE id = ?').run(new Date().toISOString(), newest.id)
+    newest.is_primary = 1
+  }
+
   return rows.map(rowToItem)
 }
 
@@ -226,6 +240,17 @@ export async function deleteAssetImage(id: string): Promise<boolean> {
   if (!row) return false
   db.prepare('DELETE FROM asset_images WHERE id = ?').run(id)
   await rm(join(getAssetImageDir(row.project_id), row.file_name), { force: true })
+
+  // v1.34.3：删掉的若是基准图，则把剩余最新一张提升为基准（保持「有图即有基准」）
+  if (row.is_primary === 1) {
+    const next = db.prepare(
+      'SELECT id FROM asset_images WHERE project_id = ? AND asset_kind = ? AND asset_id = ? ORDER BY created_at DESC LIMIT 1'
+    ).get(row.project_id, row.asset_kind, row.asset_id) as { id: string } | undefined
+    if (next) {
+      db.prepare('UPDATE asset_images SET is_primary = 1, updated_at = ? WHERE id = ?').run(new Date().toISOString(), next.id)
+    }
+  }
+
   return true
 }
 

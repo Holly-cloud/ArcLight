@@ -4309,7 +4309,8 @@ export const useAppStore = defineStore('app', () => {
   /** 生图成功后把回传的图库条目写入内存缓存 */
   function addAssetImage(item: AssetImageItem): void {
     const current = getAssetImages(item.projectId, item.assetKind, item.assetId)
-    setAssetImages(assetImageKey(item.projectId, item.assetKind, item.assetId), [item, ...current])
+    // v1.34.3：写入后按「基准图优先、其次最新」重排，保证图库首图恒为基准图
+    setAssetImages(assetImageKey(item.projectId, item.assetKind, item.assetId), sortAssetImages([item, ...current]))
   }
 
   /** 删除一张图库图片：调 IPC 删库行 + 本地文件，并同步内存 */
@@ -4329,7 +4330,7 @@ export const useAppStore = defineStore('app', () => {
     )
   }
 
-  /** 设置基准立绘：同资产内互斥 */
+  /** 设置基准图：同资产内互斥（基准图恒排在图库首位） */
   async function setPrimaryAssetImage(
     imageId: string,
     projectId: string,
@@ -4338,7 +4339,7 @@ export const useAppStore = defineStore('app', () => {
   ): Promise<void> {
     const response = await window.characterArc.setPrimaryAssetImage(imageId)
     if (!response.success) {
-      throw new Error(response.error ?? '设置基准立绘失败')
+      throw new Error(response.error ?? '设置基准图失败')
     }
     setAssetImages(
       assetImageKey(projectId, kind, assetId),

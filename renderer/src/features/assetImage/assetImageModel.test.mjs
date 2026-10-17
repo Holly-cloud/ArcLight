@@ -104,6 +104,6 @@ test('validateReferenceImageSize：小图通过，超大图报错', () => {
 
 test('imageBadgeLabel：失败优先于基准立绘', () => {
   assert.equal(imageBadgeLabel(makeItem('a', { status: 'failed', isPrimary: true })), '失败')
-  assert.equal(imageBadgeLabel(makeItem('b', { isPrimary: true })), '基准立绘')
+  assert.equal(imageBadgeLabel(makeItem('b', { isPrimary: true })), '基准图')
   assert.equal(imageBadgeLabel(makeItem('c')), '')
 })

@@ -71,9 +71,9 @@ export function validateReferenceImageSize(dataUrl: string): ValidationResult {
   return { ok: true }
 }
 
-/** 图库角标文案：基准立绘 / 失败 */
+/** 图库角标文案：基准图 / 失败（v1.34.3 起统一为「基准图」，适配角色 / 场景 / 道具） */
 export function imageBadgeLabel(item: AssetImageItem): string {
   if (item.status === 'failed') return '失败'
-  if (item.isPrimary) return '基准立绘'
+  if (item.isPrimary) return '基准图'
   return ''
 }
