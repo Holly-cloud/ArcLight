@@ -70,8 +70,24 @@ function isUnsupportedResponseFormatError(error: unknown): boolean {
   )
 }
 
+/** 判断该图片配置是否应走 GRS AI 协议（显式预设，或 Base URL 指向 GRS 主机） */
+function isGrsaiSettings(settings: AppSettings): boolean {
+  if ((settings.imageProvider ?? '').trim().toLowerCase() === 'grsai') {
+    return true
+  }
+  try {
+    const host = new URL(settings.imageBaseUrl?.trim() || settings.baseUrl?.trim() || '').hostname.toLowerCase()
+    return host === 'grsai.dakka.com.cn'
+      || host.endsWith('.grsai.dakka.com.cn')
+      || host === 'grsaiapi.com'
+      || host.endsWith('.grsaiapi.com')
+  } catch {
+    return false
+  }
+}
+
 /**
- * 调用 OpenAI 兼容的图片生成接口，返回 data URL 格式的图片。
+ * 调用图片生成接口，返回 data URL 格式的图片。
  *
  * @param settings - 应用配置（需包含 imageModel、imageBaseUrl、imageApiKey）
  * @param prompt - 图片生成提示词
@@ -89,8 +105,8 @@ export async function generateImage(settings: AppSettings, prompt: string, optio
     throw new Error('请先在设置中填写专用的图片生成 API Key。')
   }
 
-  // v1.33.0：按渠道分支；GRS AI 走独立协议，其它/缺省保持 OpenAI 兼容逻辑不变（封面零回归）。
-  if (normalized.provider.trim().toLowerCase() === 'grsai') {
+  // v1.33.0：按渠道分支；GRS AI 走独立协议（按预设或主机识别），其它/缺省保持 OpenAI 兼容逻辑不变（封面零回归）。
+  if (isGrsaiSettings(settings) || normalized.provider.trim().toLowerCase() === 'grsai') {
     return generateImageViaGrsai(normalized, prompt, options)
   }
 

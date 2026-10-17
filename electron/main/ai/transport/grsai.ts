@@ -40,16 +40,18 @@ export function grsaiResultEndpoint(baseUrl: string, id: string): string {
   return `${trimBaseUrl(baseUrl)}/v1/api/result?id=${encodeURIComponent(id)}`
 }
 
-/** 组装请求体（images 为空时不下发该字段） */
+/** 组装请求体（images 为空时不下发该字段；所有字段强制为字符串，避免 GRS “参数数据类型错误”） */
 export function buildGrsaiRequestBody(input: GrsaiGenerateInput): string {
-  const images = Array.isArray(input.images) ? input.images.map((item) => String(item)).filter(Boolean) : []
+  const images = Array.isArray(input.images)
+    ? input.images.map((item) => String(item ?? '')).filter(Boolean)
+    : []
   return JSON.stringify({
-    model: input.model,
-    prompt: input.prompt,
+    model: String(input.model ?? ''),
+    prompt: String(input.prompt ?? ''),
     ...(images.length ? { images } : {}),
-    aspectRatio: input.aspectRatio || GRSAI_DEFAULT_ASPECT_RATIO,
-    imageSize: input.imageSize || GRSAI_DEFAULT_IMAGE_SIZE,
-    replyType: input.replyType || GRSAI_DEFAULT_REPLY_TYPE
+    aspectRatio: String(input.aspectRatio || GRSAI_DEFAULT_ASPECT_RATIO),
+    imageSize: String(input.imageSize || GRSAI_DEFAULT_IMAGE_SIZE),
+    replyType: String(input.replyType || GRSAI_DEFAULT_REPLY_TYPE)
   })
 }
 

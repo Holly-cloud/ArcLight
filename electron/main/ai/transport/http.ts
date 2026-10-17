@@ -1,16 +1,31 @@
 /** 从错误响应体中提取可读的错误信息 */
 async function readErrorMessage(response: Response, fallbackLabel: string): Promise<string> {
   const fallback = `${fallbackLabel} 请求失败：${response.status} ${response.statusText}`
+  let text = ''
   try {
-    const data = (await response.json()) as Record<string, unknown>
-    const error = (data.error ?? data) as Record<string, unknown>
-    const message =
-      (typeof error.message === 'string' && error.message) ||
-      (typeof error.error === 'string' && error.error) ||
-      (typeof data.message === 'string' && data.message)
-    return message ? `${fallbackLabel} 请求失败：${message}` : fallback
+    text = await response.text()
   } catch {
     return fallback
+  }
+  const trimmed = text.trim()
+  if (!trimmed) return fallback
+  try {
+    const data = JSON.parse(trimmed) as Record<string, unknown>
+    // 兼容多种错误体：{error:string}（如 GRS AI）/ {error:{message}} / {message} / {detail}
+    const candidate = data.error ?? data.message ?? data.detail
+    if (typeof candidate === 'string' && candidate.trim()) {
+      return `${fallbackLabel} 请求失败：${candidate.trim()}`
+    }
+    if (candidate && typeof candidate === 'object') {
+      const nested = (candidate as { message?: unknown }).message
+      if (typeof nested === 'string' && nested.trim()) {
+        return `${fallbackLabel} 请求失败：${nested.trim()}`
+      }
+    }
+    // 结构化但无可用字段：原样回传截断后的响应体，避免把真实原因吞掉
+    return `${fallbackLabel} 请求失败：${trimmed.slice(0, 300)}`
+  } catch {
+    return `${fallbackLabel} 请求失败：${trimmed.slice(0, 300)}`
   }
 }
 
