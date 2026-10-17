@@ -280,7 +280,7 @@ export const useAppStore = defineStore('app', () => {
   /** 是否已完成初始化水合（从 SQLite 加载数据） */
   const hasHydrated = ref(false)
   /** 当前视图：项目列表 / 新建向导 / 工作台 / 章节写作 / 独立能力页 */
-  const currentView = ref<'projects' | 'wizard' | 'continuation-import' | 'workbench' | 'chapter-studio' | 'skills' | 'cover-workbench' | 'fanqie-trends' | 'asset-library'>('projects')
+  const currentView = ref<'projects' | 'wizard' | 'continuation-import' | 'workbench' | 'chapter-studio' | 'skills' | 'cover-workbench' | 'fanqie-trends' | 'asset-library' | 'asset-editor'>('projects')
   const pendingWizardDraft = ref<{ title?: string; genre?: string; premise?: string } | null>(null)
   /** 工作台中当前激活的面板 */
   const activePanel = ref<PanelName>('outline')
@@ -304,6 +304,11 @@ export const useAppStore = defineStore('app', () => {
    * 有意**不进工作区快照**（走专用 IPC 懒加载），避免快照随图库膨胀。
    */
   const assetImagesByAsset = ref<Map<string, AssetImageItem[]>>(new Map())
+  /**
+   * 资产编辑页（v1.34.0）当前定位：资产类型 + 资产 id。
+   * 为 null 时编辑页无有效目标（不应进入该视图）。
+   */
+  const assetEditorTarget = ref<{ kind: AssetImageKind; id: string } | null>(null)
   /** 待执行的章节正文插入请求 */
   const pendingChapterInsertion = ref<ChapterInsertionRequest | null>(null)
   /** 用户在编辑器中当前选中的文本状态 */
@@ -1436,6 +1441,20 @@ export const useAppStore = defineStore('app', () => {
   /** 打开资产库聚合页（v1.30.0 起仅服务「当前项目」，按分类浏览与编辑 4 类资产） */
   function openAssetLibrary(): void {
     pendingChapterInsertion.value = null
+    currentView.value = 'asset-library'
+  }
+
+  /** 打开资产编辑页（v1.34.0）：单击资产卡片进入，定位到指定资产 */
+  function openAssetEditor(kind: AssetImageKind, assetId: string): void {
+    if (!assetId) return
+    assetEditorTarget.value = { kind, id: assetId }
+    pendingChapterInsertion.value = null
+    currentView.value = 'asset-editor'
+  }
+
+  /** 从资产编辑页返回资产库 */
+  function backToAssetLibrary(): void {
+    assetEditorTarget.value = null
     currentView.value = 'asset-library'
   }
 
@@ -4460,6 +4479,9 @@ export const useAppStore = defineStore('app', () => {
     openChapterStudio,
     openFanqieTrends,
     openAssetLibrary,
+    openAssetEditor,
+    backToAssetLibrary,
+    assetEditorTarget,
     openProject,
     openCoverWorkbenchPage,
     openContinuationImport,
