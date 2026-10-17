@@ -11,6 +11,8 @@ import { suggestRenderMode } from '@/features/visualStyle/visualStyleTemplates'
 import { toIpcPayload } from '@/utils/ipcPayload'
 import type { CharacterCard, VisualStyleProfile } from '@/types/app'
 import VisualStyleSection from '@/components/visualStyle/VisualStyleSection.vue'
+import AssetGallerySection from '@/components/assetImage/AssetGallerySection.vue'
+import type { AssetImagePromptAsset } from '@/features/assetImage/composeAssetImagePrompt'
 import AiEnhancePreview from '@/components/AiEnhancePreview.vue'
 import type { EnhanceFieldDiff } from '@/components/AiEnhancePreview.vue'
 
@@ -27,6 +29,22 @@ const emit = defineEmits<{
 const appStore = useAppStore()
 const message = useMessage()
 const writingStyle = computed(() => buildProjectWritingStyleContext(appStore.currentProject))
+
+/** 组装图库生成提示词所需的资产视觉字段（随表单实时变化） */
+const galleryAsset = computed<AssetImagePromptAsset>(() => ({
+  kind: 'character',
+  name: form.name,
+  typeLabel: form.role,
+  description: form.description,
+  tags: form.tags,
+  renderMode: form.visualStyle?.renderMode ?? '',
+  palette: form.visualStyle?.palette ?? [],
+  moodWords: form.visualStyle?.moodWords ?? [],
+  keyReferences: form.visualStyle?.keyReferences ?? [],
+  lightingNote: '',
+  seasonNote: '',
+  materialityNote: ''
+}))
 
 // 角色编辑表单数据
 const form = reactive({
@@ -204,6 +222,18 @@ function handleEnhanceApply(accepted: Record<string, string | string[]>): void {
         </div>
       </div>
     </div>
+
+    <AssetGallerySection
+      v-if="props.character"
+      :project-id="appStore.currentProject?.id ?? ''"
+      kind="character"
+      :asset-id="props.character.id"
+      :asset-name="form.name"
+      :asset="galleryAsset"
+      :project-style="appStore.currentProject?.projectVisualStyle ?? null"
+      primary-capable
+    />
+
     <div class="arc-modal-footer">
       <div class="arc-modal-footer-left">
         <span>{{ form.description.length }} 字</span>

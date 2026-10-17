@@ -9,6 +9,8 @@ import { useAppStore } from '@/stores/app'
 import { themePresets } from '@/theme/presets'
 import type { CharacterTag, SceneLocation, VisualContext } from '@/types/app'
 import VisualContextSection from '@/components/visualStyle/VisualContextSection.vue'
+import AssetGallerySection from '@/components/assetImage/AssetGallerySection.vue'
+import type { AssetImagePromptAsset } from '@/features/assetImage/composeAssetImagePrompt'
 
 const props = defineProps<{
   show: boolean
@@ -22,6 +24,22 @@ const emit = defineEmits<{
 
 const appStore = useAppStore()
 const message = useMessage()
+
+/** 组装图库生成提示词所需的资产视觉字段（随表单实时变化） */
+const galleryAsset = computed<AssetImagePromptAsset>(() => ({
+  kind: 'scene',
+  name: sceneForm.name,
+  typeLabel: sceneForm.type,
+  description: sceneForm.description,
+  tags: sceneForm.tags,
+  renderMode: '',
+  palette: sceneForm.visualContext?.colorPalette ?? [],
+  moodWords: [],
+  keyReferences: [],
+  lightingNote: sceneForm.visualContext?.lightingNote ?? '',
+  seasonNote: sceneForm.visualContext?.seasonNote ?? '',
+  materialityNote: sceneForm.visualContext?.materialityNote ?? ''
+}))
 
 const SCENE_TYPE_OPTIONS: SelectOption[] = ['城市', '建筑', '自然地形', '室内', '异空间'].map((type) => ({ label: type, value: type }))
 const ENTITY_COLOR_OPTIONS: SelectOption[] = [
@@ -164,6 +182,16 @@ function submitScene(): void {
         :description="sceneForm.description"
       />
     </n-form>
+
+    <AssetGallerySection
+      v-if="props.scene"
+      :project-id="appStore.currentProject?.id ?? ''"
+      kind="scene"
+      :asset-id="props.scene.id"
+      :asset-name="sceneForm.name"
+      :asset="galleryAsset"
+      :project-style="appStore.currentProject?.projectVisualStyle ?? null"
+    />
 
     <template #footer>
       <div class="arc-modal-actions">
