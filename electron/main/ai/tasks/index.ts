@@ -119,4 +119,12 @@ export function getTaskHandler(name: AiTaskName): TaskHandler {
   return handler
 }
 
+/**
+ * 列出全部已注册的任务处理器（按注册顺序）。
+ * 供 Prompt 中心遍历真实任务目录（新增任务会自动出现，无需手工维护清单）。
+ */
+export function listTaskHandlers(): TaskHandler[] {
+  return Array.from(TASK_REGISTRY.values())
+}
+
 export type { TaskHandler } from './base'

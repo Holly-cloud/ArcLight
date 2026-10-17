@@ -230,6 +230,44 @@ export interface PersistedPropRecord {
   visualContext?: VisualContext | null
 }
 
+/** Prompt 中心（v1.35.0）：左侧任务目录条目 */
+export interface AiPromptCatalogEntry {
+  /** 任务名（与 `AiTaskName` 一致） */
+  task: string
+  /** AI 返回格式 */
+  outputType: 'json' | 'text'
+  /** 本任务默认启用的功能模块（capability）id 列表 */
+  capabilities: string[]
+  /** 是否参与项目 skills 匹配 */
+  useSkills: boolean
+  /** 是否走 Agent 运行时（含工具调用 / 追加系统层） */
+  agentRuntime: boolean
+}
+
+/** Prompt 中心：prompt 预览请求 */
+export interface AiPromptPreviewRequest {
+  /** 任务名 */
+  task: string
+  /** 可选上下文：省略＝基础骨架；传入＝用该上下文试拼 */
+  context?: Record<string, unknown>
+}
+
+/** Prompt 中心：prompt 预览结果（只读展示用，不含任何密钥） */
+export interface AiPromptPreviewResult {
+  /** 任务名 */
+  task: string
+  /** system 段全文 */
+  system: string
+  /** user 段全文 */
+  user: string
+  /** 本任务默认启用的功能模块 id 列表 */
+  capabilities: string[]
+  /** 是否走 Agent 运行时 */
+  agentRuntime: boolean
+  /** 展示用提示（如「另有 Agent 系统层」），可为空 */
+  notes: string[]
+}
+
 /** 单表 JSON blob：顶层冗余字段便于查询，其余内嵌字段统一存入 payloadJson */
 export interface SaveWorkspaceEntitiesRequest {
   projectId: string
@@ -271,7 +309,10 @@ export const IPC_CHANNELS = {
   EXPORT_ASSET_IMAGE: 'characterarc:export-asset-image',
   PICK_REFERENCE_IMAGE: 'characterarc:pick-reference-image',
   READ_ASSET_IMAGE: 'characterarc:read-asset-image',
-  PRUNE_ASSET_IMAGES: 'characterarc:prune-asset-images'
+  PRUNE_ASSET_IMAGES: 'characterarc:prune-asset-images',
+  // ── Prompt 中心（v1.35.0）──
+  LIST_AI_PROMPT_CATALOG: 'characterarc:ai-prompt-catalog',
+  RENDER_AI_PROMPT_PREVIEW: 'characterarc:ai-prompt-preview'
 } as const
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS]
