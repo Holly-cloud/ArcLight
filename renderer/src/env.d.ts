@@ -421,13 +421,30 @@ declare global {
         result?: Array<{ id: string; ownedBy: string | null }>
         error?: string
       }>
-      generateImage: (payload: { settings: import('@/types/app').AppSettings; prompt: string; projectId?: string }) => Promise<{
+      generateImage: (payload: {
+        settings: import('@/types/app').AppSettings
+        prompt: string
+        projectId?: string
+        /** 参考图：dataURL 或远程 URL（图生图 / 一致性） */
+        images?: string[]
+        /** 画幅比，如 '3:4' */
+        aspectRatio?: string
+        /** 分辨率，如 '1K' */
+        imageSize?: string
+        /** 资产图库：带 assetKind + assetId 时由主进程落盘落库并回传图库条目 */
+        assetKind?: import('@/types/app').AssetImageKind
+        assetId?: string
+        /** 参考图来源（图库 id 列表，写入图库元数据） */
+        referenceIds?: string[]
+        /** 取消令牌：命中 characterarc:ai-cancel */
+        clientTaskId?: string
+      }) => Promise<{
         success: boolean
         result?: {
           dataUrl: string
           revisedPrompt?: string
           usage?: import('@/types/app').AiRunUsage
-        }
+        } & Partial<import('@/types/app').AssetImageItem>
         error?: string
       }>
       saveCoverImage: (payload: { dataUrl: string; defaultFileName?: string }) => Promise<{
@@ -436,6 +453,35 @@ declare global {
         filePath?: string
         error?: string
       }>
+      listAssetImages: (payload: {
+        projectId: string
+        kind: import('@/types/app').AssetImageKind
+        assetId: string
+      }) => Promise<{
+        success: boolean
+        result?: import('@/types/app').AssetImageItem[]
+        error?: string
+      }>
+      deleteAssetImage: (imageId: string) => Promise<{ success: boolean; error?: string }>
+      setPrimaryAssetImage: (imageId: string) => Promise<{ success: boolean; error?: string }>
+      exportAssetImage: (payload: { imageId: string; defaultFileName?: string }) => Promise<{
+        success: boolean
+        canceled?: boolean
+        filePath?: string
+        error?: string
+      }>
+      pickReferenceImage: () => Promise<{
+        success: boolean
+        canceled?: boolean
+        dataUrl?: string
+        fileName?: string
+        error?: string
+      }>
+      pruneAssetImages: (payload: {
+        projectId: string
+        kind?: import('@/types/app').AssetImageKind
+        assetId?: string
+      }) => Promise<{ success: boolean; error?: string }>
       exportJson: (payload: CharacterArcExportRequest | unknown) => Promise<{
         success: boolean
         canceled: boolean

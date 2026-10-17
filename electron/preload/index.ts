@@ -162,6 +162,20 @@ contextBridge.exposeInMainWorld('characterArc', {
   fetchImageModels: (settings: unknown) => ipcRenderer.invoke('characterarc:ai-fetch-image-models', toIpcPayload(settings)),
   /** 生成封面图片 */
   generateImage: (payload: unknown) => ipcRenderer.invoke('characterarc:ai-generate-image', toIpcPayload(payload)),
+
+  // ── 资产图库（v1.33.0）──
+  /** 按资产查询图库条目 */
+  listAssetImages: (payload: unknown) => ipcRenderer.invoke(IPC_CHANNELS.LIST_ASSET_IMAGES, toIpcPayload(payload)),
+  /** 删除一张资产图像（联动删本地文件） */
+  deleteAssetImage: (imageId: string) => ipcRenderer.invoke(IPC_CHANNELS.DELETE_ASSET_IMAGE, imageId),
+  /** 设置某张资产图像为该资产的基准立绘 */
+  setPrimaryAssetImage: (imageId: string) => ipcRenderer.invoke(IPC_CHANNELS.SET_PRIMARY_IMAGE, imageId),
+  /** 导出资产图像到用户指定路径（系统另存为） */
+  exportAssetImage: (payload: unknown) => ipcRenderer.invoke(IPC_CHANNELS.EXPORT_ASSET_IMAGE, toIpcPayload(payload)),
+  /** 从本地选择一张参考图并返回 data URL */
+  pickReferenceImage: () => ipcRenderer.invoke(IPC_CHANNELS.PICK_REFERENCE_IMAGE),
+  /** 资产 / 项目删除时级联清理图库（不传 kind+assetId 时清理整个项目） */
+  pruneAssetImages: (payload: unknown) => ipcRenderer.invoke(IPC_CHANNELS.PRUNE_ASSET_IMAGES, toIpcPayload(payload)),
   /** 读取当前项目的结构化世界状态（角色状态、伏笔、关系、时间线、世界规则、倒计时） */
   readStoryState: (projectId: string) => ipcRenderer.invoke('characterarc:ai-read-story-state', projectId),
   /** 螺旋式深度生成（3圈：骨架→展开→校验） */

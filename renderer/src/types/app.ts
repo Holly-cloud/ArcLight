@@ -9,6 +9,12 @@ export type {
   VisualContext,
   ProjectVisualStyle
 } from '@shared/ipc-types'
+
+/** v1.33.0 资产图库元数据类型（沿用 @shared/ipc-types 契约，单一定义源） */
+export type {
+  AssetImageKind,
+  AssetImageItem
+} from '@shared/ipc-types'
 import type { ProjectVisualStyle, VisualContext, VisualStyleProfile } from '@shared/ipc-types'
 
 /** 主题名称，决定应用的视觉色调 */

@@ -13,6 +13,8 @@ import type { BackfillSelection } from './state-backfill'
 import { BackfillTaskPauseController } from './state-backfill-task-controller'
 import { buildStoryStateContext } from '../story-state-store'
 import { ensureWorkspaceDb } from '../workspace-store'
+import { saveAssetImage } from '../asset-images'
+import type { AssetImageKind } from '@shared/ipc-types'
 import { runSpiralBootstrap } from './spiral'
 import type { SpiralBootstrapInput } from './spiral'
 import { formatAiErrorMessage } from './error-message'
@@ -431,10 +433,26 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
 
   // ── 图片生成 ──
   ipcMain.handle('characterarc:ai-generate-image', async (_event, payload: unknown) => {
-    const request = payload as { settings?: AppSettings; prompt?: string; projectId?: string }
+    const request = payload as {
+      settings?: AppSettings
+      prompt?: string
+      projectId?: string
+      images?: string[]
+      aspectRatio?: string
+      imageSize?: string
+      assetKind?: string
+      assetId?: string
+      referenceIds?: string[]
+      clientTaskId?: string
+    }
     const projectId = String(request?.projectId ?? '').trim()
     const settings = request?.settings as AppSettings
     const startedAt = new Date().toISOString()
+    const clientTaskId = String(request?.clientTaskId ?? '').trim()
+    const controller = new AbortController()
+    if (clientTaskId) {
+      activeAiTasks.set(clientTaskId, controller)
+    }
     // 运行记录里展示图片模型（封面专用模型与文本模型分开配置）。
     const metaSettings = { ...settings, model: settings?.imageModel?.trim() || settings?.model } as AppSettings
     try {
@@ -442,21 +460,46 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
       if (!prompt) {
         throw new Error('图片生成提示词不能为空。')
       }
-      const result = await generateImage(settings, prompt)
+      const result = await generateImage(settings, prompt, {
+        images: Array.isArray(request?.images) ? request.images.filter((item) => typeof item === 'string' && item.trim()) : undefined,
+        aspectRatio: request?.aspectRatio,
+        imageSize: request?.imageSize,
+        signal: controller.signal
+      })
 
       const meta = buildRunMeta(
         'cover-generate', projectId ?? '', undefined, metaSettings, 'success',
         startedAt, new Date().toISOString(),
         result.usage,
         [], [],
-        false, result.revisedPrompt ?? '封面图片已生成', ''
+        false, result.revisedPrompt ?? '图片已生成', ''
       )
       deps!.emitAiRunEvent({ projectId: projectId ?? '', meta: { id: randomUUID(), ...meta } })
+
+      // 资产图库：带 assetKind/assetId 时由主进程落盘落库并回传图库条目。
+      const assetKind = String(request?.assetKind ?? '').trim()
+      const assetId = String(request?.assetId ?? '').trim()
+      if (assetKind && assetId && projectId) {
+        const item = await saveAssetImage(projectId, assetKind as AssetImageKind, assetId, result.dataUrl, {
+          prompt,
+          revisedPrompt: result.revisedPrompt ?? '',
+          provider: settings?.imageProvider?.trim() || '',
+          model: settings?.imageModel?.trim() || '',
+          aspectRatio: request?.aspectRatio ?? '',
+          imageSize: request?.imageSize ?? '',
+          referenceIds: Array.isArray(request?.referenceIds) ? request.referenceIds : [],
+          runId: ''
+        })
+        return { success: true, result: { ...item, dataUrl: result.dataUrl } }
+      }
+
       return { success: true, result }
     } catch (error) {
-      const message = formatAiErrorMessage(error, '图片生成失败')
+      const message = controller.signal.aborted
+        ? '图片生成已取消'
+        : formatAiErrorMessage(error, '图片生成失败')
       const meta = buildRunMeta(
-        'cover-generate', projectId ?? '', undefined, metaSettings, 'error',
+        'cover-generate', projectId ?? '', undefined, metaSettings, controller.signal.aborted ? 'canceled' : 'error',
         startedAt, new Date().toISOString(),
         undefined,
         [], [],
@@ -464,6 +507,10 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
       )
       deps!.emitAiRunEvent({ projectId: projectId ?? '', meta: { id: randomUUID(), ...meta } })
       return { success: false, error: message }
+    } finally {
+      if (clientTaskId) {
+        activeAiTasks.delete(clientTaskId)
+      }
     }
   })
 
