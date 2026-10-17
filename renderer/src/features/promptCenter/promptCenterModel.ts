@@ -45,8 +45,5 @@ export function buildCatalogMetaLine(item: PromptCatalogItem): string {
   return parts.join(' · ')
 }
 
-/** Agent 运行时任务在 SYSTEM 段末尾追加的说明行（与主进程 notes 对齐） */
-export const AGENT_LAYER_NOTE = '该任务另有 Agent 系统层（工具调用与追加规则），本页只展示其基础 prompt。'
-
 /** 试拼上下文的口径说明（界面固定展示，避免把试拼误解为真实运行输入） */
 export const PREVIEW_SCOPE_NOTE = '试拼＝用当前项目的通用上下文尽力拼装，不等于该任务的完整真实输入。'
