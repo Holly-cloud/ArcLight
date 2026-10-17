@@ -66,12 +66,27 @@ const currentVisualPrompt = computed({
   }
 })
 
-/** 视觉提示词的生成依据：当前资产的简介 / 定位 / 标签 */
-const currentDescription = computed(() => {
-  if (kind.value === 'scene') return sceneForm.description
-  if (kind.value === 'prop') return propForm.description
-  return characterForm.description
+/** 当前资产的「简介」（可读写，直接映射到活动表单） */
+const currentDescription = computed({
+  get(): string {
+    if (kind.value === 'scene') return sceneForm.description
+    if (kind.value === 'prop') return propForm.description
+    return characterForm.description
+  },
+  set(value: string) {
+    if (kind.value === 'scene') sceneForm.description = value
+    else if (kind.value === 'prop') propForm.description = value
+    else characterForm.description = value
+  }
 })
+const currentDescriptionLength = computed(() => currentDescription.value.length)
+const descriptionPlaceholder = computed(() => {
+  if (kind.value === 'scene') return '补充地理特征、氛围、势力分布与故事作用...'
+  if (kind.value === 'prop') return '补充道具外观、用途、来源与剧情中的作用...'
+  return '补充角色背景、动机和冲突...'
+})
+
+/** 视觉提示词的生成依据：当前资产的定位 / 标签 */
 const currentTypeLabel = computed(() => {
   if (kind.value === 'scene') return sceneForm.type
   if (kind.value === 'prop') return propForm.type
@@ -571,17 +586,33 @@ async function handleGenerateVisualPrompt(): Promise<void> {
         </div>
       </aside>
 
-      <!-- 中：单张「基础信息」卡 -->
+      <!-- 中：信息 / 简介 / 视觉 三块（v1.34.3） -->
       <main class="editor-panel editor-info">
         <div class="info-scroll arc-scrollbar">
-          <div class="info-card">
+          <!-- ① 信息 -->
+          <section class="info-block">
+            <h3 class="info-block__title">信息</h3>
             <CharacterEditForm v-if="kind === 'character'" :form="characterForm" />
             <SceneLocationEditForm v-else-if="kind === 'scene'" :form="sceneForm" />
             <PropItemEditForm v-else :form="propForm" />
-          </div>
-          <div class="visual-prompt">
-            <div class="visual-prompt__head">
-              <span class="visual-prompt__label">视觉提示词</span>
+          </section>
+
+          <!-- ② 简介 -->
+          <section class="info-block">
+            <h3 class="info-block__title">简介</h3>
+            <n-input
+              v-model:value="currentDescription"
+              type="textarea"
+              :autosize="{ minRows: 4, maxRows: 12 }"
+              :placeholder="descriptionPlaceholder"
+            />
+            <p class="info-block__foot">{{ currentDescriptionLength }} 字</p>
+          </section>
+
+          <!-- ③ 视觉 -->
+          <section class="info-block">
+            <div class="info-block__head">
+              <h3 class="info-block__title">视觉</h3>
               <n-button size="tiny" :loading="visualPromptLoading" @click="handleGenerateVisualPrompt">
                 <template #icon><Sparkles :size="13" /></template>
                 AI 生成
@@ -593,10 +624,10 @@ async function handleGenerateVisualPrompt(): Promise<void> {
               :autosize="{ minRows: 3, maxRows: 8 }"
               placeholder="以「简介」为核心依据生成的生图提示词；生图默认取用本段，留空则按资产字段自动拼装"
             />
-            <p class="visual-prompt__hint">
+            <p class="info-block__foot">
               以「简介」为核心生成依据，并读取该资产在小说章节中的原文片段，确保画面与小说的描述一致。
             </p>
-          </div>
+          </section>
         </div>
       </main>
 
@@ -785,35 +816,37 @@ async function handleGenerateVisualPrompt(): Promise<void> {
   padding: 18px 20px;
 }
 
-.info-card {
+/* 中栏三块：信息 / 简介 / 视觉（v1.34.3） */
+.info-block {
   border: 1px solid var(--arc-border);
   border-radius: var(--arc-radius-md);
-  padding: 18px 20px;
+  padding: 16px 18px;
 }
 
-/* 视觉提示词（v1.34.3） */
-.visual-prompt {
-  margin-top: 14px;
-  border: 1px solid var(--arc-border);
-  border-radius: var(--arc-radius-md);
-  padding: 14px 16px;
+.info-block + .info-block {
+  margin-top: 12px;
 }
 
-.visual-prompt__head {
+.info-block__head {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 8px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
 }
 
-.visual-prompt__label {
+.info-block__title {
+  margin: 0 0 10px;
   color: var(--arc-text-secondary);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 650;
 }
 
-.visual-prompt__hint {
+.info-block__head .info-block__title {
+  margin-bottom: 0;
+}
+
+.info-block__foot {
   margin: 8px 0 0;
   color: var(--arc-text-hint);
   font-size: 12px;
