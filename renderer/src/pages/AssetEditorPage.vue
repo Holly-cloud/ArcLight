@@ -574,9 +574,7 @@ async function handleGenerateVisualPrompt(): Promise<void> {
       <!-- 中：单张「基础信息」卡 -->
       <main class="editor-panel editor-info">
         <div class="info-scroll arc-scrollbar">
-          <h2 class="info-title">{{ assetName || '未命名资产' }}</h2>
           <div class="info-card">
-            <h3 class="info-card-title">基础信息</h3>
             <CharacterEditForm v-if="kind === 'character'" :form="characterForm" />
             <SceneLocationEditForm v-else-if="kind === 'scene'" :form="sceneForm" />
             <PropItemEditForm v-else :form="propForm" />
@@ -599,9 +597,6 @@ async function handleGenerateVisualPrompt(): Promise<void> {
               以「简介」为核心生成依据，并读取该资产在小说章节中的原文片段，确保画面与小说的描述一致。
             </p>
           </div>
-          <p class="info-note">
-            视觉风格已上收为<b>资产库级「图片主风格」</b>（渲染方式 / 配色 / 氛围词 / 默认画幅比），此处不再重复。
-          </p>
         </div>
       </main>
 
@@ -790,37 +785,10 @@ async function handleGenerateVisualPrompt(): Promise<void> {
   padding: 18px 20px;
 }
 
-.info-title {
-  margin: 0 0 16px;
-  color: var(--arc-text-primary);
-  font-size: 19px;
-  font-weight: 720;
-}
-
 .info-card {
   border: 1px solid var(--arc-border);
   border-radius: var(--arc-radius-md);
   padding: 18px 20px;
-}
-
-.info-card-title {
-  margin: 0 0 16px;
-  color: var(--arc-text-hint);
-  font-size: 12px;
-  font-weight: 650;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.info-note {
-  margin: 14px 0 0;
-  color: var(--arc-text-hint);
-  font-size: 12.5px;
-  line-height: 1.7;
-}
-
-.info-note b {
-  color: var(--arc-text-secondary);
 }
 
 /* 视觉提示词（v1.34.3） */
