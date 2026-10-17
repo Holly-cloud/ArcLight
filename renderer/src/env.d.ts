@@ -483,6 +483,16 @@ declare global {
         kind?: import('@/types/app').AssetImageKind
         assetId?: string
       }) => Promise<{ success: boolean; error?: string }>
+      listAiPromptCatalog: () => Promise<{
+        success: boolean
+        entries?: import('@shared/ipc-types').AiPromptCatalogEntry[]
+        error?: string
+      }>
+      renderAiPromptPreview: (payload: import('@shared/ipc-types').AiPromptPreviewRequest) => Promise<{
+        success: boolean
+        preview?: import('@shared/ipc-types').AiPromptPreviewResult
+        error?: string
+      }>
       exportJson: (payload: CharacterArcExportRequest | unknown) => Promise<{
         success: boolean
         canceled: boolean

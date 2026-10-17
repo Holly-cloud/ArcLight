@@ -15,6 +15,8 @@ import {
 
 import type { AiTaskPayload } from './ai/shared-types'
 import { runAiTask } from './ai/runtime'
+import { listAiPromptCatalog } from './ai/prompts/catalog'
+import { renderPromptPreview } from './ai/prompts/preview'
 import { refreshRegistry as refreshSkillRegistry, toScanEntries as skillScanEntries, toContextEntries as skillContextEntries } from './ai/skills'
 import { getProjectSkillsDirPath as getSkillsDirPath } from './ai/skills/discovery'
 import { fetchWithCache } from './github-mirror'
@@ -911,6 +913,26 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
       return { success: true }
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : '清理资产图库失败' }
+    }
+  })
+
+  // ── Prompt 中心（v1.35.0）：只读展示 prompt，不调模型 / 不发网络 / 不写库 ──
+  ipcMain.handle(IPC_CHANNELS.LIST_AI_PROMPT_CATALOG, async () => {
+    try {
+      return { success: true, entries: listAiPromptCatalog() }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : '读取任务目录失败' }
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.RENDER_AI_PROMPT_PREVIEW, async (_event, payload: unknown) => {
+    try {
+      const req = payload as { task?: string; context?: Record<string, unknown> }
+      const task = String(req?.task ?? '').trim()
+      if (!task) throw new Error('缺少任务名。')
+      return { success: true, preview: renderPromptPreview({ task, context: req?.context }) }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : '生成 prompt 预览失败' }
     }
   })
 

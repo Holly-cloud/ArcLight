@@ -178,6 +178,12 @@ contextBridge.exposeInMainWorld('characterArc', {
   readAssetImageDataUrl: (imageId: string) => ipcRenderer.invoke(IPC_CHANNELS.READ_ASSET_IMAGE, imageId),
   /** 资产 / 项目删除时级联清理图库（不传 kind+assetId 时清理整个项目） */
   pruneAssetImages: (payload: unknown) => ipcRenderer.invoke(IPC_CHANNELS.PRUNE_ASSET_IMAGES, toIpcPayload(payload)),
+
+  // ── Prompt 中心（v1.35.0）──
+  /** 列出全部已注册 AI 任务的可展示档案（只读，不发网络） */
+  listAiPromptCatalog: () => ipcRenderer.invoke(IPC_CHANNELS.LIST_AI_PROMPT_CATALOG),
+  /** 拼装指定任务的 prompt 预览（只读，不调模型；不传 context 即基础骨架） */
+  renderAiPromptPreview: (payload: unknown) => ipcRenderer.invoke(IPC_CHANNELS.RENDER_AI_PROMPT_PREVIEW, toIpcPayload(payload)),
   /** 读取当前项目的结构化世界状态（角色状态、伏笔、关系、时间线、世界规则、倒计时） */
   readStoryState: (projectId: string) => ipcRenderer.invoke('characterarc:ai-read-story-state', projectId),
   /** 螺旋式深度生成（3圈：骨架→展开→校验） */
