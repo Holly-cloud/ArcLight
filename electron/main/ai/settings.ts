@@ -60,6 +60,7 @@ export function normalizeSettings(settings: AppSettings): AppSettings {
     frequencyPenalty: normalizeOptionalNumber(settings.frequencyPenalty, -2, 2),
     embeddingModel: settings.embeddingModel?.trim() || '',
     imageModel: settings.imageModel?.trim() || '',
+    imageProvider: settings.imageProvider?.trim() || '',
     imageApiKey: settings.imageApiKey?.trim() || '',
     imageBaseUrl: settings.imageBaseUrl?.trim() || '',
     aiTimeoutSeconds: normalizeOptionalNumber(settings.aiTimeoutSeconds, 30, 600) ?? 180

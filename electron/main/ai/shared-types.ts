@@ -48,6 +48,8 @@ export type AppSettings = {
   embeddingModel: string
   /** 可选：图片生成模型 */
   imageModel: string
+  /** 可选：图片生成渠道标识（如 'grsai'）；空串按 OpenAI 兼容接口处理 */
+  imageProvider: string
   /** 可选：图片生成独立 API Key */
   imageApiKey: string
   /** 可选：图片生成独立 Base URL */

@@ -8,6 +8,13 @@ export interface ImageProviderPreset {
 
 export const imageProviderPresets: ImageProviderPreset[] = [
   {
+    label: 'GRS AI (nano-banana)',
+    value: 'grsai',
+    model: 'nano-banana-fast',
+    baseUrl: 'https://grsai.dakka.com.cn',
+    hint: '支持图生图与参考图；按次计费约 ¥0.02/次，失败返还。'
+  },
+  {
     label: 'GPT-Image-2 (OpenAI)',
     value: 'gpt-image-openai',
     model: 'gpt-image-1',
