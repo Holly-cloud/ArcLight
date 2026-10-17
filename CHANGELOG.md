@@ -4,6 +4,24 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.32.0] - 2026-10-17
+
+### 解散工作台容器 + 删除参考作品库与「拆书→改编」流水线（**破坏性**）
+
+工作台容器、「参考作品库」、「拆书→改编」整条流水线**连数据与表结构一并删除**。**本次为破坏性 schema 迁移（3→4），迁移前自动备份；含参考作品 / 改编记录的旧归档不再兼容。**
+
+- **解散工作台容器**——删除 `WorkbenchContainerPage` 及其「工作台」菜单入口与全局 Tab；`currentView` 移除 `workbench-container` / `deconstruction-adaptation`；`openWorkbench` / `workbenchActiveTab` 等一并清理
+- **删除参考作品库**——面板、批量导入（`useBatchImport` / `BatchImportModal`）、参考小说导入 IPC（read / analysis / pick / batch / cancel + `reference-novels` 存储）、`reference_works` 表与 `projects.reference_works_json` 列、4 个风格 / 拆解 AI 任务（reference-style-chunk / -analysis、reference-deep-analyze、style-fingerprint-extract）与社区技能 `style-fingerprint`
+- **删除「拆书→改编」流水线**——改编页、`features/adaptation/**` 全部代码、5 个 adaptation AI 任务、`adaptation_runs` 表及相关状态 / 类型
+- **场景 / 道具展示下线**——`ScenePropSection` 移除；编辑能力由资产库 `entityEdit` 弹窗承接（无能力损失）
+- **DB 破坏性迁移（3→4，幂等）**——`DROP TABLE reference_works / adaptation_runs` + 重建 `projects` 去掉 `reference_works_json`；⚠️ 重建父表在 `PRAGMA foreign_keys = OFF` 下执行，避免 DROP TABLE 隐式 DELETE 经子表 `ON DELETE CASCADE` 级联清空项目数据；迁移前自动备份
+- **FeatureHelp 15→6**（删 adaptation 8 + workbench 1）；残留入口改向（关系组织场景 / 道具 → 资产库；项目中心 / 首页 / 工作流面板去拆书入口）
+- **文档同步**——`CLAUDE.md` / `README`
+
+### patch 级变更
+
+- 测试基线：删除 `test:adaptation`；`test:workspace-entities` 增迁移回归测试（断言「删表 + 去列 + 父表保留 + 级联子表不被清空 + 幂等 + 版本 4」）；`pnpm test` **207/202/5**（5 红为历史遗留，与本次无关）
+
 ## [1.31.0] - 2026-10-17
 
 ### 小说导入按章 / 集精准划分 + 资产库返回修复

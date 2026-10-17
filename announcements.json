@@ -1,5 +1,20 @@
 [
   {
+    "id": "v1.32.0-workbench-dissolution",
+    "title": "弧光 v1.32.0 解散工作台 + 删除参考作品库与拆书→改编",
+    "date": "2026-10-17",
+    "type": "warning",
+    "severity": "warning",
+    "items": [
+      "【解散工作台】移除「工作台」容器页与菜单入口、全局 Tab；相关视图状态清理",
+      "【删除参考作品库】参考作品库面板 / 批量导入 / 参考小说导入 IPC / reference_works 表与 projects.reference_works_json 列，以及 4 个风格拆解 AI 任务与 style-fingerprint 技能一并删除",
+      "【删除拆书→改编】改编页、features/adaptation 全部代码、5 个 adaptation AI 任务、adaptation_runs 表一并删除",
+      "【场景 / 道具下线】ScenePropSection 移除，编辑能力由资产库承接（无能力损失）",
+      "【破坏性 DB 迁移 3→4】删除两张表并重建 projects 去掉参考作品列；迁移前自动备份；含参考作品 / 改编记录的旧归档不再兼容",
+      "【能力保留】导入小说 / 按章集划分 / 分类提取资产 / 模块隐藏 等其余功能不受影响"
+    ]
+  },
+  {
     "id": "v1.31.0-novel-chapter-split",
     "title": "弧光 v1.31.0 小说导入按章 / 集精准划分",
     "date": "2026-10-17",
