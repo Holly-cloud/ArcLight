@@ -47,6 +47,8 @@ test('catalog：目录来自真实注册表，字段合法且覆盖全部任务'
     assert.ok(entry.outputType === 'json' || entry.outputType === 'text', `${entry.task} 输出格式应为 json/text`)
     assert.ok(Array.isArray(entry.capabilities), `${entry.task} 的 capabilities 应为数组`)
     assert.ok(entry.capabilities.every((id) => typeof id === 'string' && id), `${entry.task} 的能力 id 应非空`)
+    assert.ok(Array.isArray(entry.capabilityLabels), `${entry.task} 应有能力中文标签数组`)
+    assert.equal(entry.capabilityLabels.length, entry.capabilities.length, `${entry.task} 能力标签应与 id 一一对应`)
     assert.equal(typeof entry.useSkills, 'boolean', `${entry.task} useSkills 应为布尔`)
     assert.equal(typeof entry.agentRuntime, 'boolean', `${entry.task} agentRuntime 应为布尔`)
   }

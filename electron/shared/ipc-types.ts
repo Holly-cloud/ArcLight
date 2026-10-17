@@ -238,6 +238,8 @@ export interface AiPromptCatalogEntry {
   outputType: 'json' | 'text'
   /** 本任务默认启用的功能模块（capability）id 列表 */
   capabilities: string[]
+  /** 与 capabilities 对应的中文展示标签（供界面直接渲染，避免渲染层重复维护映射） */
+  capabilityLabels: string[]
   /** 是否参与项目 skills 匹配 */
   useSkills: boolean
   /** 是否走 Agent 运行时（含工具调用 / 追加系统层） */

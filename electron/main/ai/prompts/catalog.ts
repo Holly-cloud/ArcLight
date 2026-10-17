@@ -6,16 +6,20 @@
  */
 import type { AiPromptCatalogEntry } from '@shared/ipc-types'
 import { listTaskHandlers } from '../tasks'
-import { getDefaultCapabilities } from './capability'
+import { getCapabilityLabel, getDefaultCapabilities } from './capability'
 import { isAgentRuntimeTask } from './agent-runtime'
 
 /** 列出全部已注册任务的可展示档案（按注册顺序） */
 export function listAiPromptCatalog(): AiPromptCatalogEntry[] {
-  return listTaskHandlers().map((handler) => ({
-    task: handler.name,
-    outputType: handler.outputType,
-    capabilities: getDefaultCapabilities(handler.name),
-    useSkills: handler.useSkills !== false,
-    agentRuntime: isAgentRuntimeTask(handler.name)
-  }))
+  return listTaskHandlers().map((handler) => {
+    const capabilities = getDefaultCapabilities(handler.name)
+    return {
+      task: handler.name,
+      outputType: handler.outputType,
+      capabilities,
+      capabilityLabels: capabilities.map((id) => getCapabilityLabel(id)),
+      useSkills: handler.useSkills !== false,
+      agentRuntime: isAgentRuntimeTask(handler.name)
+    }
+  })
 }

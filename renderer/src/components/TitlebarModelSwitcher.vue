@@ -4,6 +4,7 @@ import { ChevronDown, RefreshCw, ScrollText } from 'lucide-vue-next'
 import { NModal, NSelect, NTag } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
 import { toIpcPayload } from '@/utils/ipcPayload'
+import { resolveTaskLabel } from '@/features/ai/taskLabels'
 import type { AiRunRecord } from '@/types/app'
 
 const appStore = useAppStore()
@@ -42,7 +43,7 @@ const visibleAiRunLogs = computed(() =>
     const readStats = toolReadStats(run)
     return {
       run,
-      taskLabel: formatTaskLabel(run.task, run.clientKey),
+      taskLabel: resolveTaskLabel(run.task, run.clientKey),
       projectTitle: projectTitleFor(run),
       chapterTitle: chapterTitleFor(run),
       startedAt: formatTime(run.startedAt),
@@ -73,56 +74,7 @@ const statusMeta: Record<AiRunRecord['status'], { label: string; type: 'default'
   canceled: { label: '已取消', type: 'warning' }
 }
 
-const taskLabelMap: Record<string, string> = {
-  'global-assistant': '全局助理',
-  'global-assistant-proposal': '写回提案',
-  'chapter-assistant': '章节助理',
-  'chapter-first-draft': '章节初稿',
-  'chapter-memo': '写作备忘',
-  'chapter-audit': '章节审计',
-  'chapter-repair': '章节修复',
-  'chapter-humanize': '章节去 AI 味',
-  'chapter-summarize': '章节摘要',
-  'chapter-scene-plan': '场景规划',
-  'chapter-analysis': '章节分析',
-  'chapter-session-note': '写作日志',
-  'story-deep-audit': '全书审计',
-  'state-backfill': '状态补录',
-  'assistant-intent': '意图判断',
-  'assistant-action-proposal': '操作建议',
-  'worldview-entry': '世界观生成',
-  'worldview-enhance': '世界观补充',
-  'character-card': '角色生成',
-  'character-enhance': '角色补充',
-  'relation-enhance': '关系补充',
-  'outline-item': '大纲扩写',
-  'outline-batch': '分卷补全',
-  'outline-chain': '大纲链编',
-  'outline-enhance': '大纲补充',
-  'ranking-style-analysis': 'AI 扫榜分析',
-  'ranking-idea-combinations': '扫榜脑洞生成',
-  'workflow-documents': '设定导出',
-  'plot-thread-detect': '伏笔检测',
-  'premise-enhance': '小说简介优化',
-  'project-bootstrap': '项目初始化',
-  'spiral-seed': '项目核心设计',
-  'spiral-expand': '角色关系与大纲扩展',
-  'spiral-characters': '深度构建配角',
-  'spiral-organizations': '深度构建组织',
-  'spiral-relationships': '深度构建关系',
-  'spiral-worldview-expand': '深度补充世界观',
-  'spiral-outline': '深度构建大纲',
-  'spiral-validate': '项目一致性校验',
-  'inspiration-pack': '灵感整理',
-  'catalog-batch': '图鉴批量生成',
-  'catalog-batch:character': '角色批量生成',
-  'catalog-batch:organization': '组织批量生成',
-  'catalog-batch:relationship': '人物关系批量生成',
-  'catalog-batch:membership': '组织成员批量生成',
-  'catalog-batch:worldview': '世界观批量生成',
-  'catalog-batch:inspiration': '灵感批量生成',
-  'cover-generate': '封面生成'
-}
+// 任务中文名映射已抽到 `@/features/ai/taskLabels`（Prompt 中心与任务中心共用同一来源，避免两处漂移）
 
 async function handleFetchModels(): Promise<void> {
   if (isFetchingModels.value) return
@@ -137,10 +89,6 @@ async function handleFetchModels(): Promise<void> {
   } finally {
     isFetchingModels.value = false
   }
-}
-
-function formatTaskLabel(task: string, clientKey?: string): string {
-  return (clientKey && taskLabelMap[clientKey]) || taskLabelMap[task] || task
 }
 
 function formatTime(value?: string): string {

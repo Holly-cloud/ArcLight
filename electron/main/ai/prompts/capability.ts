@@ -91,6 +91,14 @@ export function getDefaultCapabilities(task: AiTaskName): PromptCapabilityId[] {
 }
 
 /**
+ * 获取功能模块的中文展示标签（供 Prompt 中心展示 chips 用）。
+ * 未知 id 回退为 id 本身，不抛错。
+ */
+export function getCapabilityLabel(id: PromptCapabilityId | string): string {
+  return PROMPT_CAPABILITY_DEFINITIONS[id as PromptCapabilityId]?.label ?? String(id)
+}
+
+/**
  * 根据任务类型和功能模块列表，生成系统提示和用户规则的 PromptPair。
  *
  * @param task AI 任务名称
