@@ -119,7 +119,20 @@ function openEntry(entry: AssetEntry): void {
 
 // ── 自动保存状态（防抖落库，返回无需确认） ──
 const saveState = ref<'idle' | 'saved'>('idle')
+/** 载入时的表单快照签名：与之一致则不触发保存（避免切资产时无谓回写） */
+const loadedSignature = ref('')
 let saveTimer: number | undefined
+
+/** 当前表单的稳定签名（只看可持久化字段） */
+function formSignature(): string {
+  if (kind.value === 'character') {
+    return JSON.stringify([characterForm.name, characterForm.role, characterForm.description, characterForm.tags])
+  }
+  if (kind.value === 'scene') {
+    return JSON.stringify([sceneForm.name, sceneForm.type, sceneForm.description, sceneForm.tags])
+  }
+  return JSON.stringify([propForm.name, propForm.type, propForm.description, propForm.tags])
+}
 
 // ── 表单灌入：定位变化时把目标资产载入对应表单 ──
 watch(
@@ -149,6 +162,7 @@ watch(
       window.clearTimeout(saveTimer)
       saveTimer = undefined
     }
+    loadedSignature.value = formSignature()
   },
   { immediate: true }
 )
@@ -176,7 +190,11 @@ function scheduleSave(): void {
   }, 500)
 }
 
-watch(activeForm, () => scheduleSave(), { deep: true })
+// 只在表单内容真正变化（且不同于载入快照）时才安排保存
+watch(formSignature, (next) => {
+  if (next === loadedSignature.value) return
+  scheduleSave()
+})
 
 function goBack(): void {
   if (saveTimer !== undefined) {
@@ -249,17 +267,15 @@ function goBack(): void {
 
       <!-- 右：图库 -->
       <aside class="editor-panel editor-gallery">
-        <div class="gallery-scroll arc-scrollbar">
-          <AssetGallerySection
-            :project-id="appStore.selectedProjectId"
-            :kind="kind"
-            :asset-id="assetId"
-            :asset-name="assetName"
-            :asset="galleryAsset"
-            :project-style="appStore.currentProject?.projectVisualStyle ?? null"
-            :primary-capable="kind === 'character'"
-          />
-        </div>
+        <AssetGallerySection
+          :project-id="appStore.selectedProjectId"
+          :kind="kind"
+          :asset-id="assetId"
+          :asset-name="assetName"
+          :asset="galleryAsset"
+          :project-style="appStore.currentProject?.projectVisualStyle ?? null"
+          :primary-capable="kind === 'character'"
+        />
       </aside>
     </div>
   </section>
@@ -452,13 +468,6 @@ function goBack(): void {
 
 /* 右栏 */
 .editor-gallery {
-  padding: 0;
-}
-
-.gallery-scroll {
-  min-height: 0;
-  flex: 1;
-  overflow-y: auto;
   padding: 16px 18px;
 }
 

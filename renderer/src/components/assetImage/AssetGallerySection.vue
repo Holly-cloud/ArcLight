@@ -261,6 +261,7 @@ async function handleImageError(item: AssetImageItem): Promise<void> {
 <style scoped>
 .asset-gallery {
   display: flex;
+  flex: 1 1 auto;
   min-height: 0;
   flex-direction: column;
   gap: 12px;
@@ -297,7 +298,9 @@ async function handleImageError(item: AssetImageItem): Promise<void> {
 
 .gallery-grid {
   display: grid;
+  flex: 1 1 auto;
   min-height: 0;
+  align-content: start;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   overflow-y: auto;
