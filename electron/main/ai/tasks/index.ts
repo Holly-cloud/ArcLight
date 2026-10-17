@@ -43,6 +43,7 @@ import relationEnhance from './relation-enhance'
 import catalogBatch from './catalog-batch'
 import assetExtract from './asset-extract'
 import assetReextract from './asset-reextract'
+import assetVisualPrompt from './asset-visual-prompt'
 import novelSplitLocate from './novel-split-locate'
 import continuationImportChunk from './continuation-import-chunk'
 import continuationImportAggregate from './continuation-import-aggregate'
@@ -100,6 +101,7 @@ register(relationEnhance)
 register(catalogBatch)
 register(assetExtract)
 register(assetReextract)
+register(assetVisualPrompt)
 register(novelSplitLocate)
 register(continuationImportChunk)
 register(continuationImportAggregate)

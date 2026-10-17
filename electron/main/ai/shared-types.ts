@@ -106,6 +106,7 @@ export type AiTaskName =
   | 'continuation-import-aggregate'
   | 'asset-extract'
   | 'asset-reextract'
+  | 'asset-visual-prompt'
   | 'novel-split-locate'
 
 /**

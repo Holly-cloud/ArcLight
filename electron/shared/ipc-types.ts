@@ -102,6 +102,8 @@ export interface VisualStyleProfile {
   palette: string[]
   moodWords: string[]
   keyReferences: string[]
+  /** v1.34.3 视觉提示词：以资产简介为核心依据生成的生图提示词；旧数据缺省读为 null */
+  visualPrompt?: string | null
 }
 
 /** 场景 / 道具视觉上下文（v1.27.0，可空） */
@@ -110,6 +112,8 @@ export interface VisualContext {
   lightingNote: string
   seasonNote: string
   materialityNote: string
+  /** v1.34.3 视觉提示词：以资产简介为核心依据生成的生图提示词；旧数据缺省读为 null */
+  visualPrompt?: string | null
 }
 
 /** 项目级视觉风格（v1.27.0，可空；仅人工填写） */
