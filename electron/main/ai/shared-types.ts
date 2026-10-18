@@ -405,9 +405,9 @@ export type CatalogBatchResult = {
 
 /** asset-extract 结果：从项目章节正文提取的「实际登场」角色 / 场景 / 道具候选。 */
 export type AssetExtractResult = {
-  characters: Array<{ name: string; role: string; description: string; tags: string[]; evidence?: string }>
-  scenes: Array<{ name: string; type: string; description: string; tags: string[]; evidence?: string }>
-  props: Array<{ name: string; type: string; description: string; tags: string[]; evidence?: string }>
+  characters: Array<{ name: string; role: string; description: string; tags: string[]; evidence?: string; visualPrompt?: string }>
+  scenes: Array<{ name: string; type: string; description: string; tags: string[]; evidence?: string; visualPrompt?: string }>
+  props: Array<{ name: string; type: string; description: string; tags: string[]; evidence?: string; visualPrompt?: string }>
 }
 
 /** 再提取时单个目标的字段建议（仅建议，不直接覆盖用户已填内容）。 */

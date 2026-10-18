@@ -18,6 +18,10 @@ const MAX_ENTRIES_PER_KIND = 30
 const MAX_NAME_LENGTH = 40
 const MAX_FIELD_LENGTH = 400
 const MAX_TAGS = 6
+/** v1.36.1（#10）视觉提示词初稿：单条长度上限（超出截断，避免异常输出撑爆 UI / 落库） */
+const MAX_VISUAL_PROMPT_LENGTH = 600
+/** v1.36.1（#10）视觉提示词配额上限（本批跨类别合计） */
+const MAX_VISUAL_PROMPT_QUOTA = 30
 
 /** 目标类别：v1.30.0 起「提取资产」按类别分，一次只提取其中一类。 */
 type TargetKind = 'character' | 'scene' | 'prop'
@@ -64,6 +68,38 @@ function normalizeTags(value: unknown): string[] {
     .slice(0, MAX_TAGS)
 }
 
+/**
+ * v1.36.1（#10）：视觉提示词产出配额。
+ * >0 表示对**本批前 N 条**候选额外要求 `visualPrompt`；缺省 / 非正数 = 不要求（旧行为完全不变）。
+ */
+function normalizeVisualPromptQuota(value: unknown): number {
+  const quota = Number(value)
+  if (!Number.isFinite(quota) || quota <= 0) return 0
+  return Math.min(MAX_VISUAL_PROMPT_QUOTA, Math.floor(quota))
+}
+
+/**
+ * v1.36.1（#10）：按「角色 → 场景 → 道具」顺序施加配额。
+ * 配额 ≤0（未要求）或超出配额的条目**一律剥除该字段**——保证「没开开关时结果与旧版完全一致」。
+ */
+function applyVisualPromptQuota(
+  entries: Array<Record<string, unknown>>,
+  quota: number,
+  counter: { kept: number }
+): Array<Record<string, unknown>> {
+  return entries.map((entry) => {
+    const text = jsonStringField(entry.visualPrompt)
+    if (!text) return entry
+    if (quota > 0) {
+      counter.kept += 1
+      if (counter.kept <= quota) return { ...entry, visualPrompt: text }
+    }
+    const clone: Record<string, unknown> = { ...entry }
+    delete clone.visualPrompt
+    return clone
+  })
+}
+
 function normalizeEntries(raw: unknown, typeField: 'role' | 'type'): Array<Record<string, unknown>> {
   if (!Array.isArray(raw)) return []
   return raw
@@ -81,6 +117,9 @@ function normalizeEntries(raw: unknown, typeField: 'role' | 'type'): Array<Recor
         tags: normalizeTags(entry.tags),
         evidence
       }
+      // v1.36.1（#10）：视觉提示词初稿（可选字段，缺失即不写；超长截断）
+      const visualPrompt = normalizeText(entry.visualPrompt, MAX_VISUAL_PROMPT_LENGTH)
+      if (visualPrompt) normalized.visualPrompt = visualPrompt
       return normalized
     })
     .filter((entry): entry is Record<string, unknown> => entry !== null)
@@ -102,6 +141,22 @@ const handler: TaskHandler = {
     const scopeInstruction = targetKind
       ? `\n\n## 本次范围\n本次**只提取${TARGET_KIND_LABELS[targetKind]}**（${targetKind} 类）；其余两类一律返回空数组，不要输出。`
       : ''
+    // v1.36.1（#10）：配额 >0 时才在 JSON 契约里要求 visualPrompt（配额缺省 = 旧行为零变化）
+    const visualPromptQuota = normalizeVisualPromptQuota(context.visualPromptQuota)
+    const vpField = visualPromptQuota > 0
+      ? ',"visualPrompt":"【主体】…【服装或结构】…【材质与渲染】…【统一光影】…【负面提示词】…"'
+      : ''
+    const vpInstruction = visualPromptQuota > 0
+      ? `\n\n## 视觉提示词初稿（本次额外要求）
+仅对**前 ${visualPromptQuota} 条**候选额外产出 \`visualPrompt\`（其余候选不要输出该字段）。该字段必须是**分节标记文本**，段标记原样使用、段序固定：
+【主体】…【服装或结构】…【材质与渲染】…【统一光影】…【负面提示词】…
+- **不要输出「画面规格」段**（由系统按版式给定）；
+- 各段 30–80 字，逗号分隔，不要 Markdown 标题 / 解释 / 分点前缀；
+- 【负面提示词】只列与该资产事实冲突的排除项，不机械堆砌。`
+      : ''
+    const vpUserLine = visualPromptQuota > 0
+      ? `\n视觉提示词初稿：本批最多为**前 ${visualPromptQuota} 条**候选产出 visualPrompt（分节标记文本，不含「画面规格」段）。`
+      : ''
 
     return {
       system: `${capabilityPreamble.system}\n\n你是小说资产提取器。你**只返回 JSON 对象**，不要 Markdown、解释或提问。
@@ -115,11 +170,11 @@ const handler: TaskHandler = {
 6. 名称保持原文写法，不要翻译、不要加前缀。
 
 ## 输出格式
-{"characters":[{"name":"","role":"","description":"","tags":[""],"evidence":"原文原句"}],"scenes":[{"name":"","type":"","description":"","tags":[""],"evidence":"原文原句"}],"props":[{"name":"","type":"","description":"","tags":[""],"evidence":"原文原句"}]}
-字段说明：character 用 role（定位/身份）；scene 与 prop 用 type（类型）。tags 为 2-4 个来自原文的关键词；evidence 必须引用原文原句。没有某类实体就返回空数组。${scopeInstruction}`,
+{"characters":[{"name":"","role":"","description":"","tags":[""],"evidence":"原文原句"${vpField}}],"scenes":[{"name":"","type":"","description":"","tags":[""],"evidence":"原文原句"${vpField}}],"props":[{"name":"","type":"","description":"","tags":[""],"evidence":"原文原句"${vpField}}]}
+字段说明：character 用 role（定位/身份）；scene 与 prop 用 type（类型）。tags 为 2-4 个来自原文的关键词；evidence 必须引用原文原句。没有某类实体就返回空数组。${scopeInstruction}${vpInstruction}`,
       user: `${capabilityPreamble.user}\n\n当前项目：${String(context.projectTitle ?? '').trim() || '（未命名）'}（题材：${String(context.projectGenre ?? '').trim() || '未指明'}）
 本次处理范围：${batchLabel}
-写作风格：${style}
+写作风格：${style}${vpUserLine}
 
 已有实体名称（严格避重）：${JSON.stringify(existingNames)}
 
@@ -134,12 +189,18 @@ ${novelText || '（未提供章节正文——请告诉用户需要先在「章�
     const characters = normalizeEntries(parsed.characters, 'role')
     const scenes = normalizeEntries(parsed.scenes, 'type')
     const props = normalizeEntries(parsed.props, 'type')
+    // v1.36.1（#10）：按「角色 → 场景 → 道具」顺序施加视觉提示词配额（跨类别合计）
+    const quotaCounter = { kept: 0 }
+    const quota = normalizeVisualPromptQuota(context?.visualPromptQuota)
+    const keptCharacters = applyVisualPromptQuota(characters, quota, quotaCounter)
+    const keptScenes = applyVisualPromptQuota(scenes, quota, quotaCounter)
+    const keptProps = applyVisualPromptQuota(props, quota, quotaCounter)
     // v1.30.0：按类别分后，一次只保留 targetKind 指定的那一类，其余两类置空数组。
     const targetKind = normalizeTargetKind(context?.targetKind)
     return {
-      characters: !targetKind || targetKind === 'character' ? characters : [],
-      scenes: !targetKind || targetKind === 'scene' ? scenes : [],
-      props: !targetKind || targetKind === 'prop' ? props : []
+      characters: !targetKind || targetKind === 'character' ? keptCharacters : [],
+      scenes: !targetKind || targetKind === 'scene' ? keptScenes : [],
+      props: !targetKind || targetKind === 'prop' ? keptProps : []
     } as AssetExtractResult
   },
   validate(result: AiTaskResult): boolean {
@@ -159,8 +220,10 @@ ${novelText || '（未提供章节正文——请告诉用户需要先在「章�
   },
   resolveMaxTokens(input: PromptBuildInput): number {
     const text = collectNovelText(input.context)
-    // 「实际登场 + 证据」需要额外输出 evidence 字段，token 预算相应略增
-    return Math.min(10000, 3500 + Math.min(2500, Math.ceil(text.length / 200) * 60))
+    const quota = normalizeVisualPromptQuota(input.context.visualPromptQuota)
+    // 「实际登场 + 证据」需要额外输出 evidence 字段；v1.36.1（#10）再为视觉提示词初稿追加预算
+    const visualBudget = quota > 0 ? Math.min(3000, quota * 260) : 0
+    return Math.min(10000, 3500 + Math.min(2500, Math.ceil(text.length / 200) * 60) + visualBudget)
   }
 }
 

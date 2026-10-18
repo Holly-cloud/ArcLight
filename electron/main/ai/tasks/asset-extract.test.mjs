@@ -3,6 +3,7 @@
  * - normalize：容忍字段缺失，缺 name / 缺 evidence 的条目逐条剔除，过滤 tags 中的对象项与 [object Object]，读出 evidence
  * - validate：逐条剔除无证据候选后，剩余至少 1 条有证据实体即通过
  * - buildPrompt：只提取实际登场 + 强制证据 的约束、existingNames 避重
+ * - v1.36.1（#10）：视觉提示词配额——配额>0 才要字段；normalize 按配额剥除超出条目并截断超长
  */
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
@@ -114,4 +115,56 @@ test('asset-extract targetKind: normalize 只保留该类（其余置空），pr
 
   const prompt = handler.buildPrompt(buildInput({ context: { targetKind: 'prop' } }))
   assert.ok(prompt.system.includes('只提取道具'), 'system 应声明本次只提取指定类别')
+})
+
+test('asset-extract v1.36.1：配额缺省时不要求 visualPrompt（旧行为零变化）', () => {
+  const prompt = handler.buildPrompt(buildInput())
+  assert.ok(!prompt.system.includes('visualPrompt'), 'system 不应出现 visualPrompt 契约')
+  assert.ok(!prompt.system.includes('视觉提示词初稿'), 'system 不应出现视觉提示词说明')
+  assert.ok(!prompt.user.includes('视觉提示词初稿'), 'user 不应出现视觉提示词配额行')
+
+  const raw = JSON.stringify({
+    characters: [{ name: '林昭', role: '主角', description: '', tags: [], evidence: '林昭走进临川城。', visualPrompt: '【主体】少年剑修' }],
+    scenes: [],
+    props: []
+  })
+  const result = handler.normalize(raw)
+  assert.equal(result.characters[0].visualPrompt, undefined, '未要求时即便模型给了也剥除（保证与旧版一致）')
+})
+
+test('asset-extract v1.36.1：配额>0 时契约要求 visualPrompt，并按「角色→场景→道具」顺序限量', () => {
+  const prompt = handler.buildPrompt(buildInput({ context: { visualPromptQuota: 2 } }))
+  assert.ok(prompt.system.includes('visualPrompt'), 'system 应把 visualPrompt 写进 JSON 契约')
+  assert.ok(prompt.system.includes('前 2 条'), 'system 应声明只对前 2 条产出')
+  assert.ok(prompt.system.includes('不要输出「画面规格」段'), 'system 应声明画面规格由系统给定')
+  assert.ok(prompt.user.includes('前 2 条'), 'user 应给出配额说明')
+  assert.ok(
+    handler.resolveMaxTokens(buildInput({ context: { visualPromptQuota: 2 } })) > handler.resolveMaxTokens(buildInput()),
+    '配额>0 时 token 预算应增加'
+  )
+
+  const raw = JSON.stringify({
+    characters: [
+      { name: '甲', role: '主角', description: '', tags: [], evidence: '甲出场。', visualPrompt: '【主体】甲' },
+      { name: '乙', role: '配角', description: '', tags: [], evidence: '乙出场。', visualPrompt: '【主体】乙' }
+    ],
+    scenes: [{ name: '丙城', type: '城池', description: '', tags: [], evidence: '丙城出现。', visualPrompt: '【主体】丙城' }],
+    props: [{ name: '丁剑', type: '兵器', description: '', tags: [], evidence: '丁剑出现。', visualPrompt: '【主体】丁剑' }]
+  })
+
+  const limited = handler.normalize(raw, { visualPromptQuota: 2 })
+  assert.equal(limited.characters[0].visualPrompt, '【主体】甲', '第 1 条保留')
+  assert.equal(limited.characters[1].visualPrompt, '【主体】乙', '第 2 条（角色类内）保留')
+  assert.equal(limited.scenes[0].visualPrompt, undefined, '超出配额（场景类）应被剥除')
+  assert.equal(limited.props[0].visualPrompt, undefined, '超出配额（道具类）应被剥除')
+
+  const unlimited = handler.normalize(raw, { visualPromptQuota: 9 })
+  assert.equal(unlimited.scenes[0].visualPrompt, '【主体】丙城', '配额充足时三类均保留')
+
+  const long = handler.normalize(JSON.stringify({
+    characters: [{ name: '甲', role: '主角', description: '', tags: [], evidence: '甲出场。', visualPrompt: '长'.repeat(700) }],
+    scenes: [],
+    props: []
+  }), { visualPromptQuota: 1 })
+  assert.equal(long.characters[0].visualPrompt.length, 600, '超长初稿应截断到上限')
 })
