@@ -19,7 +19,8 @@
 - **零 schema 迁移**——复用既有 `visual_style_json` / `visual_context_json`（**0 新表 / 0 新列 / 不 bump `WORKSPACE_SCHEMA_VERSION`**，保持 4）
 - **「基准图」更名「首选图」**——它只表示「图库排序置顶 + 左栏头像用图」，**与生图方向无关**；「设为基准」按钮、角标、提示与帮助文案同步更名（`isPrimary` 字段与数据不变，无迁移）
 - **取消「首选图自动作为生图参考图」**——v1.33.0 起角色生成会**静默**把基准立绘注入 `images[]`（浮层里看不见），导致切换「图片主风格」后画面仍被旧图锚定（着装 / 质感不变）；v1.36.0 起**不再自动注入**，要保持人物一致请在「生成选项」里手动「从图库选」
-- `pnpm test` **304/303/1**（新增 18 条用例；唯一红仍为 `run-agent-codex-cli` 的 Windows 平台边界）；`test:asset-image` 含新增共享层用例；`typecheck` 0 错
+- **资产库卡片封面显示「首选图」**——资产库每个资产卡的大封面改用该资产的**首选图**（`arc-asset://` 居中裁切），无图时回退为原有渐变色封面；封面来自**单次批量查询**（新增只读通道 `characterarc:list-primary-asset-images`，不做逐卡 N+1）
+- `pnpm test` **315/314/1**（新增 29 条用例，含把此前未接入 `test` 脚本的 `assetLibraryModel.test.mjs` 一并纳入；唯一红仍为 `run-agent-codex-cli` 的 Windows 平台边界）；`test:asset-image` 含新增共享层用例；`typecheck` 0 错
 
 ## [1.35.0] - 2026-10-18
 
