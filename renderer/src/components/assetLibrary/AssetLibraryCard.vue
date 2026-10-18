@@ -13,6 +13,8 @@ const props = defineProps<{
   multiSelect?: boolean
   /** 多选态下是否已勾选 */
   checked?: boolean
+  /** v1.36.0 封面图：该资产「首选图」的 arc-asset:// URL；缺省回退为渐变封面 */
+  coverUrl?: string
 }>()
 
 const emit = defineEmits<{
@@ -51,6 +53,13 @@ const coverStyle = computed<CSSProperties>(() => ({ background: buildCover(props
     @dblclick="emit('dblclick')"
   >
     <div class="asset-cover" :style="coverStyle">
+      <!-- v1.36.0：有「首选图」时用其作封面（居中裁切），无则只剩渐变底 -->
+      <img
+        v-if="props.coverUrl"
+        class="asset-cover-img"
+        :src="props.coverUrl"
+        :alt="props.entry.name || '资产封面'"
+      />
       <div class="cover-left">
         <n-checkbox
           v-if="props.multiSelect"
@@ -127,8 +136,28 @@ const coverStyle = computed<CSSProperties>(() => ({ background: buildCover(props
 
 .cover-left {
   display: flex;
+  position: relative;
+  z-index: 1;
   align-items: center;
   gap: 8px;
+}
+
+/* 封面图铺满封面区，压在渐变底之上、徽标之下 */
+.asset-cover-img {
+  position: absolute;
+  z-index: 0;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.asset-edit-btn {
+  position: relative;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.15s ease;
 }
 
 .asset-check {

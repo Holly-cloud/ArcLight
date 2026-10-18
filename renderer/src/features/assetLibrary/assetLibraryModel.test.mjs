@@ -10,7 +10,28 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-const { collectAssets, filterAssets, countAssetsByKind, ASSET_KIND_LABELS } = await import('./assetLibraryModel.ts')
+const { collectAssets, filterAssets, countAssetsByKind, coverKey, buildPrimaryCoverMap, ASSET_KIND_LABELS } = await import('./assetLibraryModel.ts')
+
+test('coverKey：类型 + 资产 ID 组成封面键，缺字段返回空串', () => {
+  assert.equal(coverKey('character', 'c1'), 'character:c1')
+  assert.equal(coverKey('scene', 's1'), 'scene:s1')
+  assert.equal(coverKey('character', ''), '')
+  assert.equal(coverKey(null, 'c1'), '')
+})
+
+test('buildPrimaryCoverMap：首选图引用转成 arc-asset:// 封面映射，脏数据跳过', () => {
+  const map = buildPrimaryCoverMap([
+    { assetKind: 'character', assetId: 'c1', imageId: 'img-1' },
+    { assetKind: 'scene', assetId: 's1', imageId: 'img-2' },
+    { assetKind: 'prop', assetId: '', imageId: 'img-3' },
+    { assetKind: 'prop', assetId: 'pr1', imageId: '' }
+  ])
+  assert.equal(map['character:c1'], 'arc-asset://img-1')
+  assert.equal(map['scene:s1'], 'arc-asset://img-2')
+  assert.equal(Object.keys(map).length, 2, '缺 assetId / imageId 的引用被跳过')
+  assert.deepEqual(buildPrimaryCoverMap(null), {})
+  assert.deepEqual(buildPrimaryCoverMap(undefined), {})
+})
 
 const projects = [
   { id: 'p1', title: '项目一' },

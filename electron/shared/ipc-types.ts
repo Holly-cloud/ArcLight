@@ -193,6 +193,16 @@ export interface PersistedCharacterRecord {
   visualStyle?: VisualStyleProfile | null
 }
 
+/** 项目内某资产「首选图」的引用（v1.36.0：资产库卡片封面用） */
+export interface AssetPrimaryImageRef {
+  /** 资产类型（组织无图库，不会出现） */
+  assetKind: AssetImageKind
+  /** 资产 ID */
+  assetId: string
+  /** 首选图 ID（显示走 arc-asset://<imageId>） */
+  imageId: string
+}
+
 export interface PersistedInspirationEntryRecord {
   id: string
   type: string
@@ -314,6 +324,8 @@ export const IPC_CHANNELS = {
   ROLLBACK_DATABASE: 'characterarc:rollback-database',
   // ── 资产图库（v1.33.0）──
   LIST_ASSET_IMAGES: 'characterarc:list-asset-images',
+  /** 列出项目内各资产的「首选图」引用（v1.36.0：资产库卡片封面用，单次查询避免 N+1） */
+  LIST_PRIMARY_ASSET_IMAGES: 'characterarc:list-primary-asset-images',
   DELETE_ASSET_IMAGE: 'characterarc:delete-asset-image',
   SET_PRIMARY_IMAGE: 'characterarc:set-primary-image',
   EXPORT_ASSET_IMAGE: 'characterarc:export-asset-image',

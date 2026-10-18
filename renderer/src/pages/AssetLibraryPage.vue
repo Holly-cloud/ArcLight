@@ -3,7 +3,7 @@
 // - 只在项目内、唯一入口：仅展示**当前项目**的角色 / 场景 / 道具 / 组织（已废弃跨项目浏览）
 // - 单击卡片进入「资产编辑页」；多选模式点击改为切换选中（不再有只读详情栏）
 // - 工具栏「图片主风格」打开项目级主风格抽屉（渲染方式 / 配色 / 氛围词 / 默认画幅比）
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { ArrowLeft, Boxes, CheckSquare, Palette, RefreshCw, Search, Sparkles, Trash2 } from 'lucide-vue-next'
 import { NButton, NEmpty, NInput, NPopconfirm, useMessage } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
@@ -25,8 +25,10 @@ import { loadAllChapterContent } from '@/features/chapters/chapterExport'
 import {
   ASSET_KINDS,
   ASSET_KIND_LABELS,
+  buildPrimaryCoverMap,
   collectAssets,
   countAssetsByKind,
+  coverKey,
   filterAssets,
   type AssetEntry,
   type AssetKind
@@ -69,6 +71,37 @@ const emptyDescription = computed(() =>
   currentProjectEntries.value.length ? '当前筛选下没有匹配的资产' : '当前项目还没有资产'
 )
 const showCreateAction = computed(() => currentProjectEntries.value.length === 0)
+
+// --- v1.36.0 卡片封面：各资产的「首选图」（单次 IPC 查询，避免逐卡 N+1）---
+const coverMap = ref<Record<string, string>>({})
+
+/** 读取当前项目内各资产的首选图引用（读取失败不阻断资产库浏览） */
+async function loadCovers(): Promise<void> {
+  const projectId = appStore.selectedProjectId
+  if (!projectId) {
+    coverMap.value = {}
+    return
+  }
+  try {
+    const response = await window.characterArc.listPrimaryAssetImages(toIpcPayload({ projectId }))
+    coverMap.value = response.success ? buildPrimaryCoverMap(response.result) : {}
+  } catch {
+    coverMap.value = {}
+  }
+}
+
+onMounted(() => {
+  void loadCovers()
+})
+
+watch(() => appStore.selectedProjectId, () => {
+  void loadCovers()
+})
+
+/** 某条资产的封面 URL（无首选图则空串，卡片回退为渐变封面） */
+function coverUrlFor(entry: AssetEntry): string {
+  return coverMap.value[coverKey(entry.kind, entry.id)] ?? ''
+}
 
 // --- 项目级「图片主风格」抽屉（v1.34.0）---
 const styleDrawerVisible = ref(false)
@@ -427,6 +460,7 @@ function handlePreviewClose(): void {
             v-for="entry in visibleEntries"
             :key="entry.key"
             :entry="entry"
+            :cover-url="coverUrlFor(entry)"
             :multi-select="selectionMode"
             :checked="selectedIds.has(entry.key)"
             @select="handleSelect(entry)"

@@ -462,6 +462,13 @@ declare global {
         result?: import('@/types/app').AssetImageItem[]
         error?: string
       }>
+      listPrimaryAssetImages: (payload: {
+        projectId: string
+      }) => Promise<{
+        success: boolean
+        result?: import('@shared/ipc-types').AssetPrimaryImageRef[]
+        error?: string
+      }>
       deleteAssetImage: (imageId: string) => Promise<{ success: boolean; error?: string }>
       setPrimaryAssetImage: (imageId: string) => Promise<{ success: boolean; error?: string }>
       exportAssetImage: (payload: { imageId: string; defaultFileName?: string }) => Promise<{

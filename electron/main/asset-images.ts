@@ -11,7 +11,7 @@ import { copyFile, mkdir, readFile, rm, writeFile } from 'node:fs/promises'
 import { join } from 'node:path'
 import type { DatabaseSync } from 'node:sqlite'
 
-import type { AssetImageItem, AssetImageKind } from '@shared/ipc-types'
+import type { AssetImageItem, AssetImageKind, AssetPrimaryImageRef } from '@shared/ipc-types'
 import { ensureWorkspaceDb } from './workspace-store'
 
 /** 写库时携带的元数据（除 id/fileName/mime/时间戳外均由调用方提供） */
@@ -215,6 +215,23 @@ export async function listAssetImages(
   }
 
   return rows.map(rowToItem)
+}
+
+/**
+ * 列出项目内各资产的「首选图」引用（v1.36.0：供资产库卡片封面，**单次查询**避免 N+1）。
+ * 只返回 is_primary=1 的行；组织类资产无图库，自然不会出现。
+ */
+export async function listProjectPrimaryImages(projectId: string): Promise<AssetPrimaryImageRef[]> {
+  const db = await ensureWorkspaceDb()
+  const rows = db.prepare(
+    `SELECT asset_kind, asset_id, id FROM asset_images
+     WHERE project_id = ? AND is_primary = 1`
+  ).all(projectId) as Array<{ asset_kind: string; asset_id: string; id: string }>
+  return rows.map((row) => ({
+    assetKind: row.asset_kind as AssetImageKind,
+    assetId: row.asset_id,
+    imageId: row.id
+  }))
 }
 
 /** 解析图库条目的本地文件绝对路径（供自定义协议 / 导出使用） */

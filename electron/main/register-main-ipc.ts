@@ -48,6 +48,7 @@ import {
   copyAssetImageTo,
   deleteAssetImage,
   listAssetImages,
+  listProjectPrimaryImages,
   pruneAssetImagesForAsset,
   pruneAssetImagesForProject,
   readAssetImageDataUrl,
@@ -813,6 +814,17 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
       return { success: true, result: await listAssetImages(projectId, kind, assetId) }
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : '读取资产图库失败' }
+    }
+  })
+
+  ipcMain.handle(IPC_CHANNELS.LIST_PRIMARY_ASSET_IMAGES, async (_event, payload: unknown) => {
+    try {
+      const req = payload as { projectId?: string }
+      const projectId = String(req?.projectId ?? '').trim()
+      if (!projectId) throw new Error('缺少 projectId。')
+      return { success: true, result: await listProjectPrimaryImages(projectId) }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : '读取资产首选图失败' }
     }
   })
 

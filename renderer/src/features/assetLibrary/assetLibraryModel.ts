@@ -256,3 +256,34 @@ export function countAssetsByKind(entries: AssetEntry[]): Record<AssetKind | 'al
   }
   return counts
 }
+
+// ── v1.36.0 资产库卡片封面（各资产「首选图」）──
+
+/** 封面映射键（类型 + 资产 ID） */
+export function coverKey(kind: AssetKind | string | null | undefined, assetId: string | null | undefined): string {
+  const safeKind = String(kind ?? '').trim()
+  const safeId = String(assetId ?? '').trim()
+  return safeKind && safeId ? `${safeKind}:${safeId}` : ''
+}
+
+/** 首选图引用（与主进程 AssetPrimaryImageRef 结构一致，此处本地声明以免引入跨模块依赖） */
+export interface AssetPrimaryImageRefLike {
+  assetKind?: string | null
+  assetId?: string | null
+  imageId?: string | null
+}
+
+/**
+ * 把「首选图引用」列表转成 `封面键 → arc-asset://<imageId>` 映射（缺字段一律跳过，不抛错）。
+ * 渲染层不直接读文件：显示统一走 arc-asset:// 自定义协议（与资产编辑页左栏一致）。
+ */
+export function buildPrimaryCoverMap(refs: AssetPrimaryImageRefLike[] | null | undefined): Record<string, string> {
+  const map: Record<string, string> = {}
+  for (const ref of refs ?? []) {
+    const key = coverKey(ref?.assetKind, ref?.assetId)
+    const imageId = String(ref?.imageId ?? '').trim()
+    if (!key || !imageId) continue
+    map[key] = `arc-asset://${imageId}`
+  }
+  return map
+}
