@@ -150,7 +150,9 @@ const galleryAsset = computed<AssetImagePromptAsset>(() => {
       lightingNote: '',
       seasonNote: '',
       materialityNote: '',
-      visualPrompt: characterForm.visualPrompt
+      visualPrompt: characterForm.visualPrompt,
+      // v1.36.0 选题材用于派生时代禁词（A9）
+      genre: appStore.currentProject?.genre ?? ''
     }
   }
   if (kind.value === 'scene') {
@@ -167,7 +169,9 @@ const galleryAsset = computed<AssetImagePromptAsset>(() => {
       lightingNote: currentScene.value?.visualContext?.lightingNote ?? '',
       seasonNote: currentScene.value?.visualContext?.seasonNote ?? '',
       materialityNote: currentScene.value?.visualContext?.materialityNote ?? '',
-      visualPrompt: sceneForm.visualPrompt
+      visualPrompt: sceneForm.visualPrompt,
+      // v1.36.0 选题材用于派生时代禁词（A9）
+      genre: appStore.currentProject?.genre ?? ''
     }
   }
   return {
@@ -183,7 +187,9 @@ const galleryAsset = computed<AssetImagePromptAsset>(() => {
     lightingNote: currentProp.value?.visualContext?.lightingNote ?? '',
     seasonNote: currentProp.value?.visualContext?.seasonNote ?? '',
     materialityNote: currentProp.value?.visualContext?.materialityNote ?? '',
-    visualPrompt: propForm.visualPrompt
+    visualPrompt: propForm.visualPrompt,
+    // v1.36.0 选题材用于派生时代禁词（A9）
+    genre: appStore.currentProject?.genre ?? ''
   }
 })
 

@@ -1,10 +1,21 @@
 /**
- * v1.33.0 资产图库「提示词组装」纯函数模型
+ * 资产图库「提示词组装 / 编译」纯函数模型
  * - 无 Vue 依赖、无 IO，便于 Node 单测
- * - 复用/扩展 `buildImagePrompt`（视觉字段 → 文本），项目级视觉风格统一注入前缀
+ * - `composeAssetImagePrompt`：视觉字段 → 文本（保留 v1.33.0 / v1.34.0 行为，v1.36.0 追加 A3/A4 两条尾巴）
+ * - `compileAssetImagePrompt`（v1.36.0）：把「视觉提示词」（旧纯文本 / 新分节文档）编译成**最终生图提示词**，
+ *   并在尾部带上独立负向词（AR-1：不改传输层，编译进提示词尾部）
+ * - `resolveAssetPrompt`：生图取词的唯一收口，内部改走编译链
  */
 import type { AssetImageKind } from '@/types/app'
 import { buildImagePrompt } from '@/features/assetImage/imagePrompt'
+import {
+  MEDIA_LOCK_NOTE,
+  NEGATIVE_PROMPT_TITLE,
+  STYLE_DECOUPLE_TAIL,
+  defaultNegativePrompt,
+  renderVisualPromptDocument,
+  type VisualPromptValue
+} from '@shared/visual-prompt'
 
 /** 单条资产的提示词来源（AssetEntry 的子集，旧资产缺字段一律兜底为空） */
 export interface AssetImagePromptAsset {
@@ -21,8 +32,10 @@ export interface AssetImagePromptAsset {
   lightingNote: string
   seasonNote: string
   materialityNote: string
-  /** v1.34.3 视觉提示词：随资产持久化；为空时回退到视觉字段拼装 */
-  visualPrompt?: string
+  /** 视觉提示词：v1.34.3 为纯文本；v1.36.0 起可为分节结构化文档（旧数据按「整段」读） */
+  visualPrompt?: VisualPromptValue
+  /** v1.36.0 项目题材：用于派生时代禁词（A9）；缺省为空则不注入 */
+  genre?: string
 }
 
 /** 项目级视觉风格（仅人工填写，可空） */
@@ -78,10 +91,11 @@ function joinList(values?: string[] | null): string {
 }
 
 /**
- * 组装资产生图提示词：
+ * 组装资产生图提示词（视觉字段路径）：
  * 1) 项目级视觉风格前缀（配色 / 季相色板 / 光影规则 / 氛围词）
  * 2) 资产视觉字段（复用 buildImagePrompt）+ 标签
- * 3) 用户附加说明
+ * 3) v1.36.0 A3/A4 两条尾巴（风格层解耦 / 媒介硬锁）
+ * 4) 用户附加说明
  * 空字段一律跳过；全部为空时回退到资产名（或「资产配图」），不抛错。
  */
 export function composeAssetImagePrompt(input: ComposeAssetImagePromptInput): string {
@@ -120,6 +134,12 @@ export function composeAssetImagePrompt(input: ComposeAssetImagePromptInput): st
     if (tags) lines.push(`标签：${tags}`)
   }
 
+  // 有实质内容时才追加 A3/A4 两条全局尾巴
+  if (lines.length > 0) {
+    lines.push(STYLE_DECOUPLE_TAIL)
+    lines.push(MEDIA_LOCK_NOTE)
+  }
+
   const note = (input?.userNote ?? '').trim()
   if (note) lines.push(note)
 
@@ -130,15 +150,38 @@ export function composeAssetImagePrompt(input: ComposeAssetImagePromptInput): st
 }
 
 /**
- * 解析资产生图的「初始提示词」(v1.34.3)：
- * 优先使用资产自带的视觉提示词（人工编辑或 AI 生成、随资产持久化），
+ * 编译最终生图提示词（v1.36.0）：
+ * - 正文：分节文档 → 按固定段序渲染；旧纯文本 → 原样整段；为空 → 回退视觉字段拼装
+ * - 尾部：按 A13 + A9 追加独立负向词（AR-1：不改传输层，编译进提示词尾部）
+ */
+export function compileAssetImagePrompt(input: ComposeAssetImagePromptInput): string {
+  const asset = input?.asset ?? null
+  const projectStyle = input?.projectStyle ?? null
+  const genre = (asset?.genre ?? '').trim()
+  const value = asset?.visualPrompt
+
+  let body = ''
+  const document = value && typeof value === 'object' ? value : null
+  if (document) body = renderVisualPromptDocument(document).trim()
+  if (!body && typeof value === 'string') body = value.trim()
+  if (!body) {
+    body = composeAssetImagePrompt({ asset, projectStyle, userNote: input?.userNote })
+  }
+
+  const negative = asset
+    ? ((document?.negativePrompt ?? '').trim() || defaultNegativePrompt(asset.kind, genre))
+    : ''
+  return negative ? `${body}\n${NEGATIVE_PROMPT_TITLE}：${negative}` : body
+}
+
+/**
+ * 解析资产生图的「初始提示词」：
+ * 优先使用资产自带的视觉提示词（人工编辑或 AI 生成、随资产持久化，v1.36.0 起可为分节结构化），
  * 为空时才回退到按视觉字段拼装的提示词。用户仍可在生成浮层里临时编辑。
  */
 export function resolveAssetPrompt(
   asset?: AssetImagePromptAsset | null,
   projectStyle?: PromptProjectVisualStyle | null
 ): string {
-  const override = (asset?.visualPrompt ?? '').trim()
-  if (override) return override
-  return composeAssetImagePrompt({ asset: asset ?? null, projectStyle: projectStyle ?? null })
+  return compileAssetImagePrompt({ asset: asset ?? null, projectStyle: projectStyle ?? null })
 }

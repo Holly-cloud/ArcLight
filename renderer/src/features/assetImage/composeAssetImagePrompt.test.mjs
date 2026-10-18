@@ -13,11 +13,22 @@ registerHooks({
     if (specifier.startsWith('@/')) {
       return nextResolve(new URL(`../../${specifier.slice(2)}.ts`, import.meta.url).href, context)
     }
+    if (specifier.startsWith('@shared/')) {
+      return nextResolve(new URL(`../../../../electron/shared/${specifier.slice(8)}.ts`, import.meta.url).href, context)
+    }
     return nextResolve(specifier, context)
   }
 })
 
-const { composeAssetImagePrompt, recommendAspectRatio, resolveDefaultAspectRatio, resolveAssetPrompt, ASPECT_RATIO_OPTIONS } = await import('./composeAssetImagePrompt.ts')
+const {
+  composeAssetImagePrompt,
+  compileAssetImagePrompt,
+  recommendAspectRatio,
+  resolveDefaultAspectRatio,
+  resolveAssetPrompt,
+  ASPECT_RATIO_OPTIONS
+} = await import('./composeAssetImagePrompt.ts')
+const { VISUAL_PROMPT_LAYOUTS, parseVisualPromptText, NEGATIVE_PROMPT_TITLE } = await import('../../../../electron/shared/visual-prompt.ts')
 
 const characterAsset = {
   kind: 'character',
@@ -84,7 +95,7 @@ test('空视觉字段 / 空输入一律兜底，不抛错', () => {
   assert.equal(composeAssetImagePrompt({ asset: empty }), '资产配图', '全空回退默认文案')
   assert.equal(composeAssetImagePrompt({}), '资产配图', '无资产回退默认文案')
   const named = { ...empty, name: '断魂剑' }
-  assert.equal(composeAssetImagePrompt({ asset: named }), '断魂剑', '仅有名称时用名称')
+  assert.ok(composeAssetImagePrompt({ asset: named }).startsWith('断魂剑'), '仅有名称时以名称起头')
 })
 
 test('场景资产：场景视觉上下文映射（光影 / 季相 / 材质 / 配色）', () => {
@@ -131,12 +142,51 @@ test('项目图片主风格注入渲染方式前缀', () => {
   assert.ok(prompt.includes('项目渲染方式：realistic'), '应含项目渲染方式')
 })
 
-test('resolveAssetPrompt：优先资产视觉提示词，为空时回退拼装', () => {
+test('resolveAssetPrompt：优先资产视觉提示词（尾部带负向词），为空时回退拼装', () => {
   const withPrompt = { ...characterAsset, visualPrompt: '少年剑客，青灰布衣，左眼旧疤。' }
-  assert.equal(resolveAssetPrompt(withPrompt, null), '少年剑客，青灰布衣，左眼旧疤。', '有视觉提示词时直接取用')
+  const compiled = resolveAssetPrompt(withPrompt, null)
+  assert.ok(compiled.startsWith('少年剑客，青灰布衣，左眼旧疤。'), '旧纯文本原样作为正文')
+  assert.ok(compiled.includes(`${NEGATIVE_PROMPT_TITLE}：`), '尾部带独立负向词')
+  assert.ok(compiled.includes('可读文字'), '含 A13 默认负向词')
 
   const blank = { ...characterAsset, visualPrompt: '   ' }
-  assert.equal(resolveAssetPrompt(blank, null), composeAssetImagePrompt({ asset: characterAsset }), '空白提示词回退拼装')
+  const fallback = resolveAssetPrompt(blank, null)
+  assert.ok(fallback.startsWith(composeAssetImagePrompt({ asset: characterAsset })), '空白提示词回退拼装')
+  assert.ok(fallback.includes('不改变用户指定的主体与构图'), '回退拼装含 A3 尾巴')
+  assert.ok(fallback.includes(`${NEGATIVE_PROMPT_TITLE}：`), '回退拼装也带负向词')
 
-  assert.equal(resolveAssetPrompt(null, null), '资产配图', '无资产回退默认文案')
+  assert.equal(resolveAssetPrompt(null, null), '资产配图', '无资产回退默认文案且不追加负向词')
 })
+
+test('composeAssetImagePrompt：有实质内容时追加 A3/A4 尾巴，全空不加', () => {
+  const prompt = composeAssetImagePrompt({ asset: characterAsset })
+  assert.ok(prompt.includes('不改变用户指定的主体与构图'), '含 A3 风格层解耦尾巴')
+  assert.ok(prompt.includes('不生效'), '含 A4 媒介硬锁说明')
+  assert.ok(prompt.indexOf('标签：') < prompt.indexOf('不改变用户指定的主体与构图'), '尾巴追加在资产段之后')
+
+  const emptyWithNote = composeAssetImagePrompt({ asset: null, userNote: '只写一句说明' })
+  assert.equal(emptyWithNote, '只写一句说明', '无实质内容时不追加尾巴')
+})
+
+test('compileAssetImagePrompt：分节文档按固定段序渲染并带负向词', () => {
+  const doc = parseVisualPromptText(
+    '【主体】少年剑客\n【服装或结构】青灰布衣',
+    'character-base-sheet',
+    'character',
+    '仙侠'
+  )
+  const compiled = compileAssetImagePrompt({ asset: { ...characterAsset, visualPrompt: doc } })
+  assert.ok(compiled.includes('【画面规格】'), '首段为画面规格')
+  assert.ok(compiled.includes('【主体】少年剑客'), '主体段归位')
+  assert.ok(compiled.indexOf('【画面规格】') < compiled.indexOf('【主体】'), '段序固定')
+  assert.ok(compiled.includes(`${NEGATIVE_PROMPT_TITLE}：`), '带独立负向词')
+  assert.ok(compiled.includes('禁现代元素'), '按题材注入时代禁词（A9）')
+})
+
+test('compileAssetImagePrompt：文档自带负向词优先于默认负向词', () => {
+  const doc = { v: 1, layout: 'prop-white-bg', sections: { spec: VISUAL_PROMPT_LAYOUTS['prop-white-bg'].spec, subject: '断魂剑', costume: '', material: '', lighting: '' }, negativePrompt: '不要出现剑鞘' }
+  const compiled = compileAssetImagePrompt({ asset: { ...characterAsset, kind: 'prop', visualPrompt: doc } })
+  assert.ok(compiled.includes('不要出现剑鞘'), '采用文档自带负向词')
+  assert.ok(!compiled.includes('可读文字'), '不重复叠加默认负向词')
+})
+
