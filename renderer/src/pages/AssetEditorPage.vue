@@ -4,9 +4,11 @@
 // - 中栏只留「基础信息」一张卡（视觉风格已上收为资产库级「图片主风格」）
 // - v1.34.1：顶栏新增角色「AI 补充」（自「角色图鉴」弹窗迁入）
 // - 返回资产库自动保存；仅 Naive UI + lucide；颜色全走 --arc-* 令牌
+// - v1.36.0：「视觉」块由单文本框改为「版式 + 固定段序分节 + 独立负向词」；旧纯文本原样保留可一键转分节
 import { computed, reactive, ref, watch } from 'vue'
-import { ArrowLeft, Search, Sparkles } from 'lucide-vue-next'
-import { NButton, NEmpty, NInput, useMessage } from 'naive-ui'
+import { ArrowLeft, RotateCcw, Search, Sparkles } from 'lucide-vue-next'
+import { NButton, NEmpty, NInput, NSelect, useMessage } from 'naive-ui'
+import type { SelectOption } from 'naive-ui'
 import { useAppStore } from '@/stores/app'
 import { toIpcPayload } from '@/utils/ipcPayload'
 import { buildProjectWritingStyleContext } from '@/features/writingStyles/presets'
@@ -28,6 +30,21 @@ import { loadAllChapterContent } from '@/features/chapters/chapterExport'
 import { chapterContentToPlainText, extractEntitySnippet } from '@/features/assetExtraction/chapterText'
 import type { AssetImageKind, VisualContext, VisualStyleProfile } from '@/types/app'
 import type { AssetImagePromptAsset } from '@/features/assetImage/composeAssetImagePrompt'
+import {
+  VISUAL_PROMPT_SECTION_ORDER,
+  VISUAL_PROMPT_SECTION_TITLES,
+  createDocumentForLayout,
+  defaultLayoutForKind,
+  layoutSpec,
+  layoutsForKind,
+  normalizeVisualPromptValue,
+  parseVisualPromptText,
+  toVisualPromptDocument,
+  type VisualPromptDocument,
+  type VisualPromptLayoutId,
+  type VisualPromptSectionKey,
+  type VisualPromptValue
+} from '@shared/visual-prompt'
 
 const appStore = useAppStore()
 const message = useMessage()
@@ -38,9 +55,9 @@ const assetId = computed(() => target.value?.id ?? '')
 const kindLabel = computed(() => ASSET_KIND_LABELS[kind.value])
 
 // ── 表单（按类型分别持有，保持各字段命名） ──
-const characterForm = reactive({ name: '', role: '', description: '', tags: [] as string[], visualPrompt: '' })
-const sceneForm = reactive({ name: '', type: '', description: '', tags: [] as string[], visualPrompt: '' })
-const propForm = reactive({ name: '', type: '', description: '', tags: [] as string[], visualPrompt: '' })
+const characterForm = reactive({ name: '', role: '', description: '', tags: [] as string[], visualPrompt: null as VisualPromptValue })
+const sceneForm = reactive({ name: '', type: '', description: '', tags: [] as string[], visualPrompt: null as VisualPromptValue })
+const propForm = reactive({ name: '', type: '', description: '', tags: [] as string[], visualPrompt: null as VisualPromptValue })
 
 const currentCharacter = computed(() => appStore.characters.find((item) => item.id === assetId.value) ?? null)
 const currentScene = computed(() => appStore.sceneLocations.find((item) => item.id === assetId.value) ?? null)
@@ -52,19 +69,107 @@ const assetName = computed(() => {
   return characterForm.name
 })
 
-/** 当前资产的「视觉提示词」（可读写，直接映射到活动表单） */
-const currentVisualPrompt = computed({
-  get(): string {
+// ── 视觉提示词（v1.36.0：版式 + 固定段序分节 + 独立负向词） ──
+/** 当前资产的「视觉提示词」存储值（旧=纯文本 / 新=分节文档 / 空=null） */
+const currentVisualPromptValue = computed<VisualPromptValue>({
+  get(): VisualPromptValue {
     if (kind.value === 'scene') return sceneForm.visualPrompt
     if (kind.value === 'prop') return propForm.visualPrompt
     return characterForm.visualPrompt
   },
-  set(value: string) {
+  set(value: VisualPromptValue) {
     if (kind.value === 'scene') sceneForm.visualPrompt = value
     else if (kind.value === 'prop') propForm.visualPrompt = value
     else characterForm.visualPrompt = value
   }
 })
+
+/** 旧格式（纯文本整段，未分节）：原样保留，仅在用户点「转为分节」时升级 */
+const legacyVisualPrompt = computed(() => {
+  const value = currentVisualPromptValue.value
+  return typeof value === 'string' ? value : ''
+})
+const isLegacyVisualPrompt = computed(() => legacyVisualPrompt.value.trim().length > 0)
+
+/** 未落库 / 旧格式待转换时使用的版式选择 */
+const draftLayout = ref<VisualPromptLayoutId>(defaultLayoutForKind(kind.value))
+
+/** 当前生效版式：文档自带优先，否则用草稿版式 */
+const currentLayout = computed<VisualPromptLayoutId>(() => {
+  const value = currentVisualPromptValue.value
+  return value && typeof value === 'object' ? value.layout : draftLayout.value
+})
+
+/** 当前项目题材：用于派生时代禁词（A9） */
+const currentGenre = computed(() => appStore.currentProject?.genre ?? '')
+
+/** 版式下拉选项（按资产类型收敛） */
+const layoutOptions = computed<SelectOption[]>(() =>
+  layoutsForKind(kind.value).map((layout) => ({ label: layout.label, value: layout.id }))
+)
+
+/** 分节视图用文档：空值时给一份「画面规格已按版式填好、其余为空」的文档 */
+const visualPromptDoc = computed<VisualPromptDocument>(() => {
+  const value = currentVisualPromptValue.value
+  if (value && typeof value === 'object') return value
+  return createDocumentForLayout(draftLayout.value, kind.value, currentGenre.value)
+})
+
+/** 取（或按当前版式新建）分节文档副本，供编辑后整对象写回 */
+function ensureVisualPromptDoc(): VisualPromptDocument {
+  const value = currentVisualPromptValue.value
+  if (value && typeof value === 'object') {
+    return { v: 1, layout: value.layout, sections: { ...value.sections }, negativePrompt: value.negativePrompt }
+  }
+  return createDocumentForLayout(draftLayout.value, kind.value, currentGenre.value)
+}
+
+/** 改写某一段 */
+function updateVisualPromptSection(key: VisualPromptSectionKey, text: string): void {
+  const doc = ensureVisualPromptDoc()
+  doc.sections[key] = text
+  currentVisualPromptValue.value = doc
+}
+
+/** 改写独立负向词 */
+function updateVisualPromptNegative(text: string): void {
+  const doc = ensureVisualPromptDoc()
+  doc.negativePrompt = text
+  currentVisualPromptValue.value = doc
+}
+
+/** 按当前版式重置「画面规格」段 */
+function resetVisualPromptSpec(): void {
+  const doc = ensureVisualPromptDoc()
+  doc.sections.spec = layoutSpec(doc.layout)
+  currentVisualPromptValue.value = doc
+}
+
+/** 切换版式：已是文档则同步重置「画面规格」段；旧格式仅记草稿版式（待「转为分节」时使用） */
+function handleLayoutChange(next: VisualPromptLayoutId): void {
+  const value = currentVisualPromptValue.value
+  if (value && typeof value === 'object') {
+    currentVisualPromptValue.value = {
+      ...value,
+      layout: next,
+      sections: { ...value.sections, spec: layoutSpec(next) }
+    }
+    return
+  }
+  draftLayout.value = next
+}
+
+/** 编辑旧格式整段文本 */
+function updateLegacyVisualPrompt(text: string): void {
+  currentVisualPromptValue.value = text
+}
+
+/** 旧格式 → 分节：按当前版式拆分（画面规格取模板，原整段落在「主体」段，不丢内容） */
+function convertLegacyToDocument(): void {
+  const text = legacyVisualPrompt.value.trim()
+  if (!text) return
+  currentVisualPromptValue.value = toVisualPromptDocument(text, draftLayout.value, currentGenre.value)
+}
 
 /** 当前资产的「简介」（可读写，直接映射到活动表单） */
 const currentDescription = computed({
@@ -106,23 +211,23 @@ function readAssetVisual(targetKind: AssetImageKind, targetId: string): VisualSt
 }
 
 /** 角色 visualStyle：保留旧字段，仅覆盖 visualPrompt（整对象写回）。无旧档案且提示词为空则维持 null */
-function buildCharacterVisualStyle(existing: VisualStyleProfile | null, visualPrompt: string): VisualStyleProfile | null {
-  const prompt = visualPrompt.trim()
-  if (!existing && !prompt) return null
+function buildCharacterVisualStyle(existing: VisualStyleProfile | null, visualPrompt: VisualPromptValue): VisualStyleProfile | null {
+  const value = normalizeVisualPromptValue(visualPrompt)
+  if (!existing && !value) return null
   const base: VisualStyleProfile = existing ?? { renderMode: 'realistic', palette: [], moodWords: [], keyReferences: [] }
-  return { ...base, visualPrompt: prompt || null }
+  return { ...base, visualPrompt: value }
 }
 
 /** 场景 / 道具 visualContext：保留旧字段，仅覆盖 visualPrompt（整对象写回） */
-function buildVisualContext(existing: VisualContext | null, visualPrompt: string): VisualContext | null {
-  const prompt = visualPrompt.trim()
-  if (!existing && !prompt) return null
+function buildVisualContext(existing: VisualContext | null, visualPrompt: VisualPromptValue): VisualContext | null {
+  const value = normalizeVisualPromptValue(visualPrompt)
+  if (!existing && !value) return null
   const base: VisualContext = existing ?? { colorPalette: [], lightingNote: '', seasonNote: '', materialityNote: '' }
-  return { ...base, visualPrompt: prompt || null }
+  return { ...base, visualPrompt: value }
 }
 
 /** 把视觉提示词直接写回「指定资产」（不经过共享表单），用于生成期间用户已切换资产的场景 */
-function persistVisualPromptFor(targetKind: AssetImageKind, targetId: string, visualPrompt: string): void {
+function persistVisualPromptFor(targetKind: AssetImageKind, targetId: string, visualPrompt: VisualPromptValue): void {
   if (targetKind === 'character') {
     appStore.updateCharacter(targetId, {
       visualStyle: buildCharacterVisualStyle(readAssetVisual('character', targetId) as VisualStyleProfile | null, visualPrompt)
@@ -287,22 +392,24 @@ watch(
       characterForm.role = character?.role ?? ''
       characterForm.description = character?.description ?? ''
       characterForm.tags = character?.tags.map((tag) => tag.label) ?? []
-      characterForm.visualPrompt = character?.visualStyle?.visualPrompt ?? ''
+      characterForm.visualPrompt = normalizeVisualPromptValue(character?.visualStyle?.visualPrompt)
     } else if (kind.value === 'scene') {
       const scene = currentScene.value
       sceneForm.name = scene?.name ?? ''
       sceneForm.type = scene?.type ?? '城市'
       sceneForm.description = scene?.description ?? ''
       sceneForm.tags = scene?.tags.map((tag) => tag.label) ?? []
-      sceneForm.visualPrompt = scene?.visualContext?.visualPrompt ?? ''
+      sceneForm.visualPrompt = normalizeVisualPromptValue(scene?.visualContext?.visualPrompt)
     } else {
       const prop = currentProp.value
       propForm.name = prop?.name ?? ''
       propForm.type = prop?.type ?? '信物'
       propForm.description = prop?.description ?? ''
       propForm.tags = prop?.tags.map((tag) => tag.label) ?? []
-      propForm.visualPrompt = prop?.visualContext?.visualPrompt ?? ''
+      propForm.visualPrompt = normalizeVisualPromptValue(prop?.visualContext?.visualPrompt)
     }
+    // 版式草稿随资产类型复位（文档态的实际版式以文档自带为准）
+    draftLayout.value = defaultLayoutForKind(kind.value)
     saveState.value = 'idle'
     loadedSignature.value = formSignature()
   },
@@ -460,7 +567,7 @@ function handleEnhanceApply(accepted: Record<string, string | string[]>): void {
   enhanceVisible.value = false
 }
 
-// ── 视觉提示词（v1.34.3）：以简介为核心依据，并读取小说原文片段保证与小说描述一致 ──
+// ── 视觉提示词（v1.36.0）：以简介为核心依据 + 小说原文一致；按版式输出固定段序 --------------------------------------------------
 const VISUAL_PROMPT_TASK_KEY = 'asset-visual-prompt'
 const visualPromptLoading = computed(() => appStore.isAiTaskRunning(VISUAL_PROMPT_TASK_KEY))
 
@@ -475,10 +582,14 @@ async function handleGenerateVisualPrompt(): Promise<void> {
     return
   }
 
-  // 记录发起时的资产：用户中途切换资产时，结果仍写回原资产，避免落到新资产
+  // 记录发起时的资产与版式：用户中途切换资产时，结果仍写回原资产，避免落到新资产
   const requestKind = kind.value
   const requestId = assetId.value
   const requestName = assetName.value
+  const requestLayout = currentLayout.value
+  const requestGenre = currentGenre.value
+  const requestTypeLabel = currentTypeLabel.value
+  const requestTags = [...currentTags.value]
 
   // 章节正文按需懒加载，抽取包含该资产名的原文片段作为一致性依据（读取失败不阻断，仅依据简介生成）
   let snippet = ''
@@ -509,8 +620,8 @@ async function handleGenerateVisualPrompt(): Promise<void> {
           projectId: appStore.currentProject?.id,
           kind: requestKind,
           name: requestName,
-          typeLabel: currentTypeLabel.value,
-          tags: currentTags.value,
+          typeLabel: requestTypeLabel,
+          tags: requestTags,
           description: currentDescription.value,
           projectStyle: {
             renderMode: appStore.currentProject?.projectVisualStyle?.renderMode ?? '',
@@ -518,7 +629,9 @@ async function handleGenerateVisualPrompt(): Promise<void> {
             moodWords: appStore.currentProject?.projectVisualStyle?.moodWords ?? []
           },
           novelSnippet: snippet,
-          projectGenre: appStore.currentProject?.genre
+          projectGenre: requestGenre,
+          // v1.36.0：按版式生成「画面规格」（由模板确定性生成）
+          layoutId: requestLayout
         }
       }))
     )
@@ -528,14 +641,16 @@ async function handleGenerateVisualPrompt(): Promise<void> {
     }
     const content = ((response.result as { content?: string }).content ?? '').trim()
     if (!content) throw new Error('模型未返回有效提示词，请重试')
+    // 解析为分节文档（无段标记时整段降级到「主体」，不丢内容）
+    const document = parseVisualPromptText(content, requestLayout, requestKind, requestGenre)
     if (kind.value === requestKind && assetId.value === requestId) {
       // 仍在同一资产：写回表单（签名变化会触发自动保存）
-      currentVisualPrompt.value = content
+      currentVisualPromptValue.value = document
     } else {
       // 已切换资产：直接写回发起时的资产，避免把结果落到新资产
-      persistVisualPromptFor(requestKind, requestId, content)
+      persistVisualPromptFor(requestKind, requestId, document)
     }
-    message.success(`已为「${requestName || '未命名资产'}」生成视觉提示词，生图默认取用本段`)
+    message.success(`已为「${requestName || '未命名资产'}」生成分节视觉提示词，生图默认取用本段`)
   } catch (error) {
     message.error(error instanceof Error ? error.message : '生成视觉提示词失败，请检查模型配置')
   }
@@ -615,24 +730,76 @@ async function handleGenerateVisualPrompt(): Promise<void> {
             <p class="info-block__foot">{{ currentDescriptionLength }} 字</p>
           </section>
 
-          <!-- ③ 视觉 -->
+          <!-- ③ 视觉（v1.36.0：版式 + 固定段序分节 + 独立负向词） -->
           <section class="info-block">
             <div class="info-block__head">
               <h3 class="info-block__title">视觉</h3>
-              <n-button size="tiny" :loading="visualPromptLoading" @click="handleGenerateVisualPrompt">
-                <template #icon><Sparkles :size="13" /></template>
-                AI 生成
-              </n-button>
+              <div class="info-block__actions">
+                <n-select
+                  class="vp-layout"
+                  size="tiny"
+                  :value="currentLayout"
+                  :options="layoutOptions"
+                  @update:value="handleLayoutChange"
+                />
+                <n-button size="tiny" :loading="visualPromptLoading" @click="handleGenerateVisualPrompt">
+                  <template #icon><Sparkles :size="13" /></template>
+                  AI 生成
+                </n-button>
+              </div>
             </div>
-            <n-input
-              v-model:value="currentVisualPrompt"
-              type="textarea"
-              :autosize="{ minRows: 3, maxRows: 8 }"
-              placeholder="以「简介」为核心依据生成的生图提示词；生图默认取用本段，留空则按资产字段自动拼装"
-            />
-            <p class="info-block__foot">
-              以「简介」为核心生成依据，并读取该资产在小说章节中的原文片段，确保画面与小说的描述一致。
-            </p>
+
+            <!-- 旧格式（纯文本整段）：原样保留，可一键转分节 -->
+            <template v-if="isLegacyVisualPrompt">
+              <p class="vp-label">视觉提示词（旧格式 · 整段）</p>
+              <n-input
+                type="textarea"
+                :value="legacyVisualPrompt"
+                :autosize="{ minRows: 3, maxRows: 8 }"
+                placeholder="旧格式整段提示词"
+                @update:value="updateLegacyVisualPrompt"
+              />
+              <div class="vp-legacy-foot">
+                <n-button size="tiny" @click="convertLegacyToDocument">
+                  <template #icon><RotateCcw :size="13" /></template>
+                  转为分节
+                </n-button>
+                <span>按当前版式拆分：画面规格取自版式模板，原整段落在「主体」段，内容不丢。</span>
+              </div>
+            </template>
+
+            <!-- 分节态：固定段序（画面规格 → 主体 → 服装或结构 → 材质与渲染 → 统一光影）+ 独立负向词 -->
+            <template v-else>
+              <div v-for="key in VISUAL_PROMPT_SECTION_ORDER" :key="key" class="vp-field">
+                <div class="vp-field__head">
+                  <span class="vp-label">{{ VISUAL_PROMPT_SECTION_TITLES[key] }}</span>
+                  <n-button v-if="key === 'spec'" size="tiny" quaternary @click="resetVisualPromptSpec">
+                    按版式重置
+                  </n-button>
+                </div>
+                <n-input
+                  type="textarea"
+                  :value="visualPromptDoc.sections[key]"
+                  :autosize="{ minRows: 2, maxRows: 6 }"
+                  :placeholder="key === 'spec' ? '画面规格（版式）' : `填写「${VISUAL_PROMPT_SECTION_TITLES[key]}」`"
+                  @update:value="(value: string) => updateVisualPromptSection(key, value)"
+                />
+              </div>
+
+              <div class="vp-field">
+                <span class="vp-label">负面提示词</span>
+                <n-input
+                  type="textarea"
+                  :value="visualPromptDoc.negativePrompt"
+                  :autosize="{ minRows: 2, maxRows: 4 }"
+                  placeholder="生图时需要排除的内容（逗号分隔）"
+                  @update:value="updateVisualPromptNegative"
+                />
+              </div>
+              <p class="info-block__foot">
+                以「简介」为核心生成依据，并读取该资产在小说章节中的原文片段；生图时按固定段序编译，并在末尾带上负面提示词。
+              </p>
+            </template>
           </section>
         </div>
       </main>
@@ -854,6 +1021,51 @@ async function handleGenerateVisualPrompt(): Promise<void> {
 
 .info-block__foot {
   margin: 8px 0 0;
+  color: var(--arc-text-hint);
+  font-size: 12px;
+  line-height: 1.65;
+}
+
+/* 视觉块（v1.36.0）：版式下拉 + 固定段序分节 + 独立负向词 */
+.info-block__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.vp-layout {
+  width: 150px;
+}
+
+.vp-label {
+  margin: 0;
+  color: var(--arc-text-secondary);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.vp-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vp-field + .vp-field {
+  margin-top: 10px;
+}
+
+.vp-field__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vp-legacy-foot {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
   color: var(--arc-text-hint);
   font-size: 12px;
   line-height: 1.65;

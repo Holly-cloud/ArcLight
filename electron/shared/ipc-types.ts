@@ -1,3 +1,5 @@
+import type { VisualPromptValue } from './visual-prompt.ts'
+
 export interface IpcResult<T = void> {
   success: boolean
   error?: string
@@ -102,8 +104,11 @@ export interface VisualStyleProfile {
   palette: string[]
   moodWords: string[]
   keyReferences: string[]
-  /** v1.34.3 视觉提示词：以资产简介为核心依据生成的生图提示词；旧数据缺省读为 null */
-  visualPrompt?: string | null
+  /**
+   * 视觉提示词：v1.34.3 为纯文本；v1.36.0 起可存分节结构化文档。
+   * 旧数据缺省读为 null；旧纯文本按「整段」读取，不丢内容。
+   */
+  visualPrompt?: VisualPromptValue
 }
 
 /** 场景 / 道具视觉上下文（v1.27.0，可空） */
@@ -112,8 +117,11 @@ export interface VisualContext {
   lightingNote: string
   seasonNote: string
   materialityNote: string
-  /** v1.34.3 视觉提示词：以资产简介为核心依据生成的生图提示词；旧数据缺省读为 null */
-  visualPrompt?: string | null
+  /**
+   * 视觉提示词：v1.34.3 为纯文本；v1.36.0 起可存分节结构化文档。
+   * 旧数据缺省读为 null；旧纯文本按「整段」读取，不丢内容。
+   */
+  visualPrompt?: VisualPromptValue
 }
 
 /** 项目级视觉风格（v1.27.0，可空；仅人工填写） */
