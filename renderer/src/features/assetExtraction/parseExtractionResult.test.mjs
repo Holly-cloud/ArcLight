@@ -6,6 +6,28 @@ import {
   parseExtractionResult
 } from './parseExtractionResult.ts'
 
+test('v1.36.1：visualPrompt 初稿透传；缺失/占位不产出该字段；超长截断', () => {
+  const result = parseExtractionResult({
+    characters: [
+      { name: '林昭', role: '主角', evidence: '林昭出场。', visualPrompt: '  【主体】少年剑修  ' },
+      { name: '苏卿', role: '配角', evidence: '苏卿出场。' },
+      { name: '顾衡', role: '配角', evidence: '顾衡出场。', visualPrompt: '原文未明确' },
+      { name: '长文', role: '配角', evidence: '长文出场。', visualPrompt: '【主体】' + '长'.repeat(800) }
+    ],
+    scenes: [],
+    props: []
+  })
+
+  assert.equal(result.characters[0].visualPrompt, '【主体】少年剑修', '初稿应 trim 后透传')
+  assert.equal(result.characters[1].visualPrompt, undefined, '未产出时不带该字段（保持既有结构）')
+  assert.equal(result.characters[2].visualPrompt, undefined, '占位文本归一为空 → 不产出')
+  assert.equal(
+    result.characters[3].visualPrompt.length,
+    EXTRACTION_LIMITS.maxVisualPromptLength,
+    '超长初稿应截断到上限'
+  )
+})
+
 test('字段缺失兜底为空、占位文本归一为空、无名称条目丢弃', () => {
   const result = parseExtractionResult({
     characters: [

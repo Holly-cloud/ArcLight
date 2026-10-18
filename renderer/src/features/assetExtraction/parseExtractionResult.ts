@@ -14,6 +14,8 @@ export interface CharacterCandidate {
   tags: string[]
   /** 原文出场证据（引用原句）；缺失时为空串 */
   evidence: string
+  /** v1.36.1（#10）视觉提示词初稿（分节标记文本）；未产出时缺省 */
+  visualPrompt?: string
 }
 
 /** 场景候选 */
@@ -24,6 +26,8 @@ export interface SceneCandidate {
   tags: string[]
   /** 原文出场证据（引用原句）；缺失时为空串 */
   evidence: string
+  /** v1.36.1（#10）视觉提示词初稿（分节标记文本）；未产出时缺省 */
+  visualPrompt?: string
 }
 
 /** 道具候选 */
@@ -34,6 +38,8 @@ export interface PropCandidate {
   tags: string[]
   /** 原文出场证据（引用原句）；缺失时为空串 */
   evidence: string
+  /** v1.36.1（#10）视觉提示词初稿（分节标记文本）；未产出时缺省 */
+  visualPrompt?: string
 }
 
 /** 一次提取结果的三类候选集合 */
@@ -54,7 +60,9 @@ export const EXTRACTION_LIMITS = {
   /** 每条候选最多标签数 */
   maxTags: 6,
   /** 单个标签最大长度 */
-  maxTagLength: 12
+  maxTagLength: 12,
+  /** v1.36.1（#10）视觉提示词初稿最大长度（与主进程 MAX_VISUAL_PROMPT_LENGTH 对齐） */
+  maxVisualPromptLength: 600
 } as const
 
 /** 视为「未提供」的占位文本，统一归一为空串，避免把占位词当成真实字段。 */
@@ -80,6 +88,14 @@ const DESCRIPTION_KEYS = ['description', 'desc', '描述', '简介', '说明'] a
 const TAG_KEYS = ['tags', 'labels', '标签'] as const
 const TYPE_KEYS = ['type', '类型', '类别', '场景类型', '道具类型'] as const
 const EVIDENCE_KEYS = ['evidence', '证据', '根据', '依据'] as const
+/** v1.36.1（#10）视觉提示词初稿字段（兼容几种写法） */
+const VISUAL_PROMPT_KEYS = ['visualPrompt', 'visual_prompt', '视觉提示词', 'visualDescription'] as const
+
+/** v1.36.1（#10）：读视觉提示词初稿；缺失/占位一律不产出该字段 */
+function visualPromptField(entry: Record<string, unknown>): { visualPrompt?: string } {
+  const text = coerceExtractionText(firstDefined(entry, VISUAL_PROMPT_KEYS), EXTRACTION_LIMITS.maxVisualPromptLength)
+  return text ? { visualPrompt: text } : {}
+}
 
 /** 把 AI 返回的原始值收敛为普通对象；字符串时尝试 JSON.parse。 */
 function coerceRawRecord(value: unknown): Record<string, unknown> {
@@ -187,7 +203,8 @@ function parseCharacterEntries(raw: unknown): CharacterCandidate[] {
     role: coerceExtractionText(firstDefined(entry, ['role', '定位', '身份']), 40),
     description: coerceExtractionText(firstDefined(entry, DESCRIPTION_KEYS)),
     tags: normalizeExtractionTags(firstDefined(entry, TAG_KEYS)),
-    evidence: coerceExtractionText(firstDefined(entry, EVIDENCE_KEYS))
+    evidence: coerceExtractionText(firstDefined(entry, EVIDENCE_KEYS)),
+    ...visualPromptField(entry)
   }))
 }
 
@@ -197,7 +214,8 @@ function parseSceneEntries(raw: unknown): SceneCandidate[] {
     type: coerceExtractionText(firstDefined(entry, TYPE_KEYS), 40),
     description: coerceExtractionText(firstDefined(entry, DESCRIPTION_KEYS)),
     tags: normalizeExtractionTags(firstDefined(entry, TAG_KEYS)),
-    evidence: coerceExtractionText(firstDefined(entry, EVIDENCE_KEYS))
+    evidence: coerceExtractionText(firstDefined(entry, EVIDENCE_KEYS)),
+    ...visualPromptField(entry)
   }))
 }
 
@@ -207,7 +225,8 @@ function parsePropEntries(raw: unknown): PropCandidate[] {
     type: coerceExtractionText(firstDefined(entry, TYPE_KEYS), 40),
     description: coerceExtractionText(firstDefined(entry, DESCRIPTION_KEYS)),
     tags: normalizeExtractionTags(firstDefined(entry, TAG_KEYS)),
-    evidence: coerceExtractionText(firstDefined(entry, EVIDENCE_KEYS))
+    evidence: coerceExtractionText(firstDefined(entry, EVIDENCE_KEYS)),
+    ...visualPromptField(entry)
   }))
 }
 
