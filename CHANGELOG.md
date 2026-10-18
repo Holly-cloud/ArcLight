@@ -17,7 +17,7 @@
 - **旧数据零丢失**——`visualPrompt` 由 `string` 放宽为「纯文本或分节文档」；旧纯文本**原样按「整段」展示**，一键「转为分节」才升级（原整段落在「主体」段，内容不丢）
 - **「AI 生成」升级**——按当前版式输出固定段序（模型只写 4 个内容段 + 负向补充；「画面规格」由模板给定），仍以简介为核心依据并与小说原文一致；`maxTokens` 1200 → 1600
 - **零 schema 迁移**——复用既有 `visual_style_json` / `visual_context_json`（**0 新表 / 0 新列 / 不 bump `WORKSPACE_SCHEMA_VERSION`**，保持 4）
-- `pnpm test` **301/300/1**（新增 15 条用例；唯一红仍为 `run-agent-codex-cli` 的 Windows 平台边界）；`test:asset-image` 含新增共享层用例；`typecheck` 0 错
+- `pnpm test` **304/303/1**（新增 18 条用例；唯一红仍为 `run-agent-codex-cli` 的 Windows 平台边界）；`test:asset-image` 含新增共享层用例；`typecheck` 0 错
 
 ## [1.35.0] - 2026-10-18
 
