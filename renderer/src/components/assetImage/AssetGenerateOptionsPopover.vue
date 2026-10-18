@@ -194,7 +194,7 @@ defineExpose({ getPayload })
             v-model:value="promptText"
             type="textarea"
             :autosize="{ minRows: 3, maxRows: 6 }"
-            placeholder="生图提示词（自动组装，可编辑）"
+            placeholder="生图提示词（自动组装，已含负面提示词；可编辑）"
           />
         </div>
 
