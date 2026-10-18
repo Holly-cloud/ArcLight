@@ -67,7 +67,8 @@ test('版式模板：三视图含基准形象继承语义（A7），四宫格/�
   assert.ok(sheet.includes('缺头部的全身微侧'), '三视图应含左侧缺头全身微侧')
 
   const four = layoutSpec('scene-four-view')
-  assert.ok(four.includes('鸟瞰总览'), '四宫格应含四个机位名')
+  assert.ok(four.includes('右下＝45 度俯视图'), '四宫格右下格应为 45 度俯视图')
+  assert.ok(four.includes('左上＝平视全景') && four.includes('左下＝反向平视'), '四宫格应含四个机位名')
   assert.ok(four.includes('无人出现'), '四宫格应为空场景')
 
   const nine = layoutSpec('scene-nine-grid')
