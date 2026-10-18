@@ -189,18 +189,19 @@ ${novelText || '（未提供章节正文——请告诉用户需要先在「章�
     const characters = normalizeEntries(parsed.characters, 'role')
     const scenes = normalizeEntries(parsed.scenes, 'type')
     const props = normalizeEntries(parsed.props, 'type')
-    // v1.36.1（#10）：按「角色 → 场景 → 道具」顺序施加视觉提示词配额（跨类别合计）
-    const quotaCounter = { kept: 0 }
-    const quota = normalizeVisualPromptQuota(context?.visualPromptQuota)
-    const keptCharacters = applyVisualPromptQuota(characters, quota, quotaCounter)
-    const keptScenes = applyVisualPromptQuota(scenes, quota, quotaCounter)
-    const keptProps = applyVisualPromptQuota(props, quota, quotaCounter)
     // v1.30.0：按类别分后，一次只保留 targetKind 指定的那一类，其余两类置空数组。
     const targetKind = normalizeTargetKind(context?.targetKind)
+    const scopedCharacters = !targetKind || targetKind === 'character' ? characters : []
+    const scopedScenes = !targetKind || targetKind === 'scene' ? scenes : []
+    const scopedProps = !targetKind || targetKind === 'prop' ? props : []
+    // v1.36.1（#10）：按「角色 → 场景 → 道具」顺序施加视觉提示词配额。
+    // 先按 targetKind 过滤再计数——否则模型越界返回的、最终会被丢弃的条目会白耗配额。
+    const quotaCounter = { kept: 0 }
+    const quota = normalizeVisualPromptQuota(context?.visualPromptQuota)
     return {
-      characters: !targetKind || targetKind === 'character' ? keptCharacters : [],
-      scenes: !targetKind || targetKind === 'scene' ? keptScenes : [],
-      props: !targetKind || targetKind === 'prop' ? keptProps : []
+      characters: applyVisualPromptQuota(scopedCharacters, quota, quotaCounter),
+      scenes: applyVisualPromptQuota(scopedScenes, quota, quotaCounter),
+      props: applyVisualPromptQuota(scopedProps, quota, quotaCounter)
     } as AssetExtractResult
   },
   validate(result: AiTaskResult): boolean {

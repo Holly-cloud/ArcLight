@@ -508,7 +508,7 @@ function adoptSelected(): void {
         ...payload,
         role: draft.typeLabel.trim() || undefined,
         ...(visualPrompt
-          ? { visualStyle: { renderMode: 'realistic', palette: [], moodWords: [], keyReferences: [], visualPrompt } }
+          ? { visualStyle: { renderMode: appStore.currentProject?.projectVisualStyle?.renderMode ?? 'realistic', palette: [], moodWords: [], keyReferences: [], visualPrompt } }
           : {})
       })
     } else if (draft.kind === 'scene') {

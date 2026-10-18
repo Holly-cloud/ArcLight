@@ -35,3 +35,12 @@ test('名称归一 trim + 小写 + 去空白', () => {
   assert.equal(normalizeExtractionName('  李 三 '), '李三')
   assert.equal(normalizeExtractionName('ABC'), 'abc')
 })
+
+test('v1.36.1：跨批合并保留视觉提示词初稿（首次出现优先，不因去重丢失）', () => {
+  const merged = mergeExtractionCandidates([
+    { characters: [{ name: '林昭', role: '主角', description: '', tags: [], visualPrompt: '【主体】少年剑修' }] },
+    { characters: [{ name: '林昭', role: '重复项', description: '', tags: [], visualPrompt: '【主体】第二版' }] }
+  ])
+  assert.equal(merged.characters.length, 1)
+  assert.equal(merged.characters[0].visualPrompt, '【主体】少年剑修', '合并后初稿仍在（首次出现优先）')
+})
