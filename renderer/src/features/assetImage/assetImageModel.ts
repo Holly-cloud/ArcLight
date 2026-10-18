@@ -13,7 +13,7 @@ export const REFERENCE_IMAGE_MAX_BYTES = 8 * 1024 * 1024
 /** 图库状态过滤维度 */
 export type AssetImageStatusFilter = 'all' | 'succeeded' | 'failed'
 
-/** 排序：基准立绘优先，其次按创建时间倒序（新图在前）；不改动入参 */
+/** 排序：首选图优先，其次按创建时间倒序（新图在前）；不改动入参 */
 export function sortAssetImages(items: AssetImageItem[] | null | undefined): AssetImageItem[] {
   return [...(items ?? [])].sort((left, right) => {
     if (left.isPrimary !== right.isPrimary) return left.isPrimary ? -1 : 1
@@ -34,7 +34,7 @@ export function filterAssetImagesByStatus(
   return list.filter((item) => item.status === status)
 }
 
-/** 取该资产的基准立绘（无则 null） */
+/** 取该资产的首选图（无则 null） */
 export function pickPrimaryImage(items: AssetImageItem[] | null | undefined): AssetImageItem | null {
   return (items ?? []).find((item) => item.isPrimary) ?? null
 }
@@ -71,9 +71,9 @@ export function validateReferenceImageSize(dataUrl: string): ValidationResult {
   return { ok: true }
 }
 
-/** 图库角标文案：基准图 / 失败（v1.34.3 起统一为「基准图」，适配角色 / 场景 / 道具） */
+/** 图库角标文案：首选图 / 失败（v1.34.3 起统一，适配角色 / 场景 / 道具；v1.36.0 由「基准图」更名） */
 export function imageBadgeLabel(item: AssetImageItem): string {
   if (item.status === 'failed') return '失败'
-  if (item.isPrimary) return '基准图'
+  if (item.isPrimary) return '首选图'
   return ''
 }

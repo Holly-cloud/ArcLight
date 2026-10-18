@@ -322,7 +322,7 @@ function openEntry(entry: AssetEntry): void {
   appStore.openAssetEditor(kind.value, entry.id)
 }
 
-/** 左栏头像：优先显示该资产的「基准图片」（arc-asset:// 居中裁切），无则回退字母头像 */
+/** 左栏头像：优先显示该资产的「首选图」（arc-asset:// 居中裁切），无则回退字母头像 */
 function primaryThumb(entry: AssetEntry): string {
   const primary = pickPrimaryImage(appStore.getAssetImages(appStore.selectedProjectId, kind.value, entry.id))
   return primary ? `arc-asset://${primary.id}` : ''
@@ -331,7 +331,7 @@ function primaryThumb(entry: AssetEntry): string {
 /** 已尝试加载过图库的资产（避免重复 IPC 拉取） */
 const thumbAttempted = new Set<string>()
 
-/** 为左栏列表逐个懒加载图库元数据，用于显示各自「基准图片」头像 */
+/** 为左栏列表逐个懒加载图库元数据，用于显示各自「首选图」头像 */
 async function ensureListThumbs(): Promise<void> {
   const projectId = appStore.selectedProjectId
   if (!projectId) return
@@ -814,7 +814,6 @@ async function handleGenerateVisualPrompt(): Promise<void> {
           :asset-name="assetName"
           :asset="galleryAsset"
           :project-style="appStore.currentProject?.projectVisualStyle ?? null"
-          :primary-capable="kind === 'character'"
         />
       </aside>
     </div>
@@ -944,7 +943,7 @@ async function handleGenerateVisualPrompt(): Promise<void> {
   font-weight: 700;
 }
 
-/* 头像位显示该资产的「基准图片」：居中裁切铺满圆形 */
+/* 头像位显示该资产的「首选图」：居中裁切铺满圆形 */
 .list-dot-img {
   width: 100%;
   height: 100%;

@@ -834,7 +834,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
       const ok = await setPrimaryAssetImage(id)
       return { success: ok, error: ok ? undefined : '图库中找不到该图像。' }
     } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : '设置基准立绘失败' }
+      return { success: false, error: error instanceof Error ? error.message : '设置首选图失败' }
     }
   })
 

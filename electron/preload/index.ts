@@ -168,7 +168,7 @@ contextBridge.exposeInMainWorld('characterArc', {
   listAssetImages: (payload: unknown) => ipcRenderer.invoke(IPC_CHANNELS.LIST_ASSET_IMAGES, toIpcPayload(payload)),
   /** 删除一张资产图像（联动删本地文件） */
   deleteAssetImage: (imageId: string) => ipcRenderer.invoke(IPC_CHANNELS.DELETE_ASSET_IMAGE, imageId),
-  /** 设置某张资产图像为该资产的基准立绘 */
+  /** 设置某张资产图像为该资产的首选图 */
   setPrimaryAssetImage: (imageId: string) => ipcRenderer.invoke(IPC_CHANNELS.SET_PRIMARY_IMAGE, imageId),
   /** 导出资产图像到用户指定路径（系统另存为） */
   exportAssetImage: (payload: unknown) => ipcRenderer.invoke(IPC_CHANNELS.EXPORT_ASSET_IMAGE, toIpcPayload(payload)),

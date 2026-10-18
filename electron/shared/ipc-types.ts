@@ -167,7 +167,7 @@ export interface AssetImageItem {
   imageSize: string
   /** 参考图来源（图库 id 列表） */
   referenceIds: string[]
-  /** 是否为该资产的基准立绘（角色一致性）；每资产至多 1 张 */
+  /** 是否为该资产的首选图（仅影响图库排序与左栏头像，不参与生图方向）；每资产至多 1 张 */
   isPrimary: boolean
   /** 生成状态 */
   status: 'succeeded' | 'failed'

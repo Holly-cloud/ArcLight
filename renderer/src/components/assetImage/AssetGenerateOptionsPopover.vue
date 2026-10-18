@@ -19,7 +19,6 @@ import {
   type PromptProjectVisualStyle
 } from '@/features/assetImage/composeAssetImagePrompt'
 import {
-  pickPrimaryImage,
   validateReferenceCount,
   validateReferenceImageSize
 } from '@/features/assetImage/assetImageModel'
@@ -35,8 +34,6 @@ const props = defineProps<{
   projectStyle?: PromptProjectVisualStyle | null
   /** 图库现有图像（供「从图库选」作参考图） */
   images: AssetImageItem[]
-  /** 是否支持「基准立绘」自动注入（角色） */
-  primaryCapable?: boolean
 }>()
 
 const appStore = useAppStore()
@@ -134,32 +131,24 @@ function clearReferences(): void {
   references.value = []
 }
 
-/** 组装发送用的参考图 data URL 与图库 id（含基准立绘自动注入） */
-async function collectReferencePayload(): Promise<{ images: string[]; referenceIds: string[] }> {
+/**
+ * 组装发送用的参考图 data URL 与图库 id。
+ * v1.36.0：**不再自动把「首选图」当参考图注入**——首选图只是图库排序置顶与左栏头像用图，
+ * 不参与生图方向；要保持角色一致请在此手动「从图库选」。
+ */
+function collectReferencePayload(): { images: string[]; referenceIds: string[] } {
   const urls: string[] = []
   const ids: string[] = []
   for (const ref of references.value) {
     urls.push(ref.dataUrl)
     if (ref.id) ids.push(ref.id)
   }
-  const primaryImage = pickPrimaryImage(props.images)
-  if (isGrsai.value && props.primaryCapable && primaryImage && !ids.includes(primaryImage.id)) {
-    try {
-      const response = await window.characterArc.readAssetImageDataUrl(primaryImage.id)
-      if (response.success && response.dataUrl) {
-        urls.unshift(response.dataUrl)
-        ids.unshift(primaryImage.id)
-      }
-    } catch {
-      /* 基准立绘读取失败不阻断生成 */
-    }
-  }
   return { images: urls, referenceIds: ids }
 }
 
-/** 供图库「生成立绘」读取本次生成参数并读取参考图 data URL */
-async function getPayload(): Promise<GeneratePayload> {
-  const { images, referenceIds } = await collectReferencePayload()
+/** 供图库「生成立绘」读取本次生成参数 */
+function getPayload(): GeneratePayload {
+  const { images, referenceIds } = collectReferencePayload()
   return {
     prompt: promptText.value.trim(),
     aspectRatio: aspectRatio.value,

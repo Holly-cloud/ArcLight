@@ -26,8 +26,6 @@ const props = defineProps<{
   asset?: AssetImagePromptAsset | null
   /** 项目级视觉风格（图片主风格） */
   projectStyle?: PromptProjectVisualStyle | null
-  /** 是否支持「基准立绘」（角色） */
-  primaryCapable?: boolean
 }>()
 
 const appStore = useAppStore()
@@ -144,9 +142,9 @@ function handleGenerate(): void {
 async function handleSetPrimary(item: AssetImageItem): Promise<void> {
   try {
     await appStore.setPrimaryAssetImage(item.id, props.projectId, props.kind, props.assetId)
-    message.success('已设为基准图（移到第一位）')
+    message.success('已设为首选图（移到第一位）')
   } catch (error) {
-    message.error(error instanceof Error ? error.message : '设置基准图失败')
+    message.error(error instanceof Error ? error.message : '设置首选图失败')
   }
 }
 
@@ -218,7 +216,6 @@ async function handleImageError(item: AssetImageItem): Promise<void> {
         :asset="asset ?? null"
         :project-style="projectStyle ?? null"
         :images="images"
-        :primary-capable="primaryCapable"
       />
       <n-button type="primary" size="small" @click="handleGenerate">
         <template #icon><Sparkles :size="14" /></template>
@@ -246,7 +243,7 @@ async function handleImageError(item: AssetImageItem): Promise<void> {
           {{ imageBadgeLabel(item) }}
         </n-tag>
         <figcaption class="gallery-actions">
-          <n-button v-if="!item.isPrimary" quaternary size="tiny" title="设为基准图（移到第一位）" @click="handleSetPrimary(item)">
+          <n-button v-if="!item.isPrimary" quaternary size="tiny" title="设为首选图（移到第一位）" @click="handleSetPrimary(item)">
             <template #icon><Star :size="13" /></template>
           </n-button>
           <n-button quaternary size="tiny" title="导出" @click="handleExport(item)">

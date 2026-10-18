@@ -4336,7 +4336,7 @@ export const useAppStore = defineStore('app', () => {
     )
   }
 
-  /** 设置基准图：同资产内互斥（基准图恒排在图库首位） */
+  /** 设置首选图：同资产内互斥（首选图恒排在图库首位，仅影响排序与左栏头像） */
   async function setPrimaryAssetImage(
     imageId: string,
     projectId: string,
@@ -4345,7 +4345,7 @@ export const useAppStore = defineStore('app', () => {
   ): Promise<void> {
     const response = await window.characterArc.setPrimaryAssetImage(imageId)
     if (!response.success) {
-      throw new Error(response.error ?? '设置基准图失败')
+      throw new Error(response.error ?? '设置首选图失败')
     }
     setAssetImages(
       assetImageKey(projectId, kind, assetId),

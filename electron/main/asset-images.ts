@@ -156,7 +156,7 @@ export async function saveAssetImage(
 
   await writeFile(join(dir, fileName), buffer)
 
-  // v1.34.3：图库首图默认成为基准图（该资产尚无基准时，本次保存的图即基准）
+  // v1.34.3：图库首图默认成为首选图（该资产尚无首选时，本次保存的图即首选）
   const existingPrimary = db.prepare(
     'SELECT id FROM asset_images WHERE project_id = ? AND asset_kind = ? AND asset_id = ? AND is_primary = 1 LIMIT 1'
   ).get(projectId, kind, assetId)
@@ -241,7 +241,7 @@ export async function deleteAssetImage(id: string): Promise<boolean> {
   db.prepare('DELETE FROM asset_images WHERE id = ?').run(id)
   await rm(join(getAssetImageDir(row.project_id), row.file_name), { force: true })
 
-  // v1.34.3：删掉的若是基准图，则把剩余最新一张提升为基准（保持「有图即有基准」）
+  // v1.34.3：删掉的若是首选图，则把剩余最新一张提升为首选（保持「有图即有首选」）
   if (row.is_primary === 1) {
     const next = db.prepare(
       'SELECT id FROM asset_images WHERE project_id = ? AND asset_kind = ? AND asset_id = ? ORDER BY created_at DESC LIMIT 1'
@@ -254,7 +254,7 @@ export async function deleteAssetImage(id: string): Promise<boolean> {
   return true
 }
 
-/** 同资产内互斥设置基准立绘（每资产至多 1 张） */
+/** 同资产内互斥设置首选图（每资产至多 1 张） */
 export async function setPrimaryAssetImage(id: string): Promise<boolean> {
   const db = await ensureWorkspaceDb()
   const row = getRowById(db, id)

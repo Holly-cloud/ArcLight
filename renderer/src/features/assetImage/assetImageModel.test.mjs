@@ -42,12 +42,12 @@ function makeItem(id, overrides = {}) {
   }
 }
 
-test('sortAssetImages：基准立绘优先，其余按创建时间倒序', () => {
+test('sortAssetImages：首选图优先，其余按创建时间倒序', () => {
   const older = makeItem('old', { createdAt: '2026-10-01T00:00:00.000Z' })
   const newer = makeItem('new', { createdAt: '2026-10-10T00:00:00.000Z' })
   const primary = makeItem('a-primary', { createdAt: '2026-09-01T00:00:00.000Z', isPrimary: true })
   const sorted = sortAssetImages([older, newer, primary])
-  assert.equal(sorted[0].id, 'a-primary', '基准立绘置顶')
+  assert.equal(sorted[0].id, 'a-primary', '首选图置顶')
   assert.equal(sorted[1].id, 'new', '其余新图在前')
   assert.equal(sorted[2].id, 'old')
 })
@@ -71,7 +71,7 @@ test('filterAssetImagesByStatus：all / succeeded / failed', () => {
   assert.deepEqual(filterAssetImagesByStatus(items, 'failed').map((i) => i.id), ['b'])
 })
 
-test('pickPrimaryImage：命中基准立绘，否则 null', () => {
+test('pickPrimaryImage：命中首选图，否则 null', () => {
   const primary = makeItem('p', { isPrimary: true })
   assert.equal(pickPrimaryImage([makeItem('a'), primary]).id, 'p')
   assert.equal(pickPrimaryImage([makeItem('a')]), null)
@@ -102,8 +102,8 @@ test('validateReferenceImageSize：小图通过，超大图报错', () => {
   assert.ok(result.message.includes('8MB'))
 })
 
-test('imageBadgeLabel：失败优先于基准立绘', () => {
+test('imageBadgeLabel：失败优先于首选图', () => {
   assert.equal(imageBadgeLabel(makeItem('a', { status: 'failed', isPrimary: true })), '失败')
-  assert.equal(imageBadgeLabel(makeItem('b', { isPrimary: true })), '基准图')
+  assert.equal(imageBadgeLabel(makeItem('b', { isPrimary: true })), '首选图')
   assert.equal(imageBadgeLabel(makeItem('c')), '')
 })
