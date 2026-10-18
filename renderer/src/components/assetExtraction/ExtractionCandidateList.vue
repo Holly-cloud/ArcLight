@@ -16,12 +16,14 @@ export interface CandidateDraft {
   checked: boolean
   /** 是否与项目已有实体重名 */
   conflict: boolean
+  /** v1.36.1（#10）视觉提示词初稿（分节标记文本）；未产出时缺省 */
+  visualPrompt?: string
 }
 </script>
 
 <script setup lang="ts">
 import { computed } from 'vue'
-import { NDynamicTags, NInput, NTag } from 'naive-ui'
+import { NCollapse, NCollapseItem, NDynamicTags, NInput, NTag } from 'naive-ui'
 
 const props = defineProps<{
   drafts: CandidateDraft[]
@@ -140,6 +142,15 @@ function updateTag(index: number, tags: string[]): void {
               <span class="field-label">证据</span>
               <span class="row-evidence">{{ item.draft.evidence }}</span>
             </div>
+            <!-- v1.36.1（#10）视觉提示词初稿：只读预览，采纳后写入该资产 -->
+            <div v-if="item.draft.visualPrompt" class="row-field row-field--stack">
+              <span class="field-label">视觉提示词初稿</span>
+              <n-collapse>
+                <n-collapse-item title="点开查看（分节）" name="visual-prompt">
+                  <div class="row-visual-prompt">{{ item.draft.visualPrompt }}</div>
+                </n-collapse-item>
+              </n-collapse>
+            </div>
           </div>
         </article>
       </div>
@@ -243,6 +254,15 @@ function updateTag(index: number, tags: string[]): void {
   color: var(--arc-text-hint);
   font-size: 12px;
   line-height: 1.5;
+  word-break: break-word;
+}
+
+/* v1.36.1（#10）视觉提示词初稿：保留分节换行，只读展示 */
+.row-visual-prompt {
+  color: var(--arc-text-secondary);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
   word-break: break-word;
 }
 </style>

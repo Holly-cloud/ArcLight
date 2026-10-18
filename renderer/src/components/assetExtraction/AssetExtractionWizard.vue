@@ -5,9 +5,10 @@
 // 仅 Naive UI + lucide + --arc-* 令牌；渲染层不直连文件系统 / AI 服务（一律经 window.characterArc.*）。
 import { computed, ref, watch } from 'vue'
 import { Check, FileText, RotateCcw, Sparkles, Upload } from 'lucide-vue-next'
-import { NAlert, NButton, NInput, NModal, NPopconfirm, NProgress, NRadioButton, NRadioGroup, useMessage } from 'naive-ui'
+import { NAlert, NButton, NCheckbox, NInput, NModal, NPopconfirm, NProgress, NRadioButton, NRadioGroup, useMessage } from 'naive-ui'
 import { isCodexCliProvider } from '@shared/ai-provider-catalog'
 import { applySplitPlan, collectSplitCandidates, parseContinuationNovelText, type ContinuationNovelFilePreview } from '@shared/continuation-import'
+import { defaultLayoutForKind, parseVisualPromptText, type VisualPromptValue } from '@shared/visual-prompt'
 import { useAppStore } from '@/stores/app'
 import { toIpcPayload } from '@/utils/ipcPayload'
 import FeatureHelp from '@/components/FeatureHelp.vue'
@@ -62,6 +63,28 @@ const importedSnapshot = ref('')
 const importing = ref(false)
 const running = ref(false)
 const candidates = ref<ExtractionCandidates>({ characters: [], scenes: [], props: [] })
+
+// ── v1.36.1（#10）视觉提示词初稿 ──
+/** 是否同时产出视觉提示词初稿（**默认关**，避免旧路径行为与成本变化） */
+const withVisualPrompt = ref(false)
+/** 初稿配额上限（跨批次合计）；超过则只对前 N 条产出 */
+const VISUAL_PROMPT_QUOTA_TOTAL = 12
+/** 剩余配额（跨批次递减；0 = 不要求产出） */
+const visualPromptBudget = ref(0)
+
+/** 统计一批结果里实际产出初稿的候选数（用于递减配额） */
+function countVisualPrompts(batch: ExtractionCandidates): number {
+  return [...batch.characters, ...batch.scenes, ...batch.props]
+    .filter((item) => (item.visualPrompt ?? '').trim())
+    .length
+}
+
+/** 把分节初稿转为可落库的文档（画面规格取版式模板、负向词补默认）；无初稿返回 null */
+function buildVisualPromptValue(draft: CandidateDraft): VisualPromptValue {
+  const text = (draft.visualPrompt ?? '').trim()
+  if (!text) return null
+  return parseVisualPromptText(text, defaultLayoutForKind(draft.kind), draft.kind, appStore.currentProject?.genre ?? '')
+}
 const drafts = ref<CandidateDraft[]>([])
 const progress = ref({ current: 0, total: 0 })
 
@@ -340,7 +363,8 @@ function buildDrafts(list: ExtractionCandidates): CandidateDraft[] {
     typeLabel: string,
     description: string,
     tags: string[],
-    evidence: string
+    evidence: string,
+    visualPrompt?: string
   ): void => {
     const normalized = normalizeExtractionName(name)
     const conflict = existing.has(normalized)
@@ -352,19 +376,20 @@ function buildDrafts(list: ExtractionCandidates): CandidateDraft[] {
       description,
       tags,
       evidence,
+      visualPrompt,
       checked: !conflict,
       conflict
     })
   }
   // extract 模式只产出 kind 指定那一类；未指定时（向后兼容）三类都产出。
   if (!targetKind || targetKind === 'character') {
-    for (const candidate of list.characters) push('character', candidate.name, candidate.role, candidate.description, [...candidate.tags], candidate.evidence ?? '')
+    for (const candidate of list.characters) push('character', candidate.name, candidate.role, candidate.description, [...candidate.tags], candidate.evidence ?? '', candidate.visualPrompt)
   }
   if (!targetKind || targetKind === 'scene') {
-    for (const candidate of list.scenes) push('scene', candidate.name, candidate.type, candidate.description, [...candidate.tags], candidate.evidence ?? '')
+    for (const candidate of list.scenes) push('scene', candidate.name, candidate.type, candidate.description, [...candidate.tags], candidate.evidence ?? '', candidate.visualPrompt)
   }
   if (!targetKind || targetKind === 'prop') {
-    for (const candidate of list.props) push('prop', candidate.name, candidate.type, candidate.description, [...candidate.tags], candidate.evidence ?? '')
+    for (const candidate of list.props) push('prop', candidate.name, candidate.type, candidate.description, [...candidate.tags], candidate.evidence ?? '', candidate.visualPrompt)
   }
   return result
 }
@@ -403,6 +428,8 @@ async function runExtraction(): Promise<void> {
   progress.value = { current: 0, total: segments.length }
   running.value = true
   const batches: Array<ExtractionCandidates | null> = []
+  // v1.36.1（#10）：视觉提示词初稿配额（跨批次递减），开关关闭时恒为 0 = 不要求产出
+  visualPromptBudget.value = withVisualPrompt.value ? VISUAL_PROMPT_QUOTA_TOTAL : 0
 
   try {
     for (let start = 0; start < segments.length; start += SEGMENTS_PER_BATCH) {
@@ -427,7 +454,8 @@ async function runExtraction(): Promise<void> {
             projectGenre: appStore.currentProject?.genre,
             projectTitle: appStore.currentProject?.title,
             targetKind: extractKind.value,
-            batchIndex: Math.floor(start / SEGMENTS_PER_BATCH)
+            batchIndex: Math.floor(start / SEGMENTS_PER_BATCH),
+            visualPromptQuota: visualPromptBudget.value
           }
         }))
       )
@@ -435,7 +463,11 @@ async function runExtraction(): Promise<void> {
       if (!response.success || !response.result) {
         throw new Error(response.error ?? '提取失败，请检查模型配置')
       }
-      batches.push(parseExtractionResult(response.result))
+      const parsedBatch = parseExtractionResult(response.result)
+      batches.push(parsedBatch)
+      if (visualPromptBudget.value > 0) {
+        visualPromptBudget.value = Math.max(0, visualPromptBudget.value - countVisualPrompts(parsedBatch))
+      }
       progress.value = { current: end, total: segments.length }
     }
 
@@ -460,6 +492,7 @@ function adoptSelected(): void {
     return
   }
 
+  let withPromptCount = 0
   for (const draft of accepted) {
     const tags = draft.tags.map((label) => ({ label }))
     const payload = {
@@ -467,16 +500,37 @@ function adoptSelected(): void {
       description: draft.description.trim(),
       tags
     }
+    // v1.36.1（#10）：有初稿才写入（分节文档）；无初稿 = 与既有行为完全一致
+    const visualPrompt = buildVisualPromptValue(draft)
+    if (visualPrompt) withPromptCount += 1
     if (draft.kind === 'character') {
-      appStore.createCharacter({ ...payload, role: draft.typeLabel.trim() || undefined })
+      appStore.createCharacter({
+        ...payload,
+        role: draft.typeLabel.trim() || undefined,
+        ...(visualPrompt
+          ? { visualStyle: { renderMode: 'realistic', palette: [], moodWords: [], keyReferences: [], visualPrompt } }
+          : {})
+      })
     } else if (draft.kind === 'scene') {
-      appStore.createSceneLocation({ ...payload, type: draft.typeLabel.trim() || undefined })
+      appStore.createSceneLocation({
+        ...payload,
+        type: draft.typeLabel.trim() || undefined,
+        ...(visualPrompt
+          ? { visualContext: { colorPalette: [], lightingNote: '', seasonNote: '', materialityNote: '', visualPrompt } }
+          : {})
+      })
     } else {
-      appStore.createPropItem({ ...payload, type: draft.typeLabel.trim() || undefined })
+      appStore.createPropItem({
+        ...payload,
+        type: draft.typeLabel.trim() || undefined,
+        ...(visualPrompt
+          ? { visualContext: { colorPalette: [], lightingNote: '', seasonNote: '', materialityNote: '', visualPrompt } }
+          : {})
+      })
     }
   }
 
-  message.success(`已采纳 ${accepted.length} 条资产`)
+  message.success(`已采纳 ${accepted.length} 条资产${withPromptCount ? `（含 ${withPromptCount} 条视觉提示词初稿）` : ''}`)
   emit('applied')
   close()
 }
@@ -558,6 +612,14 @@ function adoptSelected(): void {
       <n-alert v-else type="info" :show-icon="false" class="wizard-alert">
         将从当前项目「章节创作」的章节正文中，按段落分批调用 AI 提取「{{ extractKindLabel }}」，并对已有同名实体去重。原文越长约需要的批次越多。
       </n-alert>
+
+      <!-- v1.36.1（#10）：可选顺带产出视觉提示词初稿 -->
+      <div class="wizard-option">
+        <n-checkbox v-model:checked="withVisualPrompt" :disabled="isBusy">同时产出视觉提示词初稿</n-checkbox>
+        <p class="wizard-option-hint">
+          会增加每次提取的输出量（每条约 +250~400 字）；候选较多时只对前 {{ VISUAL_PROMPT_QUOTA_TOTAL }} 条产出，其余可在资产编辑页单独生成。
+        </p>
+      </div>
 
       <div v-if="progress.total > 0" class="wizard-progress">
         <n-progress type="line" :percentage="progressPercent" :height="8" />
@@ -646,6 +708,21 @@ function adoptSelected(): void {
 
 .wizard-alert {
   font-size: 12.5px;
+}
+
+/* v1.36.1（#10）：可选「同时产出视觉提示词初稿」 */
+.wizard-option {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.wizard-option-hint {
+  margin: 0;
+  color: var(--arc-text-hint);
+  font-size: 12px;
+  line-height: 1.6;
 }
 
 .wizard-inline {
