@@ -252,6 +252,23 @@ export const STYLE_DECOUPLE_TAIL = '风格层只影响质感与色彩，不改�
 /** A4 媒介硬锁：与项目所选媒介冲突的媒介词作废 */
 export const MEDIA_LOCK_NOTE = '媒介锁定：与项目所选渲染方式冲突的媒介词（如写实项目里的「二次元 / Q版」）不生效。'
 
+/**
+ * 合并两段负向词：按中英文逗号 / 分号切分 → 去重（保序）→ 统一以「；」输出。
+ * 模型若复写了与默认负向词相同的项，这里只保留一份。
+ */
+export function mergeNegativePrompts(first: string, second: string): string {
+  const text = `${String(first ?? '')}${second ? `，${String(second)}` : ''}`
+  const seen = new Set<string>()
+  const merged: string[] = []
+  for (const raw of text.split(/[，,；;]/)) {
+    const token = raw.trim()
+    if (!token || seen.has(token)) continue
+    seen.add(token)
+    merged.push(token)
+  }
+  return merged.join('；')
+}
+
 // ────────────────────────────── 解析 / 序列化 / 归一 ──────────────────────────────
 
 function emptySections(): VisualPromptSections {
@@ -379,9 +396,7 @@ export function parseVisualPromptText(
     }
   }
 
-  const defaults = defaultNegativePrompt(kind, genre)
-  doc.negativePrompt = [doc.negativePrompt, defaults].filter(Boolean).join('；')
-  // 去掉可能的重复前缀（例如模型也写了默认那句）
+  doc.negativePrompt = mergeNegativePrompts(doc.negativePrompt, defaultNegativePrompt(kind, genre))
   return doc
 }
 

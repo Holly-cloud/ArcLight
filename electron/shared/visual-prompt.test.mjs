@@ -27,6 +27,7 @@ import {
   createDocumentForLayout,
   parseVisualPromptText,
   renderVisualPromptDocument,
+  mergeNegativePrompts,
   isEmptyDocument
 } from './visual-prompt.ts'
 
@@ -93,6 +94,12 @@ test('默认负向词：恒含 A13，题材派生 A9', () => {
   assert.deepEqual(genreNegativeWords(''), [])
 })
 
+test('mergeNegativePrompts：按逗号 / 分号切分去重并统一分隔符', () => {
+  assert.equal(mergeNegativePrompts('不要文字，水印', '水印；不要 Logo'), '不要文字；水印；不要 Logo')
+  assert.equal(mergeNegativePrompts('', DEFAULT_NEGATIVE_BASE), DEFAULT_NEGATIVE_BASE)
+  assert.equal(mergeNegativePrompts('', ''), '')
+})
+
 test('编译期尾巴常量（A3 / A4）存在且非空', () => {
   assert.ok(STYLE_DECOUPLE_TAIL.includes('不改变用户指定的主体与构图'))
   assert.ok(MEDIA_LOCK_NOTE.includes('不生效'))
@@ -151,6 +158,13 @@ test('parseVisualPromptText：命中标记时分段归位（spec 恒取模板）
   assert.equal(doc.sections.lighting, '左侧柔和侧逆光')
   assert.ok(doc.negativePrompt.includes('不要出现现代眼镜'), '保留模型给的负向补充')
   assert.ok(doc.negativePrompt.includes('可读文字'), '并入默认负向词')
+})
+
+test('parseVisualPromptText：模型复写默认负向词时只保留一份（去重）', () => {
+  const text = `【主体】少年剑客\n【负面提示词】${DEFAULT_NEGATIVE_BASE}`
+  const doc = parseVisualPromptText(text, 'character-base-sheet', 'character', '')
+  const occurrences = doc.negativePrompt.split('画面不得出现可读文字').length - 1
+  assert.equal(occurrences, 1, '默认负向词不重复')
 })
 
 test('parseVisualPromptText：无标记（旧格式 / 模型未服从）整段降级到「主体」，不丢内容', () => {

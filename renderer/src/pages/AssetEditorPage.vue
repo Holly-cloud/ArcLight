@@ -31,6 +31,7 @@ import { chapterContentToPlainText, extractEntitySnippet } from '@/features/asse
 import type { AssetImageKind, VisualContext, VisualStyleProfile } from '@/types/app'
 import type { AssetImagePromptAsset } from '@/features/assetImage/composeAssetImagePrompt'
 import {
+  NEGATIVE_PROMPT_TITLE,
   VISUAL_PROMPT_SECTION_ORDER,
   VISUAL_PROMPT_SECTION_TITLES,
   createDocumentForLayout,
@@ -787,7 +788,7 @@ async function handleGenerateVisualPrompt(): Promise<void> {
               </div>
 
               <div class="vp-field">
-                <span class="vp-label">负面提示词</span>
+                <span class="vp-label">{{ NEGATIVE_PROMPT_TITLE }}</span>
                 <n-input
                   type="textarea"
                   :value="visualPromptDoc.negativePrompt"

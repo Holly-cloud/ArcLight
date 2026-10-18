@@ -94,9 +94,9 @@ function joinList(values?: string[] | null): string {
  * 组装资产生图提示词（视觉字段路径）：
  * 1) 项目级视觉风格前缀（配色 / 季相色板 / 光影规则 / 氛围词）
  * 2) 资产视觉字段（复用 buildImagePrompt）+ 标签
- * 3) v1.36.0 A3/A4 两条尾巴（风格层解耦 / 媒介硬锁）
- * 4) 用户附加说明
+ * 3) 用户附加说明
  * 空字段一律跳过；全部为空时回退到资产名（或「资产配图」），不抛错。
+ * 注：A3/A4 两条全局尾巴与负向词由 {@link compileAssetImagePrompt} 统一追加（不再此处）。
  */
 export function composeAssetImagePrompt(input: ComposeAssetImagePromptInput): string {
   const asset = input?.asset ?? null
@@ -134,12 +134,6 @@ export function composeAssetImagePrompt(input: ComposeAssetImagePromptInput): st
     if (tags) lines.push(`标签：${tags}`)
   }
 
-  // 有实质内容时才追加 A3/A4 两条全局尾巴
-  if (lines.length > 0) {
-    lines.push(STYLE_DECOUPLE_TAIL)
-    lines.push(MEDIA_LOCK_NOTE)
-  }
-
   const note = (input?.userNote ?? '').trim()
   if (note) lines.push(note)
 
@@ -152,26 +146,31 @@ export function composeAssetImagePrompt(input: ComposeAssetImagePromptInput): st
 /**
  * 编译最终生图提示词（v1.36.0）：
  * - 正文：分节文档 → 按固定段序渲染；旧纯文本 → 原样整段；为空 → 回退视觉字段拼装
- * - 尾部：按 A13 + A9 追加独立负向词（AR-1：不改传输层，编译进提示词尾部）
+ * - 有资产时追加：用户附加说明 → A3/A4 两条全局尾巴 → 独立负向词（AR-1：不改传输层，编译进提示词尾部）
  */
 export function compileAssetImagePrompt(input: ComposeAssetImagePromptInput): string {
   const asset = input?.asset ?? null
   const projectStyle = input?.projectStyle ?? null
   const genre = (asset?.genre ?? '').trim()
   const value = asset?.visualPrompt
+  const document = value && typeof value === 'object' ? value : null
 
   let body = ''
-  const document = value && typeof value === 'object' ? value : null
   if (document) body = renderVisualPromptDocument(document).trim()
   if (!body && typeof value === 'string') body = value.trim()
-  if (!body) {
-    body = composeAssetImagePrompt({ asset, projectStyle, userNote: input?.userNote })
-  }
+  if (!body) body = composeAssetImagePrompt({ asset, projectStyle })
 
-  const negative = asset
-    ? ((document?.negativePrompt ?? '').trim() || defaultNegativePrompt(asset.kind, genre))
-    : ''
-  return negative ? `${body}\n${NEGATIVE_PROMPT_TITLE}：${negative}` : body
+  const lines: string[] = []
+  if (body) lines.push(body)
+  const note = (input?.userNote ?? '').trim()
+  if (note) lines.push(note)
+  if (asset) {
+    lines.push(STYLE_DECOUPLE_TAIL)
+    lines.push(MEDIA_LOCK_NOTE)
+    const negative = (document?.negativePrompt ?? '').trim() || defaultNegativePrompt(asset.kind, genre)
+    if (negative) lines.push(`${NEGATIVE_PROMPT_TITLE}：${negative}`)
+  }
+  return lines.join('\n')
 }
 
 /**

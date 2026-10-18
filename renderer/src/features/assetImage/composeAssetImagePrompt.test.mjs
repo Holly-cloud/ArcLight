@@ -158,14 +158,28 @@ test('resolveAssetPrompt：优先资产视觉提示词（尾部带负向词）�
   assert.equal(resolveAssetPrompt(null, null), '资产配图', '无资产回退默认文案且不追加负向词')
 })
 
-test('composeAssetImagePrompt：有实质内容时追加 A3/A4 尾巴，全空不加', () => {
+test('composeAssetImagePrompt：只拼装视觉字段，不追加尾巴与负向词', () => {
   const prompt = composeAssetImagePrompt({ asset: characterAsset })
-  assert.ok(prompt.includes('不改变用户指定的主体与构图'), '含 A3 风格层解耦尾巴')
-  assert.ok(prompt.includes('不生效'), '含 A4 媒介硬锁说明')
-  assert.ok(prompt.indexOf('标签：') < prompt.indexOf('不改变用户指定的主体与构图'), '尾巴追加在资产段之后')
+  assert.ok(prompt.includes('标签：热血 / 主角'), '仍含标签行')
+  assert.ok(!prompt.includes('不改变用户指定的主体与构图'), 'compose 不追加 A3 尾巴（由 compile 统一追加）')
+  assert.ok(!prompt.includes(NEGATIVE_PROMPT_TITLE), 'compose 不追加负向词')
 
   const emptyWithNote = composeAssetImagePrompt({ asset: null, userNote: '只写一句说明' })
-  assert.equal(emptyWithNote, '只写一句说明', '无实质内容时不追加尾巴')
+  assert.equal(emptyWithNote, '只写一句说明')
+})
+
+test('compileAssetImagePrompt：有资产时统一追加 A3/A4 尾巴与负向词，无资产不追加', () => {
+  const compiled = compileAssetImagePrompt({ asset: characterAsset })
+  assert.ok(compiled.includes('不改变用户指定的主体与构图'), '含 A3 风格层解耦尾巴')
+  assert.ok(compiled.includes('不生效'), '含 A4 媒介硬锁说明')
+  assert.ok(compiled.indexOf('标签：') < compiled.indexOf('不改变用户指定的主体与构图'), '尾巴追加在正文之后')
+  assert.ok(compiled.includes(`${NEGATIVE_PROMPT_TITLE}：`), '含负向词尾部')
+
+  const noAsset = compileAssetImagePrompt({ asset: null, userNote: '只写一句说明' })
+  assert.ok(!noAsset.includes('不改变用户指定的主体与构图'), '无资产不追加 A3 尾巴')
+  assert.ok(!noAsset.includes(NEGATIVE_PROMPT_TITLE), '无资产不追加负向词')
+  assert.ok(noAsset.includes('只写一句说明'), '保留用户附加说明')
+  assert.ok(compileAssetImagePrompt({ asset: characterAsset, userNote: '换一身礼服' }).includes('换一身礼服'), '用户说明进入编译结果')
 })
 
 test('compileAssetImagePrompt：分节文档按固定段序渲染并带负向词', () => {
