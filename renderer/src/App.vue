@@ -7,6 +7,7 @@ import { createNaiveThemeOverrides, getDarkModePreset } from '@/theme/presets'
 import { DATABASE_ROLLBACK_RELOAD_FLAG } from '@/features/settings/databaseRollback'
 import ProjectCenter from '@/pages/ProjectCenter.vue'
 import TitlebarModelSwitcher from '@/components/TitlebarModelSwitcher.vue'
+import TitlebarImageSwitcher from '@/components/TitlebarImageSwitcher.vue'
 import TitlebarAiTaskCenter from '@/components/TitlebarAiTaskCenter.vue'
 
 const ProjectWizardPage = defineAsyncComponent(() => import('@/pages/ProjectWizardPage.vue'))
@@ -216,6 +217,7 @@ onBeforeUnmount(() => {
             </span>
             <div class="app-titlebar__tools">
               <TitlebarModelSwitcher />
+              <TitlebarImageSwitcher />
               <TitlebarAiTaskCenter />
               <button
                 type="button"
