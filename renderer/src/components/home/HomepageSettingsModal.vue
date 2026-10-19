@@ -203,9 +203,6 @@ function syncDraftFromStore(): void {
   draftSettings.frequencyPenalty = appStore.appSettings.frequencyPenalty
   draftSettings.aiProfiles = appStore.appSettings.aiProfiles.map((profile) => ({ ...profile }))
   draftSettings.activeAiProfileId = appStore.appSettings.activeAiProfileId
-  // 生图渠道已迁到顶栏，这里只做透传，避免保存设置时把它清掉
-  draftSettings.imageProfiles = appStore.appSettings.imageProfiles.map((profile) => ({ ...profile }))
-  draftSettings.activeImageProfileId = appStore.appSettings.activeImageProfileId
   draftSettings.autoSaveInterval = appStore.appSettings.autoSaveInterval
   draftSettings.editorFont = appStore.appSettings.editorFont
   draftSettings.uiScale = appStore.appSettings.uiScale
@@ -506,6 +503,9 @@ async function saveSettings(): Promise<void> {
   const nextSettings: AppSettings = {
     ...draftSettings,
     aiProfiles: draftSettings.aiProfiles.map((profile) => ({ ...profile })),
+    // 生图渠道由顶栏维护，这里取实时值而不是开弹窗时的快照，避免旧草稿盖掉用户刚在顶栏做的改动
+    imageProfiles: appStore.appSettings.imageProfiles.map((profile) => ({ ...profile })),
+    activeImageProfileId: appStore.appSettings.activeImageProfileId,
     workspaceMenuOrder: normalizeWorkbenchMenuOrder(draftSettings.workspaceMenuOrder),
     activeAiProfileId: draftSettings.activeAiProfileId,
     provider: activeProfile?.provider ?? draftSettings.provider,
