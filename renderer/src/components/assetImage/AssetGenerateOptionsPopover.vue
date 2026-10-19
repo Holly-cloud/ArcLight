@@ -116,6 +116,16 @@ watch(
   () => recomposePrompt()
 )
 
+/**
+ * 按次切到不支持参考图的渠道时，已选的参考图必须可见地清掉——
+ * 否则界面留着缩略图、请求里却没有 images，等于静默丢用户的意图。
+ */
+watch(isGrsai, (grsai) => {
+  if (grsai || references.value.length === 0) return
+  references.value = []
+  message.warning('该渠道不支持参考图，已清除本次选择的参考图。')
+})
+
 async function addGalleryReference(imageId: string): Promise<void> {
   if (!imageId) return
   if (references.value.some((ref) => ref.id === imageId)) return
@@ -167,8 +177,10 @@ function clearReferences(): void {
  * 组装发送用的参考图 data URL 与图库 id。
  * v1.36.0：**不再自动把「首选图」当参考图注入**——首选图只是图库排序置顶与左栏头像用图，
  * 不参与生图方向；要保持角色一致请在此手动「从图库选」。
+ * v1.37.0：非 GRS 分支的请求体根本没有 images 字段，这里直接返回空，不把注定被丢弃的图发出去。
  */
 function collectReferencePayload(): { images: string[]; referenceIds: string[] } {
+  if (!isGrsai.value) return { images: [], referenceIds: [] }
   const urls: string[] = []
   const ids: string[] = []
   for (const ref of references.value) {
