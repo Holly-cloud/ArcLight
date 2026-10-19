@@ -22,6 +22,7 @@ import {
   validateReferenceCount,
   validateReferenceImageSize
 } from '@/features/assetImage/assetImageModel'
+import { resolveOpenAiCompatibleSize } from '@shared/image-size'
 import type { GeneratePayload } from '@/features/assetImage/generateOptions'
 
 const props = defineProps<{
@@ -45,6 +46,13 @@ const isGrsai = computed(() => (appStore.appSettings.imageProvider ?? '').trim()
 const promptText = ref('')
 const aspectRatio = ref(resolveDefaultAspectRatio(props.kind, props.projectStyle ?? null))
 const imageSize = ref('1K')
+
+/** v1.36.2：非 GRS 渠道按 OpenAI 兼容档位就近取档，实际档位必须如实显示 */
+const openAiSizeNote = computed(() => {
+  if (isGrsai.value) return ''
+  const resolved = resolveOpenAiCompatibleSize(aspectRatio.value, imageSize.value)
+  return resolved.applied ? resolved.note : ''
+})
 
 const aspectOptions: SelectOption[] = ASPECT_RATIO_OPTIONS.map((value) => ({ label: value, value }))
 const sizeOptions: SelectOption[] = IMAGE_SIZE_OPTIONS.map((value) => ({ label: value, value }))
@@ -193,6 +201,8 @@ defineExpose({ getPayload })
           <n-button size="small" @click="recomposePrompt">重新拼装</n-button>
         </div>
 
+        <p v-if="openAiSizeNote" class="gen-options__tip">{{ openAiSizeNote }}</p>
+
         <div class="gen-options__field">
           <div class="gen-options__field-head">
             <span class="gen-options__label">参考图（图生图 / 一致性）</span>
@@ -219,7 +229,10 @@ defineExpose({ getPayload })
           </div>
         </div>
 
-        <p class="gen-options__tip">生图会调用第三方服务 grsai.dakka.com.cn，按次计费（约 ¥0.02/次，失败返还）；你的描述与参考图会上传至该服务。</p>
+        <p class="gen-options__tip">
+          <template v-if="isGrsai">生图会调用第三方服务 grsai.dakka.com.cn，按次计费（约 ¥0.02/次，失败返还）；你的描述与参考图会上传至该服务。</template>
+          <template v-else>生图会调用你在设置中配置的第三方图片服务；你的描述与参考图会上传至该服务。</template>
+        </p>
       </div>
     </div>
   </n-popover>
