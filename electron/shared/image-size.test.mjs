@@ -49,12 +49,14 @@ test('横竖方向不会被映射反：横倾比例取横档，竖倾比例取�
   }
 })
 
-test('auto 透传 auto，不强塞档位', () => {
+test('auto 透传 auto，不强塞档位；文案不得自相矛盾地提"档位"', () => {
   const resolved = resolveOpenAiCompatibleSize('auto')
   assert.equal(resolved.size, OPENAI_COMPATIBLE_AUTO_SIZE)
   assert.equal(resolved.auto, true)
   assert.equal(resolved.applied, true)
   assert.match(resolved.note, /由服务端决定/)
+  assert.doesNotMatch(resolved.note, /档位/)
+  assert.doesNotMatch(resolveOpenAiCompatibleSize('auto', '4K').note, /档位/)
 })
 
 test('未带画幅比或画幅比不可解析 → 回落 1.36.1 的硬编码值且不出提示（旧行为）', () => {

@@ -23,7 +23,7 @@ export const OPENAI_COMPATIBLE_SIZE_TIERS: readonly OpenAiSizeTier[] = [
 export interface ResolvedOpenAiImageSize {
   /** 最终发给渠道的 size 值 */
   size: string
-  /** 实际档位比例；auto 或未带比例时为空 */
+  /** 实际档位比例；auto 返回 'auto'，未带可解析比例时为空 */
   tierRatio: string
   /** 所选比例正好等于档位比例 */
   exact: boolean
@@ -86,7 +86,7 @@ export function resolveOpenAiCompatibleSize(
       auto: true,
       applied: true,
       sizeIgnored,
-      note: `该渠道按 auto 请求尺寸，实际画幅由服务端决定。${sizeIgnored ? ` ${sizeToken} 分辨率在该协议下不生效（尺寸由档位决定）。` : ''}`
+      note: `该渠道按 auto 请求尺寸，实际画幅由服务端决定。${sizeIgnored ? ` ${sizeToken} 分辨率不影响本次请求。` : ''}`
     }
   }
 
