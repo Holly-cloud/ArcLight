@@ -1,4 +1,5 @@
 import type { AppSettings, AiRunUsage } from '../shared-types'
+import { resolveOpenAiCompatibleSize } from '@shared/image-size'
 import { performAiRequest } from './http'
 import { createProxyFetch } from '../proxy-fetch'
 import {
@@ -112,13 +113,15 @@ export async function generateImage(settings: AppSettings, prompt: string, optio
 
   const url = `${normalized.baseUrl.replace(/\/$/, '')}/images/generations`
   const requestFetch = createProxyFetch(settings.proxyUrl)
+  // v1.36.2：本分支此前丢弃画幅比（size 硬编码），改为就近取档位；未带画幅比时回落旧值，封面等旧调用行为不变。
+  const resolvedSize = resolveOpenAiCompatibleSize(options?.aspectRatio, options?.imageSize)
 
   // 默认请求 b64_json 以获得可本地保存的自包含图片；部分 provider（如 gpt-image-1、
   // 经 litellm 代理的 agnes 等）不支持 response_format，命中后去掉该参数重试一次。
   const buildBody = (includeResponseFormat: boolean): string => JSON.stringify({
     model: normalized.model,
     prompt,
-    size: '1024x1536',
+    size: resolvedSize.size,
     ...(includeResponseFormat ? { response_format: 'b64_json' } : {})
   })
 
