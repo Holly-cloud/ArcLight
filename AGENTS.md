@@ -79,7 +79,9 @@ git -c user.name="<name>" -c user.email="<email>" commit -m "..."
 
 - 包管理器：`pnpm`（`package.json` 锁定 10.33.2）。若 PATH 中无 `pnpm`，用 `corepack pnpm`
 - 全量测试：`pnpm test`（Node 内置 test runner，`*.test.mjs`）
-- 已知基线（2026-10-19 复跑）：`pnpm test` 为 **334 tests / 333 pass / 1 fail**，唯一红是 `electron/main/ai/agent/run-agent-codex-cli.test.mjs`（Windows 平台边界，**环境性、不是产品缺陷**）。曾有 5 条既有失败，已在 **v1.32.1** 技术债收尾修到 1 条；判断回归一律与干净基线对比，**不要把这 1 红当回归去"修"**
+- 已知基线（**2026-10-19 v1.37.0 交付后复跑**）：`pnpm test` 为 **357 tests / 356 pass / 1 fail**，唯一红是 `electron/main/ai/agent/run-agent-codex-cli.test.mjs`（Windows 平台边界，**环境性、不是产品缺陷**）。曾有 5 条既有失败，已在 **v1.32.1** 技术债收尾修到 1 条；判断回归一律与干净基线对比，**不要把这 1 红当回归去"修"**
+  - ⚠️ **总数每版都在涨，本行的数字很快就会过期**（同一天内经历过 315 → 334 → 357）。别把它当权威抄进文档——**永不变的是"只有 1 红、且是 `run-agent-codex-cli`"**；要用准确总数就实跑一次
+  - `WORKSPACE_SCHEMA_VERSION` 现为 **5**（v1.37.0 由 4 升来，**破坏性**：删 `app_settings` 的 `image_provider` / `image_model` / `image_api_key` / `image_base_url` 四列，改由 `image_profiles_json` + `active_image_profile_id` 承接）
 - **`pnpm test` 是显式文件清单**：新增测试文件必须补进 `package.json` 的 `test`（以及相应的 `test:*`）脚本，否则**不进基线、不会被发现**（历史上出现过孤儿测试）
 
 ### 2.2 UI 改动（硬约束）
