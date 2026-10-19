@@ -1,7 +1,8 @@
 import type { AppSettings, AiRunUsage } from '../shared-types'
-import { resolveOpenAiCompatibleSize } from '@shared/image-size'
-import { performAiRequest } from './http'
-import { createProxyFetch } from '../proxy-fetch'
+import { resolveOpenAiCompatibleSize } from '../../../shared/image-size.ts'
+import { isGrsaiChannel } from '../../../shared/image-channel.ts'
+import { performAiRequest } from './http.ts'
+import { createProxyFetch } from '../proxy-fetch.ts'
 import {
   buildGrsaiRequestBody,
   grsaiGenerateEndpoint,
@@ -12,7 +13,7 @@ import {
   parseGrsaiResponse,
   type GrsaiParsedResponse,
   type GrsaiReplyType
-} from './grsai'
+} from './grsai.ts'
 
 /** 图片生成接口的返回结果 */
 export type GeneratedImageResult = {
@@ -71,22 +72,6 @@ function isUnsupportedResponseFormatError(error: unknown): boolean {
   )
 }
 
-/** 判断该图片配置是否应走 GRS AI 协议（显式预设，或 Base URL 指向 GRS 主机） */
-function isGrsaiSettings(settings: AppSettings): boolean {
-  if ((settings.imageProvider ?? '').trim().toLowerCase() === 'grsai') {
-    return true
-  }
-  try {
-    const host = new URL(settings.imageBaseUrl?.trim() || settings.baseUrl?.trim() || '').hostname.toLowerCase()
-    return host === 'grsai.dakka.com.cn'
-      || host.endsWith('.grsai.dakka.com.cn')
-      || host === 'grsaiapi.com'
-      || host.endsWith('.grsaiapi.com')
-  } catch {
-    return false
-  }
-}
-
 /**
  * 调用图片生成接口，返回 data URL 格式的图片。
  *
@@ -107,7 +92,7 @@ export async function generateImage(settings: AppSettings, prompt: string, optio
   }
 
   // v1.33.0：按渠道分支；GRS AI 走独立协议（按预设或主机识别），其它/缺省保持 OpenAI 兼容逻辑不变（封面零回归）。
-  if (isGrsaiSettings(settings) || normalized.provider.trim().toLowerCase() === 'grsai') {
+  if (isGrsaiChannel(settings)) {
     return generateImageViaGrsai(normalized, prompt, options)
   }
 

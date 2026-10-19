@@ -23,6 +23,7 @@ import {
   validateReferenceImageSize
 } from '@/features/assetImage/assetImageModel'
 import { resolveOpenAiCompatibleSize } from '@shared/image-size'
+import { isGrsaiChannel } from '@shared/image-channel'
 import type { GeneratePayload } from '@/features/assetImage/generateOptions'
 
 const props = defineProps<{
@@ -47,9 +48,14 @@ const promptText = ref('')
 const aspectRatio = ref(resolveDefaultAspectRatio(props.kind, props.projectStyle ?? null))
 const imageSize = ref('1K')
 
-/** v1.36.2：非 GRS 渠道按 OpenAI 兼容档位就近取档，实际档位必须如实显示 */
+/**
+ * v1.36.2：非 GRS 渠道按 OpenAI 兼容档位就近取档，实际档位必须如实显示。
+ * 门控用主进程同一谓词（预设或主机名命中 GRS）——否则「自定义渠道手填 GRS 主机」时
+ * 实际走 GRS 原值传参，这里却会提示"已就近取档"，等于假明示。
+ * 参考图门控仍沿用上方 provider-only 判定，本版不改其行为。
+ */
 const openAiSizeNote = computed(() => {
-  if (isGrsai.value) return ''
+  if (isGrsaiChannel(appStore.appSettings)) return ''
   const resolved = resolveOpenAiCompatibleSize(aspectRatio.value, imageSize.value)
   return resolved.applied ? resolved.note : ''
 })
