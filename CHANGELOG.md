@@ -4,6 +4,23 @@
 
 格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
 
+## [1.37.0] - 2026-10-19
+
+### 生图渠道可以并存多套，配置入口整体上移到顶栏
+
+- **多套渠道并存（上限 8 条，全局生效）**——原先四个字段只存得下一套配置，换渠道要重填模型 / Base URL / Key 三件套；现在 `imageProfiles` 是一条条独立配置，顶栏下拉随时切
+- **入口迁到顶栏，与语言模型同层级**——`图片: [渠道] | [模型] [刷新] [⚙ 配置]`，与既有 `TitlebarModelSwitcher` 同构；**设置弹窗里的「图片生成配置」整节删除**
+- **预设降级为通用模板**——7 条图片预设不再是"选了就是唯一渠道"，改为**新增渠道时的预填**（协议 / 模型 / Base URL），API Key 不会被模板覆盖；套用时会把该渠道的计费与能力说明提示出来
+- **生图时按次换渠道**——生成选项浮层新增「生图渠道（仅本次）」，只影响这一次，不改全局
+- **⚠️ 破坏性迁移，schema 4→5**——`app_settings` 的 `image_provider` / `image_model` / `image_api_key` / `image_base_url` 四列**已删除**，能力由 `image_profiles_json` + `active_image_profile_id` 承接。迁移**先把旧值归一成一条 `迁移自旧配置` 再删列**，已填的 API Key 原样带走；四列全空时不会凭空造一条幽灵配置。升级前应用会自动整库备份并可从升级窗口恢复
+- **旧版工作区 JSON / 项目归档导入也能回填**——带着旧四字段的 payload 会被收成一条渠道，不会静默丢配置
+- **参考图门控本版与主进程同源**——v1.36.2 遗留项落地：门控改用它走 transport 同一谓词 `isGrsaiChannel`，"OpenAI 兼容协议但手填 GRS 主机"这类组合不会再出现"界面说支持、实际丢弃"；按次切到不支持参考图的渠道时会**可见地清空并提示**，也不把注定被丢弃的图发出去
+- **AI 调用日志的 provider 语义变化**（有意变更）——生图记录里该字段从旧的预设 id（如 `gpt-image-yunwu`）变为协议名（`grsai` / `openai-images`）；渠道名与地址在顶栏与浮层可见
+- **transport 层零改动**——`electron/main/ai/transport/images.ts` 与 `grsai.ts` 的分支、档位映射一行未改；调用点由 `buildImageRequestSettings()` 把一条渠道摊平成旧四字段形状，v1.36.2 的 19 条接线与映射用例继续当回归护栏
+- `pnpm test` **357/356/1**（基线 334 + 本版新增 **23** 条：迁移 8 + 归一 4 + 合成与模板 11；唯一红仍为 `run-agent-codex-cli` 的 Windows 平台边界，环境性）；`test:asset-image` **86/86**；`test:workspace-entities` **22/22**；`test:chapter-persistence` **20/20**；`typecheck` 0 错、`electron-vite build` 通过
+- **独立 QA 复核**：结论「不可直接进入验收」，三条中危已全部处置——**M1** 渠道为空时配置弹窗没有可用的新建入口（设置里的图片节已删，首条渠道的创建路径断裂）；**M2** 按次切到非 GRS 渠道时参考图被静默丢弃；**M3** 架构承诺的合成函数与模板一致性测试从未落地，M1/M2 正落在这块无守护区。低危 **L2**（保存设置的旧草稿会盖掉顶栏刚改的渠道）、**L3**（硬编码色值违例）、**L5**（模板 hint 挂着不用）同版修掉；**L1**（主/渲染两侧 normalizer 对旧字段回填不一致，当前水合必经主进程）、**L4**（图库与调用日志 provider 语义漂移）**仅登记**
+- **越界检查**：0 新表；新列 2 / 删列 4（`app_settings`）；**0 新 IPC 通道**（复用 `ai-generate-image` / `ai-fetch-image-models`）；FeatureHelp 仍 **6** 个 FeatureId，本版 0 增删
+
 ## [1.36.2] - 2026-10-19
 
 ### 非 GRS 生图渠道的画幅比真正生效，并明示实际档位
