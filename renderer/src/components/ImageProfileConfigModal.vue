@@ -69,6 +69,7 @@ function applyTemplate(templateId: string): void {
     model: template.model,
     baseUrl: template.baseUrl
   })
+  message.info(`${template.label}：${template.hint}`)
 }
 
 function handleAddProfile(): void {
@@ -168,7 +169,11 @@ function close(): void {
     </div>
 
     <div v-if="!profiles.length" class="image-profile-empty">
-      还没有任何生图渠道。点右上角「新建渠道」，可从通用模板快速填充。
+      <p>还没有任何生图渠道。先新建一条，可从通用模板快速填充。</p>
+      <n-button size="small" type="primary" :disabled="reachedLimit" @click="handleAddProfile">
+        <template #icon><Plus :size="14" /></template>
+        新建渠道
+      </n-button>
     </div>
 
     <template v-else>
@@ -346,6 +351,10 @@ function close(): void {
 }
 
 .image-profile-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
   padding: 28px 18px;
   border: 1px dashed color-mix(in srgb, var(--arc-primary) 18%, var(--arc-border));
   border-radius: 14px;
@@ -353,6 +362,10 @@ function close(): void {
   color: var(--arc-text-hint);
   text-align: center;
   font-size: 13px;
+}
+
+.image-profile-empty p {
+  margin: 0;
 }
 
 .profile-tabs {
@@ -400,9 +413,9 @@ function close(): void {
 
 .profile-tab-badge {
   padding: 1px 6px;
-  border-radius: 999px;
-  background: var(--arc-primary);
-  color: #fff;
+  border-radius: 4px;
+  background: color-mix(in srgb, var(--arc-primary) 12%, transparent);
+  color: var(--arc-primary);
   font-size: 10px;
   font-weight: 700;
 }
@@ -434,8 +447,9 @@ function close(): void {
 }
 
 .profile-action-btn--danger:hover:not(:disabled) {
-  border-color: #ef4444;
-  color: #b91c1c;
+  border-color: color-mix(in srgb, var(--arc-danger) 48%, var(--arc-border));
+  color: var(--arc-danger);
+  background: color-mix(in srgb, var(--arc-danger) 9%, var(--arc-bg-surface));
 }
 
 .profile-action-btn:disabled {
