@@ -88,8 +88,8 @@ function createUpgradedDb() {
   return db
 }
 
-test('schemaVersion 升到 4（v1.32 解散工作台：删参考作品/改编表、projects 去列）', () => {
-  assert.equal(WORKSPACE_SCHEMA_VERSION, 4)
+test('schemaVersion 不低于 4（v1.32 解散工作台：删参考作品/改编表、projects 去列）', () => {
+  assert.ok(WORKSPACE_SCHEMA_VERSION >= 4)
 })
 
 test('旧格式库迁移：4 张表补齐视觉列，且旧行值默认为空串', () => {

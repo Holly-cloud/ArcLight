@@ -24,6 +24,7 @@ import {
 } from '@/features/assetImage/assetImageModel'
 import { resolveOpenAiCompatibleSize } from '@shared/image-size'
 import { isGrsaiChannel } from '@shared/image-channel'
+import { toImageRequestSettings } from '@shared/image-profile'
 import type { GeneratePayload } from '@/features/assetImage/generateOptions'
 
 const props = defineProps<{
@@ -41,21 +42,38 @@ const props = defineProps<{
 const appStore = useAppStore()
 const message = useMessage()
 
-/** 切到非 GRS 渠道时参考图不可用（P1 单渠道切换） */
-const isGrsai = computed(() => (appStore.appSettings.imageProvider ?? '').trim() === 'grsai')
+/** v1.37.0 本次生成用哪条渠道；默认跟随顶栏的当前生效渠道，改了只影响这一次 */
+const imageProfileId = ref(appStore.activeImageProfile?.id ?? '')
+
+watch(
+  () => appStore.activeImageProfile?.id,
+  (id) => {
+    imageProfileId.value = id ?? ''
+  }
+)
+
+const imageProfileOptions = computed<SelectOption[]>(() =>
+  appStore.appSettings.imageProfiles.map((profile) => ({ label: profile.name, value: profile.id }))
+)
+
+const selectedImageProfile = computed(() =>
+  appStore.appSettings.imageProfiles.find((profile) => profile.id === imageProfileId.value)
+    ?? appStore.activeImageProfile
+)
+
+/**
+ * 参考图与档位提示的门控都用 transport 的同一谓词判本次渠道，
+ * 否则「OpenAI 兼容协议 + 手填 GRS 主机」这种组合会和实际走的分支不一致。
+ */
+const isGrsai = computed(() => isGrsaiChannel(toImageRequestSettings(selectedImageProfile.value)))
 
 const promptText = ref('')
 const aspectRatio = ref(resolveDefaultAspectRatio(props.kind, props.projectStyle ?? null))
 const imageSize = ref('1K')
 
-/**
- * v1.36.2：非 GRS 渠道按 OpenAI 兼容档位就近取档，实际档位必须如实显示。
- * 门控用主进程同一谓词（预设或主机名命中 GRS）——否则「自定义渠道手填 GRS 主机」时
- * 实际走 GRS 原值传参，这里却会提示"已就近取档"，等于假明示。
- * 参考图门控仍沿用上方 provider-only 判定，本版不改其行为。
- */
+/** v1.36.2：非 GRS 渠道按 OpenAI 兼容档位就近取档，实际档位必须如实显示。 */
 const openAiSizeNote = computed(() => {
-  if (isGrsaiChannel(appStore.appSettings)) return ''
+  if (isGrsai.value) return ''
   const resolved = resolveOpenAiCompatibleSize(aspectRatio.value, imageSize.value)
   return resolved.applied ? resolved.note : ''
 })
@@ -168,7 +186,8 @@ function getPayload(): GeneratePayload {
     aspectRatio: aspectRatio.value,
     imageSize: imageSize.value,
     images,
-    referenceIds
+    referenceIds,
+    imageProfileId: selectedImageProfile.value?.id ?? ''
   }
 }
 
@@ -191,6 +210,18 @@ defineExpose({ getPayload })
       </div>
 
       <div class="gen-options__body arc-scrollbar">
+        <div class="gen-options__field">
+          <span class="gen-options__label">生图渠道（仅本次）</span>
+          <n-select
+            v-if="imageProfileOptions.length"
+            v-model:value="imageProfileId"
+            class="gen-options__select gen-options__select--full"
+            :options="imageProfileOptions"
+            placeholder="选择本次生成使用的渠道"
+          />
+          <span v-else class="gen-options__hint">尚未配置生图渠道，请点击顶栏「图片」右侧的配置按钮添加。</span>
+        </div>
+
         <div class="gen-options__field">
           <span class="gen-options__label">提示词</span>
           <n-input
@@ -236,8 +267,9 @@ defineExpose({ getPayload })
         </div>
 
         <p class="gen-options__tip">
-          <template v-if="isGrsai">生图会调用第三方服务 grsai.dakka.com.cn，按次计费（约 ¥0.02/次，失败返还）；你的描述与参考图会上传至该服务。</template>
-          <template v-else>生图会调用你在设置中配置的第三方图片服务；你的描述与参考图会上传至该服务。</template>
+          <template v-if="!selectedImageProfile">尚未配置生图渠道，请先在顶栏「图片」处添加。</template>
+          <template v-else-if="isGrsai">生图会调用第三方服务 grsai.dakka.com.cn，按次计费（约 ¥0.02/次，失败返还）；你的描述与参考图会上传至该服务。</template>
+          <template v-else>生图会调用「{{ selectedImageProfile.name }}」（{{ selectedImageProfile.baseUrl }}）；你的描述与参考图会上传至该服务。</template>
         </p>
       </div>
     </div>
@@ -306,6 +338,10 @@ defineExpose({ getPayload })
 
 .gen-options__select {
   width: 132px;
+}
+
+.gen-options__select--full {
+  width: 100%;
 }
 
 .gen-options__chips {

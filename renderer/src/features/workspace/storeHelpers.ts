@@ -1,5 +1,6 @@
 import { toRaw } from 'vue'
 import { normalizeSkillUsePolicy } from '@shared/assistant-runtime'
+import { normalizeImageProfiles } from '@shared/image-profile'
 import { createDefaultWorkflowDocuments, normalizeWorkflowDocuments } from '@/features/novelWorkflow/documents'
 import { createDefaultNovelWorkflowStages, normalizeNovelWorkflowStages } from '@/features/novelWorkflow/stages'
 import { DEFAULT_CHAPTER_WORD_TARGET, normalizeChapterWordTarget } from '@/features/chapters/wordTarget'
@@ -176,10 +177,8 @@ export const defaultAppSettings: AppSettings = {
   proxyUrl: '',
   aiProfiles: [],
   activeAiProfileId: '',
-  imageProvider: '',
-  imageModel: '',
-  imageApiKey: '',
-  imageBaseUrl: '',
+  imageProfiles: [],
+  activeImageProfileId: '',
   autoSaveInterval: '5m',
   editorFont: DEFAULT_EDITOR_FONT,
   uiScale: 1,
@@ -339,6 +338,12 @@ export function normalizeAppSettings(settings?: Partial<AppSettings> | null): Ap
 
   const activeProfile = aiProfiles.find(p => p.id === activeAiProfileId)
 
+  const imageProfiles = normalizeImageProfiles(source.imageProfiles)
+  const requestedActiveImageProfileId = sanitizeSettingString(source.activeImageProfileId, '')
+  const activeImageProfileId = imageProfiles.some(p => p.id === requestedActiveImageProfileId)
+    ? requestedActiveImageProfileId
+    : imageProfiles[0]?.id ?? ''
+
   return {
     provider: activeProfile?.provider ?? provider,
     model: activeProfile?.model ?? model,
@@ -354,10 +359,8 @@ export function normalizeAppSettings(settings?: Partial<AppSettings> | null): Ap
     frequencyPenalty: activeProfile?.frequencyPenalty ?? frequencyPenalty,
     aiProfiles,
     activeAiProfileId,
-    imageProvider: sanitizeSettingString(source.imageProvider, defaultAppSettings.imageProvider),
-    imageModel: sanitizeSettingString(source.imageModel, defaultAppSettings.imageModel),
-    imageApiKey: sanitizeSettingString(source.imageApiKey, defaultAppSettings.imageApiKey),
-    imageBaseUrl: sanitizeSettingString(source.imageBaseUrl, defaultAppSettings.imageBaseUrl),
+    imageProfiles,
+    activeImageProfileId,
     autoSaveInterval: sanitizeSettingString(source.autoSaveInterval, defaultAppSettings.autoSaveInterval),
     editorFont: isEditorFont(source.editorFont) ? source.editorFont : defaultAppSettings.editorFont,
     uiScale:

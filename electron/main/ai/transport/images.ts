@@ -82,13 +82,13 @@ function isUnsupportedResponseFormatError(error: unknown): boolean {
 export async function generateImage(settings: AppSettings, prompt: string, options?: GenerateImageOptions): Promise<GeneratedImageResult> {
   const normalized = normalizeImageSettings(settings)
   if (!normalized.model.trim()) {
-    throw new Error('请先在设置中填写专用的图片生成模型（不会自动回退到文本模型）。')
+    throw new Error('请先在顶栏「图片 → 配置」里填写生图模型（不会自动回退到文本模型）。')
   }
   if (!normalized.baseUrl.trim()) {
-    throw new Error('请先在设置中填写专用的图片生成 Base URL。')
+    throw new Error('请先在顶栏「图片 → 配置」里填写该渠道的 Base URL。')
   }
   if (!normalized.apiKey.trim()) {
-    throw new Error('请先在设置中填写专用的图片生成 API Key。')
+    throw new Error('请先在顶栏「图片 → 配置」里填写该渠道的 API Key。')
   }
 
   // v1.33.0：按渠道分支；GRS AI 走独立协议（按预设或主机识别），其它/缺省保持 OpenAI 兼容逻辑不变（封面零回归）。

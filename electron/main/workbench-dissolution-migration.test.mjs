@@ -125,6 +125,6 @@ test('ensureWorkbenchDissolutionSchema：幂等（再次调用无副作用，表
   assert.equal(db.prepare(`SELECT COUNT(*) AS count FROM worldview_entries`).get().count, 1)
 })
 
-test('WORKSPACE_SCHEMA_VERSION 已升到 4（破坏性迁移标记）', () => {
-  assert.equal(WORKSPACE_SCHEMA_VERSION, 4)
+test('WORKSPACE_SCHEMA_VERSION 不低于 4（破坏性迁移必须 bump）', () => {
+  assert.ok(WORKSPACE_SCHEMA_VERSION >= 4)
 })

@@ -163,7 +163,7 @@ export async function fetchModels(settings: AppSettings): Promise<FetchedModel[]
 export async function fetchImageModels(settings: AppSettings): Promise<FetchedModel[]> {
   const baseUrl = settings.imageBaseUrl?.trim()
   const apiKey = settings.imageApiKey?.trim()
-  if (!baseUrl) throw new Error('请先填写图片生成 Base URL。')
-  if (!apiKey) throw new Error('请先填写图片生成 API Key。')
+  if (!baseUrl) throw new Error('请先在顶栏「图片 → 配置」里填写该渠道的 Base URL。')
+  if (!apiKey) throw new Error('请先在顶栏「图片 → 配置」里填写该渠道的 API Key。')
   return fetchModelsOpenAiCompatible(baseUrl, apiKey, createProxyFetch(settings.proxyUrl))
 }

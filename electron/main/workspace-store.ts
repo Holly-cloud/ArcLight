@@ -13,6 +13,8 @@ import {
   normalizeProjectRecord,
   normalizeWorkspacePayload
 } from './workspace-types'
+import type { ImageProfile } from '../shared/image-profile.ts'
+import { applyImageProfileSchema } from './workspace-image-profile-migration'
 import { initStoryStateSchema } from './story-state-store'
 import { initAssistantRuntimeSchema } from './ai/runtime-v2/conversation-manager'
 import { resetRuntimeState } from './ai/runtime-v2/state'
@@ -26,7 +28,7 @@ export { readChapterMutationPayload, writeChapterOrder, writeChapterRows } from 
 
 const WORKSPACE_DB = 'workspace.db'
 const WORKSPACE_FILE = 'workspace.json'
-export const WORKSPACE_SCHEMA_VERSION = 4
+export const WORKSPACE_SCHEMA_VERSION = 5
 
 export type WorkspaceUpgradeProgress = {
   phase: 'schema' | 'chapters' | 'chapter-versions' | 'validation'
@@ -422,10 +424,8 @@ export async function ensureWorkspaceDb(options: {
       frequency_penalty REAL,
       ai_profiles_json TEXT NOT NULL DEFAULT '[]',
       active_ai_profile_id TEXT NOT NULL DEFAULT '',
-      image_provider TEXT NOT NULL DEFAULT '',
-      image_model TEXT NOT NULL DEFAULT '',
-      image_api_key TEXT NOT NULL DEFAULT '',
-      image_base_url TEXT NOT NULL DEFAULT '',
+      image_profiles_json TEXT NOT NULL DEFAULT '[]',
+      active_image_profile_id TEXT NOT NULL DEFAULT '',
       auto_save_interval TEXT NOT NULL,
       editor_font TEXT NOT NULL DEFAULT 'clear-mono',
       ui_scale REAL NOT NULL DEFAULT 1,
@@ -610,28 +610,12 @@ function ensureAppSettingsColumns(db: DatabaseSync): void {
     db.exec(`ALTER TABLE app_settings ADD COLUMN frequency_penalty REAL;`)
   }
 
-  if (!columnNames.has('image_provider')) {
-    db.exec(`ALTER TABLE app_settings ADD COLUMN image_provider TEXT NOT NULL DEFAULT '';`)
-  }
-
   if (!columnNames.has('ai_profiles_json')) {
     db.exec(`ALTER TABLE app_settings ADD COLUMN ai_profiles_json TEXT NOT NULL DEFAULT '[]';`)
   }
 
   if (!columnNames.has('active_ai_profile_id')) {
     db.exec(`ALTER TABLE app_settings ADD COLUMN active_ai_profile_id TEXT NOT NULL DEFAULT '';`)
-  }
-
-  if (!columnNames.has('image_model')) {
-    db.exec(`ALTER TABLE app_settings ADD COLUMN image_model TEXT NOT NULL DEFAULT '';`)
-  }
-
-  if (!columnNames.has('image_api_key')) {
-    db.exec(`ALTER TABLE app_settings ADD COLUMN image_api_key TEXT NOT NULL DEFAULT '';`)
-  }
-
-  if (!columnNames.has('image_base_url')) {
-    db.exec(`ALTER TABLE app_settings ADD COLUMN image_base_url TEXT NOT NULL DEFAULT '';`)
   }
 
   if (!columnNames.has('editor_font')) {
@@ -645,6 +629,8 @@ function ensureAppSettingsColumns(db: DatabaseSync): void {
   if (!columnNames.has('hidden_workbench_modules_json')) {
     db.exec(`ALTER TABLE app_settings ADD COLUMN hidden_workbench_modules_json TEXT NOT NULL DEFAULT '[]';`)
   }
+
+  applyImageProfileSchema(db)
 }
 
 function ensureAiRunColumns(db: DatabaseSync): void {
@@ -1010,7 +996,7 @@ export function readWorkspaceSnapshot(
   if (projects.length === 0) {
     const settings = db.prepare(`
       SELECT theme, selected_project_id AS selectedProjectId, provider, api_key AS apiKey, base_url AS baseUrl, proxy_url AS proxyUrl, temperature, top_p AS topP, presence_penalty AS presencePenalty, frequency_penalty AS frequencyPenalty, auto_save_interval AS autoSaveInterval, editor_font AS editorFont
-      , model, ai_profiles_json AS aiProfilesJson, active_ai_profile_id AS activeAiProfileId, image_provider AS imageProvider, image_model AS imageModel, image_api_key AS imageApiKey, image_base_url AS imageBaseUrl, ui_scale AS uiScale, workspace_menu_order_json AS workspaceMenuOrderJson, hidden_workbench_modules_json AS hiddenWorkbenchModulesJson, dark_mode AS darkMode, dark_mode_style AS darkModeStyle
+      , model, ai_profiles_json AS aiProfilesJson, active_ai_profile_id AS activeAiProfileId, image_profiles_json AS imageProfilesJson, active_image_profile_id AS activeImageProfileId, ui_scale AS uiScale, workspace_menu_order_json AS workspaceMenuOrderJson, hidden_workbench_modules_json AS hiddenWorkbenchModulesJson, dark_mode AS darkMode, dark_mode_style AS darkModeStyle
       FROM app_settings
       WHERE id = 1
     `).get() as
@@ -1028,10 +1014,8 @@ export function readWorkspaceSnapshot(
           frequencyPenalty: number | null
           aiProfilesJson: string
           activeAiProfileId: string
-          imageProvider: string
-          imageModel: string
-          imageApiKey: string
-          imageBaseUrl: string
+          imageProfilesJson: string
+          activeImageProfileId: string
           autoSaveInterval: string
           editorFont: string
           uiScale: number
@@ -1129,10 +1113,8 @@ export function readWorkspaceSnapshot(
               frequencyPenalty: settings.frequencyPenalty === null ? undefined : settings.frequencyPenalty,
               aiProfiles: parseJson(settings.aiProfilesJson, []),
               activeAiProfileId: settings.activeAiProfileId,
-              imageProvider: settings.imageProvider,
-              imageModel: settings.imageModel,
-              imageApiKey: settings.imageApiKey,
-              imageBaseUrl: settings.imageBaseUrl,
+              imageProfiles: parseJson(settings.imageProfilesJson, [] as ImageProfile[]),
+              activeImageProfileId: settings.activeImageProfileId,
               autoSaveInterval: settings.autoSaveInterval,
               editorFont: settings.editorFont,
               uiScale: settings.uiScale,
@@ -1504,7 +1486,7 @@ export function readWorkspaceSnapshot(
 
   const settings = db.prepare(`
     SELECT theme, selected_project_id AS selectedProjectId, provider, api_key AS apiKey, base_url AS baseUrl, proxy_url AS proxyUrl, temperature, top_p AS topP, presence_penalty AS presencePenalty, frequency_penalty AS frequencyPenalty, auto_save_interval AS autoSaveInterval, editor_font AS editorFont
-    , model, ai_profiles_json AS aiProfilesJson, active_ai_profile_id AS activeAiProfileId, image_provider AS imageProvider, image_model AS imageModel, image_api_key AS imageApiKey, image_base_url AS imageBaseUrl, ui_scale AS uiScale, workspace_menu_order_json AS workspaceMenuOrderJson, hidden_workbench_modules_json AS hiddenWorkbenchModulesJson, dark_mode AS darkMode, dark_mode_style AS darkModeStyle
+    , model, ai_profiles_json AS aiProfilesJson, active_ai_profile_id AS activeAiProfileId, image_profiles_json AS imageProfilesJson, active_image_profile_id AS activeImageProfileId, ui_scale AS uiScale, workspace_menu_order_json AS workspaceMenuOrderJson, hidden_workbench_modules_json AS hiddenWorkbenchModulesJson, dark_mode AS darkMode, dark_mode_style AS darkModeStyle
     FROM app_settings
     WHERE id = 1
   `).get() as
@@ -1522,10 +1504,8 @@ export function readWorkspaceSnapshot(
         frequencyPenalty: number | null
         aiProfilesJson: string
         activeAiProfileId: string
-        imageProvider: string
-        imageModel: string
-        imageApiKey: string
-        imageBaseUrl: string
+        imageProfilesJson: string
+        activeImageProfileId: string
         autoSaveInterval: string
         editorFont: string
         uiScale: number
@@ -1650,10 +1630,8 @@ export function readWorkspaceSnapshot(
         frequencyPenalty: settings.frequencyPenalty === null ? undefined : settings.frequencyPenalty,
         aiProfiles: parseJson(settings.aiProfilesJson, []),
         activeAiProfileId: settings.activeAiProfileId,
-        imageProvider: settings.imageProvider,
-        imageModel: settings.imageModel,
-        imageApiKey: settings.imageApiKey,
-        imageBaseUrl: settings.imageBaseUrl,
+        imageProfiles: parseJson(settings.imageProfilesJson, [] as ImageProfile[]),
+        activeImageProfileId: settings.activeImageProfileId,
         autoSaveInterval: settings.autoSaveInterval,
         editorFont: settings.editorFont,
         uiScale: settings.uiScale,
@@ -2240,8 +2218,8 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
     }
 
     db.prepare(`
-    INSERT OR REPLACE INTO app_settings (id, theme, selected_project_id, provider, model, api_key, base_url, proxy_url, temperature, top_p, presence_penalty, frequency_penalty, ai_profiles_json, active_ai_profile_id, image_provider, image_model, image_api_key, image_base_url, auto_save_interval, editor_font, ui_scale, workspace_menu_order_json, hidden_workbench_modules_json, dark_mode, dark_mode_style)
-    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT OR REPLACE INTO app_settings (id, theme, selected_project_id, provider, model, api_key, base_url, proxy_url, temperature, top_p, presence_penalty, frequency_penalty, ai_profiles_json, active_ai_profile_id, image_profiles_json, active_image_profile_id, auto_save_interval, editor_font, ui_scale, workspace_menu_order_json, hidden_workbench_modules_json, dark_mode, dark_mode_style)
+    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       payload.theme,
       payload.selectedProjectId,
@@ -2256,10 +2234,8 @@ export function writeWorkspaceSnapshot(db: DatabaseSync, payload: WorkspacePaylo
       normalizedAppSettings.frequencyPenalty ?? null,
       JSON.stringify(normalizedAppSettings.aiProfiles ?? []),
       normalizedAppSettings.activeAiProfileId,
-      normalizedAppSettings.imageProvider,
-      normalizedAppSettings.imageModel,
-      normalizedAppSettings.imageApiKey,
-      normalizedAppSettings.imageBaseUrl,
+      JSON.stringify(normalizedAppSettings.imageProfiles ?? []),
+      normalizedAppSettings.activeImageProfileId,
       normalizedAppSettings.autoSaveInterval,
       normalizedAppSettings.editorFont,
       normalizedAppSettings.uiScale,
@@ -2317,8 +2293,8 @@ export function writeAppSettingsRow(
 ): void {
   const normalized = normalizeAppSettings(settings)
   db.prepare(`
-    INSERT INTO app_settings (id, theme, selected_project_id, provider, model, api_key, base_url, proxy_url, temperature, top_p, presence_penalty, frequency_penalty, ai_profiles_json, active_ai_profile_id, image_provider, image_model, image_api_key, image_base_url, auto_save_interval, editor_font, ui_scale, workspace_menu_order_json, hidden_workbench_modules_json, dark_mode, dark_mode_style)
-    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO app_settings (id, theme, selected_project_id, provider, model, api_key, base_url, proxy_url, temperature, top_p, presence_penalty, frequency_penalty, ai_profiles_json, active_ai_profile_id, image_profiles_json, active_image_profile_id, auto_save_interval, editor_font, ui_scale, workspace_menu_order_json, hidden_workbench_modules_json, dark_mode, dark_mode_style)
+    VALUES (1, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ON CONFLICT(id) DO UPDATE SET
       theme = excluded.theme,
       selected_project_id = excluded.selected_project_id,
@@ -2333,10 +2309,8 @@ export function writeAppSettingsRow(
       frequency_penalty = excluded.frequency_penalty,
       ai_profiles_json = excluded.ai_profiles_json,
       active_ai_profile_id = excluded.active_ai_profile_id,
-      image_provider = excluded.image_provider,
-      image_model = excluded.image_model,
-      image_api_key = excluded.image_api_key,
-      image_base_url = excluded.image_base_url,
+      image_profiles_json = excluded.image_profiles_json,
+      active_image_profile_id = excluded.active_image_profile_id,
       auto_save_interval = excluded.auto_save_interval,
       editor_font = excluded.editor_font,
       ui_scale = excluded.ui_scale,
@@ -2358,10 +2332,8 @@ export function writeAppSettingsRow(
     normalized.frequencyPenalty ?? null,
     JSON.stringify(normalized.aiProfiles ?? []),
     normalized.activeAiProfileId,
-    normalized.imageProvider,
-    normalized.imageModel,
-    normalized.imageApiKey,
-    normalized.imageBaseUrl,
+    JSON.stringify(normalized.imageProfiles ?? []),
+    normalized.activeImageProfileId,
     normalized.autoSaveInterval,
     normalized.editorFont,
     normalized.uiScale,

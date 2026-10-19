@@ -30,10 +30,8 @@ test('保存 AI 设置时刷新内存快照并保留未落盘的工作区数据'
       proxyUrl: '',
       aiProfiles: [],
       activeAiProfileId: '',
-      imageProvider: '',
-      imageModel: '',
-      imageApiKey: '',
-      imageBaseUrl: '',
+      imageProfiles: [],
+      activeImageProfileId: '',
       autoSaveInterval: '5m',
       editorFont: 'clear-mono',
       uiScale: 1,
@@ -87,10 +85,8 @@ test('旧 AI 设置和配置档案缺少协议时迁移为 auto', () => {
         model: 'deepseek-v4-flash-free'
       }],
       activeAiProfileId: 'profile-1',
-      imageProvider: '',
-      imageModel: '',
-      imageApiKey: '',
-      imageBaseUrl: '',
+      imageProfiles: [],
+      activeImageProfileId: '',
       autoSaveInterval: '5m',
       editorFont: 'clear-mono',
       uiScale: 1,
@@ -212,4 +208,81 @@ test('全局 AI 日志会合并旧项目级记录并按 ID 去重', () => {
   assert.equal(normalized.aiRuns[0].projectId, 'project-1')
   assert.equal(normalized.aiRuns[0].responsePreview, '全局记录')
   assert.deepEqual(normalized.workspaces['project-1'].aiRuns, [])
+})
+
+test('旧版工作区导入时四字段生图配置归一为一条并保留 Key', () => {
+  const normalized = normalizeAppSettings({
+    imageProvider: 'custom-openai-compatible',
+    imageModel: 'gpt-image-1',
+    imageApiKey: 'sk-legacy',
+    imageBaseUrl: 'https://compat.test/v1'
+  })
+
+  assert.equal(normalized.imageProfiles.length, 1)
+  assert.deepEqual(normalized.imageProfiles[0], {
+    id: 'legacy-image-profile',
+    name: '迁移自旧配置',
+    protocol: 'openai-images',
+    baseUrl: 'https://compat.test/v1',
+    apiKey: 'sk-legacy',
+    model: 'gpt-image-1'
+  })
+  assert.equal(normalized.activeImageProfileId, 'legacy-image-profile')
+})
+
+test('旧版 GRS 主机名归一为 grsai 协议，四字段全空时不产生配置', () => {
+  const grsai = normalizeAppSettings({
+    imageModel: 'nano-banana-fast',
+    imageBaseUrl: 'https://api.grsaiapi.com/v1'
+  })
+  assert.equal(grsai.imageProfiles[0].protocol, 'grsai')
+
+  const empty = normalizeAppSettings({ imageProvider: '', imageModel: '', imageApiKey: '', imageBaseUrl: '' })
+  assert.deepEqual(empty.imageProfiles, [])
+  assert.equal(empty.activeImageProfileId, '')
+})
+
+test('生图配置清洗去空 id、按主机名补协议并截断到上限 8 条', () => {
+  const normalized = normalizeAppSettings({
+    activeImageProfileId: 'nope',
+    imageProfiles: [
+      { id: '  ', name: '无 id', protocol: 'grsai', baseUrl: '', apiKey: '', model: '' },
+      ...Array.from({ length: 9 }, (_, index) => ({
+        id: `profile-${index}`,
+        name: `渠道 ${index}`,
+        baseUrl: index === 0 ? 'https://grsai.dakka.com.cn' : 'https://compat.test/v1',
+        apiKey: `key-${index}`,
+        model: `model-${index}`
+      }))
+    ]
+  })
+
+  assert.equal(normalized.imageProfiles.length, 8)
+  assert.equal(normalized.imageProfiles[0].id, 'profile-0')
+  assert.equal(normalized.imageProfiles[0].protocol, 'grsai')
+  assert.equal(normalized.imageProfiles[1].protocol, 'openai-images')
+  // activeImageProfileId 落空时退回第一条，避免出现「有配置但没有生效配置」
+  assert.equal(normalized.activeImageProfileId, 'profile-0')
+})
+
+test('已有生图配置时不再从旧四字段回填', () => {
+  const normalized = normalizeAppSettings({
+    imageProvider: 'grsai',
+    imageModel: 'legacy-model',
+    imageApiKey: 'sk-legacy',
+    imageBaseUrl: 'https://grsai.dakka.com.cn',
+    imageProfiles: [{
+      id: 'profile-new',
+      name: '新渠道',
+      protocol: 'openai-images',
+      baseUrl: 'https://compat.test/v1',
+      apiKey: 'sk-new',
+      model: 'gpt-image-1'
+    }],
+    activeImageProfileId: 'profile-new'
+  })
+
+  assert.equal(normalized.imageProfiles.length, 1)
+  assert.equal(normalized.imageProfiles[0].id, 'profile-new')
+  assert.equal(normalized.activeImageProfileId, 'profile-new')
 })

@@ -15,7 +15,15 @@ export type {
   AssetImageKind,
   AssetImageItem
 } from '@shared/ipc-types'
+
+/** v1.37.0 生图渠道配置类型（沿用 @shared/image-profile 契约，单一定义源） */
+export type {
+  ImageProfile,
+  ImageProfileProtocol,
+  ImageRequestSettings
+} from '@shared/image-profile'
 import type { ProjectVisualStyle, VisualContext, VisualStyleProfile } from '@shared/ipc-types'
+import type { ImageProfile } from '@shared/image-profile'
 
 /** 主题名称，决定应用的视觉色调 */
 export type ThemeName = 'ocean' | 'jade' | 'amber' | 'rose'
@@ -956,14 +964,10 @@ export interface AppSettings {
   aiProfiles: AiProfile[]
   /** 当前激活的 AI 接口配置 ID */
   activeAiProfileId: string
-  /** 图片服务预设标识 */
-  imageProvider: string
-  /** 图片生成模型名称 */
-  imageModel: string
-  /** 图片生成接口鉴权密钥 */
-  imageApiKey: string
-  /** 图片生成接口基础地址 */
-  imageBaseUrl: string
+  /** 已保存的生图渠道配置列表（全局生效，上限 IMAGE_PROFILE_LIMIT 条） */
+  imageProfiles: ImageProfile[]
+  /** 当前激活的生图渠道配置 ID */
+  activeImageProfileId: string
   /** 自动保存间隔选项值，如 '5m'、'live' */
   autoSaveInterval: string
   /** 写作区正文字体 */

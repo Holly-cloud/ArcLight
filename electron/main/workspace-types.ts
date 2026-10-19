@@ -1,5 +1,11 @@
 import type { SkillUsePolicy } from '../shared/assistant-runtime'
 import type { ProjectVisualStyle, VisualContext, VisualStyleProfile } from '../shared/ipc-types'
+import {
+  type ImageProfile,
+  type LegacyImageSettingsInput,
+  legacyImageColumnsToProfile,
+  normalizeImageProfiles
+} from '../shared/image-profile.ts'
 
 export type KnowledgeDocumentSourceType =
   | 'reference-summary'
@@ -357,10 +363,9 @@ export type WorkspacePayload = {
       frequencyPenalty?: number
     }>
     activeAiProfileId: string
-    imageProvider: string
-    imageModel: string
-    imageApiKey: string
-    imageBaseUrl: string
+    /** v1.37.0 起生图渠道改为多条配置，全局生效 */
+    imageProfiles: ImageProfile[]
+    activeImageProfileId: string
     autoSaveInterval: string
     editorFont: string
     uiScale: number
@@ -573,6 +578,18 @@ export function normalizeAppSettings(
     : aiProfiles[0]?.id ?? ''
   const activeProfile = aiProfiles.find((item) => item.id === activeAiProfileId)
 
+  const storedImageProfiles = normalizeImageProfiles(settings?.imageProfiles)
+  // 旧版工作区 JSON 导入时仍可能带着四字段，类型上已不存在，只能按 unknown 投影
+  const imageProfiles = storedImageProfiles.length
+    ? storedImageProfiles
+    : normalizeImageProfiles([legacyImageColumnsToProfile((settings ?? null) as LegacyImageSettingsInput | null)])
+  const requestedActiveImageProfileId = typeof settings?.activeImageProfileId === 'string'
+    ? settings.activeImageProfileId.trim()
+    : ''
+  const activeImageProfileId = imageProfiles.some((item) => item.id === requestedActiveImageProfileId)
+    ? requestedActiveImageProfileId
+    : imageProfiles[0]?.id ?? ''
+
   return {
     provider: activeProfile?.provider || settings?.provider || 'openai-compatible',
     model: activeProfile?.model ?? settings?.model ?? '',
@@ -590,10 +607,8 @@ export function normalizeAppSettings(
     frequencyPenalty: activeProfile?.frequencyPenalty ?? frequencyPenalty,
     aiProfiles,
     activeAiProfileId,
-    imageProvider: settings?.imageProvider || '',
-    imageModel: settings?.imageModel || '',
-    imageApiKey: settings?.imageApiKey || '',
-    imageBaseUrl: settings?.imageBaseUrl || '',
+    imageProfiles,
+    activeImageProfileId,
     autoSaveInterval: settings?.autoSaveInterval || '5m',
     editorFont:
       typeof settings?.editorFont === 'string'

@@ -1,6 +1,7 @@
 import { computed, ref, watch } from 'vue'
 import { defineStore } from 'pinia'
 import type { ChapterMutationEvent, PersistedChapterRecord, SaveChapterOrderRequest } from '@shared/ipc-types'
+import { IMAGE_PROFILE_LIMIT, resolveActiveImageProfile, toImageRequestSettings, type ImageRequestSettings } from '@shared/image-profile'
 import { FAST_PERSIST_DELAY_MS, formatAutoSaveIntervalLabel, isLiveAutoSaveInterval, resolveAutoSaveDelayMs } from '@/features/settings/autoSave'
 import { createDefaultWorkflowDocuments } from '@/features/novelWorkflow/documents'
 import { createDefaultNovelWorkflowStages } from '@/features/novelWorkflow/stages'
@@ -97,7 +98,8 @@ import type {
   ThemeName,
   WorldviewEntry,
   AssetImageItem,
-  AssetImageKind
+  AssetImageKind,
+  ImageProfile
 } from '@/types/app'
 
 type AssistantFocusPanel = 'world' | 'outline' | 'project-knowledge'
@@ -3702,6 +3704,65 @@ export const useAppStore = defineStore('app', () => {
     scheduleSettingsPersist()
   }
 
+  /** 当前生效的生图渠道；未配置任何渠道时为 null */
+  const activeImageProfile = computed(() =>
+    resolveActiveImageProfile(appSettings.value.imageProfiles, appSettings.value.activeImageProfileId)
+  )
+
+  function switchImageProfile(profileId: string): void {
+    const profile = appSettings.value.imageProfiles.find(p => p.id === profileId)
+    if (!profile) return
+    appSettings.value.activeImageProfileId = profileId
+    scheduleSettingsPersist({ flushWorkspace: false })
+  }
+
+  function updateActiveImageProfileModel(model: string): void {
+    const profile = activeImageProfile.value
+    if (!profile) return
+    profile.model = model
+    // 顺手把「退回首条」的隐式生效变成显式，避免下次读 activeImageProfileId 又落空
+    appSettings.value.activeImageProfileId = profile.id
+    scheduleSettingsPersist({ flushWorkspace: false })
+  }
+
+  function addImageProfile(profile: ImageProfile): void {
+    if (appSettings.value.imageProfiles.length >= IMAGE_PROFILE_LIMIT) return
+    appSettings.value.imageProfiles.push(profile)
+    // 只在本来没有生效渠道时接管，避免「新建一条」顺手把用户正在用的渠道换掉
+    if (!appSettings.value.activeImageProfileId) {
+      appSettings.value.activeImageProfileId = profile.id
+    }
+    scheduleSettingsPersist()
+  }
+
+  function updateImageProfile(profileId: string, updates: Partial<ImageProfile>): void {
+    const profile = appSettings.value.imageProfiles.find(p => p.id === profileId)
+    if (!profile) return
+    Object.assign(profile, updates)
+    scheduleSettingsPersist()
+  }
+
+  /** 与 deleteAiProfile 不同：允许删掉当前生效的那条，删完自动落到剩余首条，避免只剩一条时无法清理 */
+  function deleteImageProfile(profileId: string): void {
+    const remaining = appSettings.value.imageProfiles.filter(p => p.id !== profileId)
+    if (remaining.length === appSettings.value.imageProfiles.length) return
+    appSettings.value.imageProfiles = remaining
+    if (appSettings.value.activeImageProfileId === profileId) {
+      appSettings.value.activeImageProfileId = remaining[0]?.id ?? ''
+    }
+    scheduleSettingsPersist()
+  }
+
+  /**
+   * 生图请求用的设置：把指定渠道（默认当前生效那条）摊平成 transport 认识的四字段。
+   * transport 层因此零改动，v1.36.2 的档位映射与渠道判定原样复用。
+   */
+  function buildImageRequestSettings(profileId?: string): AppSettings & ImageRequestSettings {
+    const profiles = appSettings.value.imageProfiles
+    const profile = (profileId ? profiles.find(p => p.id === profileId) : undefined) ?? activeImageProfile.value
+    return { ...appSettings.value, ...toImageRequestSettings(profile) }
+  }
+
   function updateCoverWorkbenchHistory(items: import('@/types/app').CoverWorkbenchHistoryItem[]): void {
     coverWorkbenchHistory.value = items
     schedulePersist('fast')
@@ -4536,6 +4597,13 @@ export const useAppStore = defineStore('app', () => {
     addAiProfile,
     deleteAiProfile,
     updateAiProfile,
+    activeImageProfile,
+    switchImageProfile,
+    updateActiveImageProfileModel,
+    addImageProfile,
+    updateImageProfile,
+    deleteImageProfile,
+    buildImageRequestSettings,
     updateAssistantMessageContent,
     updateAssistantMessageMeta,
     appendAssistantToolCall,

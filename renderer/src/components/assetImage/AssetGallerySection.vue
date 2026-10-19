@@ -73,7 +73,7 @@ async function runGeneration(payload: GeneratePayload): Promise<void> {
       },
       async () => {
         const response = await window.characterArc.generateImage(toIpcPayload({
-          settings: appStore.appSettings,
+          settings: appStore.buildImageRequestSettings(payload.imageProfileId),
           prompt: payload.prompt,
           projectId: props.projectId,
           assetKind: props.kind,

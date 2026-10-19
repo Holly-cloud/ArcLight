@@ -4,7 +4,7 @@
  * - 单独放在 .ts 里：`<script setup>` 不能写 export，避免 SFC 内导出类型
  */
 
-/** 一次生成请求的参数（提示词 / 画幅比 / 分辨率 / 参考图） */
+/** 一次生成请求的参数（提示词 / 画幅比 / 分辨率 / 参考图 / 本次渠道） */
 export interface GeneratePayload {
   /** 本次生成使用的提示词（已 trim） */
   prompt: string
@@ -16,4 +16,6 @@ export interface GeneratePayload {
   images: string[]
   /** 参考图对应的图库 id（写入图库元数据，可空） */
   referenceIds: string[]
+  /** v1.37.0 本次生成使用的生图渠道 id；为空则用当前生效渠道 */
+  imageProfileId: string
 }

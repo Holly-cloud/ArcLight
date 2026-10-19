@@ -1,10 +1,9 @@
 <script setup lang="ts">
 import { computed, reactive, ref, watch } from 'vue'
-import { ArrowDown, ArrowUp, Copy, Cpu, DatabaseBackup, Download, GripVertical, Image, MonitorCog, Moon, Network, Palette, PlugZap, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-vue-next'
+import { ArrowDown, ArrowUp, Copy, Cpu, DatabaseBackup, Download, GripVertical, MonitorCog, Moon, Network, Palette, PlugZap, Plus, RefreshCw, RotateCcw, Trash2 } from 'lucide-vue-next'
 import { NButton, NCheckbox, NFormItem, NInput, NInputNumber, NModal, NSelect, NSwitch, useMessage } from 'naive-ui'
 import { autoSaveOptions } from '@/features/settings/autoSave'
 import { getProviderPreset, providerOptions, resolveProviderDefaults } from '@/features/settings/providerPresets'
-import { imageProviderOptions, resolveImageProviderDefaults } from '@/features/settings/imageProviderPresets'
 import {
   DEFAULT_WORKBENCH_MENU_ORDER,
   moveWorkbenchMenuItem,
@@ -36,8 +35,6 @@ const isTestingProxyConnection = ref(false)
 const proxyTestIp = ref('')
 const isFetchingModels = ref(false)
 const fetchedModels = ref<Array<{ id: string; ownedBy: string | null }>>([])
-const isFetchingImageModels = ref(false)
-const fetchedImageModels = ref<Array<{ id: string; ownedBy: string | null }>>([])
 
 const autoSaveSelectOptions = [...autoSaveOptions]
 const uiScaleOptions = [
@@ -80,10 +77,8 @@ const draftSettings = reactive<AppSettings>({
   frequencyPenalty: undefined,
   aiProfiles: [],
   activeAiProfileId: '',
-  imageProvider: '',
-  imageModel: '',
-  imageApiKey: '',
-  imageBaseUrl: '',
+  imageProfiles: [],
+  activeImageProfileId: '',
   autoSaveInterval: '5m',
   editorFont: 'clear-mono',
   uiScale: 1,
@@ -121,7 +116,6 @@ const activeNav = ref('sec-ai')
 const navItems = [
   { id: 'sec-ai', label: 'AI 接口配置', icon: Cpu },
   { id: 'sec-network', label: '网络代理', icon: Network },
-  { id: 'sec-image', label: '图片生成配置', icon: Image },
   { id: 'sec-theme', label: '界面主题', icon: Palette },
   { id: 'sec-prefs', label: '应用偏好', icon: MonitorCog },
   { id: 'sec-database', label: '数据库备份', icon: DatabaseBackup }
@@ -173,9 +167,6 @@ const currentVersion = window.characterArc.version
 const modelSelectOptions = computed(() =>
   fetchedModels.value.map((m) => ({ label: m.id, value: m.id }))
 )
-const imageModelSelectOptions = computed(() =>
-  fetchedImageModels.value.map((m) => ({ label: m.id, value: m.id }))
-)
 const canFetchModels = computed(() => {
   const profile = editingProfile.value
   if (!profile || isFetchingModels.value) return false
@@ -185,10 +176,6 @@ const canFetchModels = computed(() => {
 const hasPendingChanges = computed(() =>
   draftTheme.value !== appStore.theme
   || JSON.stringify(draftSettings.aiProfiles) !== JSON.stringify(appStore.appSettings.aiProfiles)
-  || draftSettings.imageProvider !== appStore.appSettings.imageProvider
-  || draftSettings.imageModel !== appStore.appSettings.imageModel
-  || draftSettings.imageApiKey !== appStore.appSettings.imageApiKey
-  || draftSettings.imageBaseUrl !== appStore.appSettings.imageBaseUrl
   || draftSettings.proxyUrl !== appStore.appSettings.proxyUrl
   || draftSettings.autoSaveInterval !== appStore.appSettings.autoSaveInterval
   || draftSettings.editorFont !== appStore.appSettings.editorFont
@@ -216,10 +203,9 @@ function syncDraftFromStore(): void {
   draftSettings.frequencyPenalty = appStore.appSettings.frequencyPenalty
   draftSettings.aiProfiles = appStore.appSettings.aiProfiles.map((profile) => ({ ...profile }))
   draftSettings.activeAiProfileId = appStore.appSettings.activeAiProfileId
-  draftSettings.imageProvider = appStore.appSettings.imageProvider
-  draftSettings.imageModel = appStore.appSettings.imageModel
-  draftSettings.imageApiKey = appStore.appSettings.imageApiKey
-  draftSettings.imageBaseUrl = appStore.appSettings.imageBaseUrl
+  // 生图渠道已迁到顶栏，这里只做透传，避免保存设置时把它清掉
+  draftSettings.imageProfiles = appStore.appSettings.imageProfiles.map((profile) => ({ ...profile }))
+  draftSettings.activeImageProfileId = appStore.appSettings.activeImageProfileId
   draftSettings.autoSaveInterval = appStore.appSettings.autoSaveInterval
   draftSettings.editorFont = appStore.appSettings.editorFont
   draftSettings.uiScale = appStore.appSettings.uiScale
@@ -456,34 +442,6 @@ function handleProviderChange(provider: string): void {
     apiProtocol: 'auto'
   })
   fetchedModels.value = []
-}
-
-function handleImageProviderChange(value: string): void {
-  draftSettings.imageProvider = value
-  const defaults = resolveImageProviderDefaults(value)
-  draftSettings.imageModel = defaults.model
-  draftSettings.imageBaseUrl = defaults.baseUrl
-  fetchedImageModels.value = []
-}
-
-async function handleFetchImageModels(): Promise<void> {
-  if (isFetchingImageModels.value) return
-  isFetchingImageModels.value = true
-  try {
-    const result = await window.characterArc.fetchImageModels(toIpcPayload({ ...draftSettings }))
-    if (!result.success) throw new Error(result.error ?? '获取图片模型列表失败')
-    fetchedImageModels.value = result.result ?? []
-    if (fetchedImageModels.value.length === 0) {
-      message.warning('该接口未返回任何可用图片模型，请手动输入模型名称。')
-    } else {
-      message.success(`获取到 ${fetchedImageModels.value.length} 个可用模型`)
-    }
-  } catch (error) {
-    fetchedImageModels.value = []
-    message.error(error instanceof Error ? error.message : '获取图片模型列表失败')
-  } finally {
-    isFetchingImageModels.value = false
-  }
 }
 
 function buildProfilePayload(): AppSettings {
@@ -844,78 +802,6 @@ async function saveSettings(): Promise<void> {
               <span>当前出口 IP</span>
               <code>{{ proxyTestIp }}</code>
             </div>
-          </div>
-        </section>
-
-        <section id="sec-image" class="settings-section">
-          <div class="section-title">
-            <Image :size="18" />
-            <div>
-              <strong>图片生成配置</strong>
-              <p>封面工作台使用专用的图片生成接口，需单独配置。</p>
-            </div>
-          </div>
-          <div class="settings-grid">
-            <n-form-item label="图片服务预设">
-              <div class="preset-field">
-                <n-select
-                  :options="imageProviderOptions"
-                  :value="draftSettings.imageProvider"
-                  placeholder="选择预设快速填充模型和地址"
-                  clearable
-                  @update:value="(value) => handleImageProviderChange(value ?? '')"
-                />
-                <span class="preset-hint">切换预设仅更新模型名和 Base URL，API Key 不会被覆盖。</span>
-              </div>
-            </n-form-item>
-            <n-form-item label="图片模型名称">
-              <div class="model-input-row">
-                <n-select
-                  v-if="fetchedImageModels.length > 0"
-                  :options="imageModelSelectOptions"
-                  :value="draftSettings.imageModel"
-                  filterable
-                  tag
-                  placeholder="选择或输入图片模型名称"
-                  @update:value="(value: string) => { draftSettings.imageModel = value }"
-                />
-                <n-input
-                  v-else
-                  :value="draftSettings.imageModel"
-                  placeholder="例如：gpt-image-1 / flux.1-dev"
-                  @update:value="(value) => { draftSettings.imageModel = value }"
-                />
-                <n-button
-                  quaternary
-                  class="model-fetch-btn"
-                  :disabled="isFetchingImageModels || !draftSettings.imageBaseUrl.trim()"
-                  @click="handleFetchImageModels"
-                >
-                  <template #icon>
-                    <RefreshCw v-if="fetchedImageModels.length > 0" :size="16" :class="{ 'spin-icon': isFetchingImageModels }" />
-                    <Download v-else :size="16" :class="{ 'spin-icon': isFetchingImageModels }" />
-                  </template>
-                </n-button>
-              </div>
-            </n-form-item>
-          </div>
-          <div class="settings-grid">
-            <n-form-item label="图片 Base URL">
-              <n-input
-                :value="draftSettings.imageBaseUrl"
-                placeholder="例如：https://api.openai.com/v1"
-                @update:value="(value) => { draftSettings.imageBaseUrl = value }"
-              />
-            </n-form-item>
-            <n-form-item label="图片 API Key">
-              <n-input
-                type="password"
-                show-password-on="click"
-                :value="draftSettings.imageApiKey"
-                placeholder="图片接口专用 API Key"
-                @update:value="(value) => { draftSettings.imageApiKey = value }"
-              />
-            </n-form-item>
           </div>
         </section>
 

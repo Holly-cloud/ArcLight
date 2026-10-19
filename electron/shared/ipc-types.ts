@@ -1,4 +1,5 @@
 import type { VisualPromptValue } from './visual-prompt.ts'
+import type { ImageProfile } from './image-profile.ts'
 
 export interface IpcResult<T = void> {
   success: boolean
@@ -27,10 +28,10 @@ export interface AppSettingsPayload {
   frequencyPenalty?: number
   aiProfiles: Array<{ id: string; name: string; provider: string; baseUrl: string; apiKey: string; model: string; apiProtocol?: 'auto' | 'openai-responses' | 'openai-chat' | 'anthropic'; codexCliPath?: string; codexReasoningEffort?: 'default' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'max' | 'ultra'; temperature?: number; topP?: number; presencePenalty?: number; frequencyPenalty?: number }>
   activeAiProfileId: string
-  imageProvider: string
-  imageModel: string
-  imageApiKey: string
-  imageBaseUrl: string
+  /** 已保存的生图渠道配置列表（v1.37.0 起取代单套 imageProvider/Model/ApiKey/BaseUrl） */
+  imageProfiles: ImageProfile[]
+  /** 当前激活的生图渠道配置 ID */
+  activeImageProfileId: string
   autoSaveInterval: string
   uiScale: number
   workspaceMenuOrder: string[]

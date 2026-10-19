@@ -52,11 +52,15 @@ const isGeneratingImage = computed(() => appStore.isAiTaskRunning(AI_COVER_TASK_
 const revisedPrompt = ref('')
 const previewCoverUrl = ref('')
 
-const resolvedImageConfig = computed(() => ({
-  model: appStore.appSettings.imageModel.trim(),
-  baseUrl: appStore.appSettings.imageBaseUrl.trim(),
-  apiKey: appStore.appSettings.imageApiKey.trim()
-}))
+const resolvedImageConfig = computed(() => {
+  const profile = appStore.activeImageProfile
+  return {
+    name: profile?.name.trim() ?? '',
+    model: profile?.model.trim() ?? '',
+    baseUrl: profile?.baseUrl.trim() ?? '',
+    apiKey: profile?.apiKey.trim() ?? ''
+  }
+})
 
 const imageConfigReady = computed(() => {
   const config = resolvedImageConfig.value
@@ -66,9 +70,9 @@ const imageConfigReady = computed(() => {
 const imageConfigSummary = computed(() => {
   const config = resolvedImageConfig.value
   if (!config.model || !config.baseUrl || !config.apiKey) {
-    return '尚未配置专用图片生成接口，请先到主页设置中填写图片模型、Base URL 和 API Key。'
+    return '尚未配置生图渠道，请点击顶栏「图片」右侧的配置按钮添加。'
   }
-  return `${config.model} · ${config.baseUrl}`
+  return `${config.name ? `${config.name} · ` : ''}${config.model} · ${config.baseUrl}`
 })
 
 const isPromptStale = computed(() => {
@@ -215,7 +219,7 @@ async function generateCoverImage(): Promise<void> {
       },
       () =>
         window.characterArc.generateImage({
-          settings: toIpcPayload({ ...appStore.appSettings }),
+          settings: toIpcPayload(appStore.buildImageRequestSettings()),
           prompt: promptResult.prompt,
           projectId: input.project.id
         })
