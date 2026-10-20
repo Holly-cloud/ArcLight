@@ -2,7 +2,23 @@
 
 本项目所有显著变更都会记录在此文件中。
 
-格式遵循 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
+格式遵循 [Keep a Changelog](https://keepahchangelog.com/zh-CN/1.1.0/)，版本号遵循 [Semantic Versioning](https://semver.org/lang/zh-CN/)。
+
+## [Unreleased]
+
+### 项目正式更名为「织星 Clytie」
+
+- **新名字**——取自希腊神话中海狮座的星辰，转世为花（Clytie）。窗口标题、托盘 tooltip 与菜单、升级提示页（含品牌 mark 字「弧」→「织」）、应用内教程标题、AI 系统提示词中的自我称谓全部同步更新
+- **更名理由**——旧名 `CharacterArc`／弧光与上游开源仓库 `uu201/character-arc` 同名，而本仓库是其衍生复刻且已公开，沿用会造成来源混淆；同时旧名字面只讲「角色」，而产品早已扩展到道具 / 场景 / 组织 / 世界观，名字跟不上了
+- **界面标题栏与导出文件名兜底改为「织星」**（`App.vue` 的 `appName`、大纲导出缺省标题、docx `creator`）
+- **AI 提示词里的品牌名一并更名**——7 处 system prompt / 宿主工具协议原文写的是 `CharacterArc`，模型与用户在 AI 对话里都能看到，属于对外品牌，一并更新
+- **⚠️ 数据目录自动迁移**——`userData` 由 `characterarc` → `CharacterArc` → **`Clytie`**。目录改名对用户等于「数据消失」，故迁移逻辑改为**按历史顺序（`CharacterArc` → `characterarc`）逐个尝试拷贝**，命中即停；新目录已存在时不重复拷贝
+- **⚠️ 导入 / 导出双向兼容**——用户手里的**历史备份与历史项目归档标识仍是 `CharacterArc`**，若只认新名会导致自己的备份无法导入。故：导出写新值 `'Clytie'`，导入白名单同时接受 `'Clytie'` 与 `'CharacterArc'`（工作区 JSON 导出信封 + 项目归档 manifest 两处校验点）
+- **`app_settings.creator` 记录字段**（docx 导出作者）改为 `Clytie`；该字段只写不读，无兼容问题
+- **`package.json` 的 `name` 字段保持 `characterarc` 不变**——`userData` 已被 `configureCanonicalUserDataPath()` 显式 `setPath` 接管，改它无意义且易误导
+- **叙事术语一律不动**——角色设定里的「弧光阶段」`arc_stage` 指人物成长弧线，属叙事学概念，与项目名无关，保持原样
+- **测试基线 363/362/1**（357 → 363：把 `electron/main/archive/project-archive.test.mjs` 从孤儿测试登记进 `pnpm test` 基线，并新增 2 条新旧标识兼容用例；唯一红仍是 `run-agent-codex-cli` 的 Windows 平台边界，环境性、非产品缺陷）；`typecheck` 0 错
+- **内部标识符不动**——`window.characterArc`（160 处 / 44 文件）与 `CharacterArc*` 类型名前缀（27 文件）是 IPC 契约与 TS 类型名，与用户无关，本次不碰
 
 ## [1.37.0] - 2026-10-19
 

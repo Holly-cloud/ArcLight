@@ -1,7 +1,7 @@
 <div align="center">
-  <img src="resources/icon.png" alt="CharacterArc" width="88" height="88" />
+  <img src="resources/icon.png" alt="Clytie" width="88" height="88" />
 
-  # CharacterArc · 弧光
+  # 织星 Clytie
 
   **本地优先的 AI 小说创作桌面应用**
 

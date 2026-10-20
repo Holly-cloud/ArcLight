@@ -122,6 +122,31 @@ git -c user.name="<name>" -c user.email="<email>" commit -m "..."
 - `announcements.json`（应用内公告）
 - `tutorial.json`（引导教程）
 
+### 2.6 品牌名与数据目录（2026-10-21 更名后新增）
+
+项目品牌已由 `CharacterArc`／弧光 更名为 **织星 Clytie**（依据见 `NAMING.md`）。
+
+**对外品牌（改这些）**：`package.json` 的 `build.productName` / `build.appId` / `description`、
+`App.vue` 的 `appName`、托盘与窗口标题、`workspace-upgrade.ts` 升级页、
+`tutorial.json` 与 `tutorials.ts` 的教程标题、**AI system prompt 里的自我称谓**（模型与用户可见）。
+
+**内部标识符（别动）**：`window.characterArc`（IPC 桥接，160 处 / 44 文件）、
+`CharacterArc*` 类型名前缀（27 文件）。改它们要动全部 IPC 契约，收益低风险高。
+
+**叙事术语（绝对不能改）**：`arc_stage`「弧光阶段」指人物成长弧线，是叙事学概念，与项目名无关。
+
+**两个易踩的坑**：
+
+1. **`APP_DATA_DIR_NAME`（`electron/main/index.ts`）才是数据目录的真正来源**——
+   它经 `configureCanonicalUserDataPath()` 用 `app.setPath('userData', ...)` 显式接管，
+   **`package.json` 的 `name` 字段已不决定数据路径**。目录改名对用户等于「数据消失」，
+   改它必须同步维护 `LEGACY_APP_DATA_DIR_NAMES` 历史目录迁移列表。
+2. **导入校验有新旧标识兼容义务**——用户存量备份 / 项目归档的 `app` 标识仍是
+   `CharacterArc`。导出写 `'Clytie'`，**导入白名单必须同时接受两者**
+   （工作区 JSON 信封见 `index.ts` 的 `validateImportedPayload`；
+   项目归档 manifest 见 `project-archive.ts` 的 `isKnownArchiveAppId`）。
+   只认新值会让用户自己的备份无法导入。
+
 ---
 
 ## 3. 完成标准

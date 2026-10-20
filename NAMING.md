@@ -1,5 +1,20 @@
 # 项目命名方案
 
+> ## ✅ 已拍板并执行（2026-10-21）
+>
+> 项目正式更名为 **「织星 Clytie」**。实际执行范围见 `CHANGELOG.md` 的 `[Unreleased]` 段。
+> 本文保留作为决策依据与备查。
+>
+> **执行中修正了本文两处判断**：
+> 1. **`name` 字段并非「不能改」**——`electron/main/index.ts` 的 `configureCanonicalUserDataPath()`
+>    已用 `app.setPath('userData', ...)` 显式接管数据目录，`package.json` 的 `name` 早已不决定路径。
+>    真正的风险在 `APP_DATA_DIR_NAME` 常量，它才是数据目录的来源（已改为 `Clytie` 并补齐历史目录迁移）。
+> 2. **品牌字面比本文清单多**——`workspace-upgrade.ts` 的升级提示页（含品牌 mark 字）、
+>    **7 处 AI system prompt**（模型与用户可见）均属对外品牌，都需改；
+>    而 `arc_stage`「弧光阶段」是叙事学术语，**不能改**。
+
+---
+
 > 2026-10-20 · **审美优先版**
 > 第一版按「功能贴合 + 命名空间干净」推敲（Plotledger / Tellarca），偏工具理性。
 > 本版按「**要好听的**」重做：音美、意象、记忆点优先，功能语义退居其次。
