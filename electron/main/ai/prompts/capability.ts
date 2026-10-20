@@ -116,7 +116,7 @@ export function buildCapabilityContext(task: AiTaskName, capabilities: PromptCap
   })
   return {
     system: [
-      '你正在 CharacterArc 当前已实现的功能范围内工作。',
+      '你正在织星 Clytie 当前已实现的功能范围内工作。',
       `本次任务类型：${task}。`,
       '本次任务相关的已实现功能模块：',
       ...capabilityLines

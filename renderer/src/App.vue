@@ -25,7 +25,7 @@ const FanqieTrendsPage = defineAsyncComponent(() => import('@/pages/FanqieTrends
 const appStore = useAppStore()
 // 当前运行平台（win32 / darwin / linux），用于适配标题栏高度
 const platform = window.characterArc?.platform ?? 'unknown'
-const appName = '弧光'
+const appName = '织星'
 const appVersion = window.characterArc?.version ?? ''
 const bossKeyRegistered = ref(true)
 const bossKeyTitle = computed(() => {

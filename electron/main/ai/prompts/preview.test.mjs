@@ -70,7 +70,7 @@ test('catalog：agentRuntime 判定（非流式白名单 + agent 流任务）', 
 test('preview：空 context → 基础骨架（含能力前言，无提示）', () => {
   const preview = renderPromptPreview({ task: 'worldview-entry' })
   assert.equal(preview.task, 'worldview-entry')
-  assert.ok(preview.system.includes('你正在 CharacterArc 当前已实现的功能范围内工作。'), 'system 应含能力前言')
+  assert.ok(preview.system.includes('你正在织星 Clytie 当前已实现的功能范围内工作。'), 'system 应含能力前言')
   assert.ok(preview.system.trim().length > 0, 'system 非空')
   assert.ok(preview.user.trim().length > 0, 'user 非空')
   assert.deepEqual(preview.notes, [], '非 agent 任务无提示')

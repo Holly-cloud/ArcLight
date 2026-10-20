@@ -121,15 +121,15 @@ export function createWindowManager() {
     }
 
     tray = new Tray(iconPath)
-    tray.setToolTip('弧光')
+    tray.setToolTip('织星 Clytie')
     tray.setContextMenu(Menu.buildFromTemplate([
       {
-        label: '显示弧光',
+        label: '显示织星',
         click: () => showMainWindow()
       },
       { type: 'separator' },
       {
-        label: '退出弧光',
+        label: '退出织星',
         click: () => app.quit()
       }
     ]))
@@ -164,7 +164,7 @@ export function createWindowManager() {
         ? { trafficLightPosition: { x: 14, y: 13 } }
         : { titleBarOverlay: { color: '#f8f7f4', symbolColor: '#1c1917', height: 40 } }),
       autoHideMenuBar: true,
-      title: `弧光 v${app.getVersion()}`,
+      title: `织星 Clytie v${app.getVersion()}`,
       backgroundColor: '#f8f7f4',
       show: false,
       webPreferences: {

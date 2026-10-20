@@ -1455,7 +1455,7 @@ function previewOutlineExport(): void {
   })
 
   exportPreviewData.value = {
-    projectTitle: appStore.currentProject?.title ?? 'CharacterArc',
+    projectTitle: appStore.currentProject?.title ?? '织星',
     volumeCount: appStore.outlineVolumes.length,
     itemCount: orderedItems.length,
     rows: rowsWithVolumeInfo

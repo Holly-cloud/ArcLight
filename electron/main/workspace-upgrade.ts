@@ -214,7 +214,7 @@ async function createUpgradeWindow(): Promise<{
     show: false,
     autoHideMenuBar: true,
     backgroundColor: '#f7f4ef',
-    title: '弧光 · 数据升级',
+    title: '织星 Clytie · 数据升级',
     webPreferences: {
       contextIsolation: true,
       nodeIntegration: false,
@@ -311,7 +311,7 @@ function buildUpgradeHtml(): string {
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>弧光 · 数据升级</title>
+  <title>织星 Clytie · 数据升级</title>
   <style>
     :root { color-scheme: light; font-family: "Microsoft YaHei", "PingFang SC", sans-serif; background: #f4f5f7; color: #20242b; }
     * { box-sizing: border-box; }
@@ -338,7 +338,7 @@ function buildUpgradeHtml(): string {
 </head>
 <body>
   <main id="app">
-    <div class="brand"><span class="mark">弧</span><span>弧光 · 数据安全升级</span></div>
+    <div class="brand"><span class="mark">织</span><span>织星 · 数据安全升级</span></div>
     <h1 id="title">正在准备升级</h1>
     <p id="message">正在检查旧版本数据…</p>
     <div class="meter"><div id="fill"></div></div>

@@ -513,7 +513,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     ]
 
     const doc = new Document({
-      creator: 'CharacterArc',
+      creator: 'Clytie',
       title: titleText,
       sections: [{ children: docParagraphs }]
     })
@@ -661,7 +661,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
       volumes?: Array<{ id?: string; title?: string; wordTarget?: string; summary?: string }>
       items?: Array<{ volumeId?: string; title?: string; wordTarget?: string; conflict?: string; summary?: string; status?: string; sortOrder?: number }>
     }
-    const safeProjectTitle = String(request.projectTitle ?? 'CharacterArc').replace(/[\\/:*?"<>|]/g, '-').trim() || 'CharacterArc'
+    const safeProjectTitle = String(request.projectTitle ?? '织星').replace(/[\\/:*?"<>|]/g, '-').trim() || '织星'
     const result = await dialog.showSaveDialog(window, {
       title: '导出剧情大纲 Excel',
       defaultPath: `${safeProjectTitle}-剧情大纲.xlsx`,

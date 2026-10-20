@@ -277,7 +277,7 @@ watch(
       <!-- 空状态：Gemini 风欢迎 -->
       <div v-if="!hasThread" class="ga-empty">
         <div class="ga-empty__center">
-          <div class="ga-empty__badge"><img :src="appLogo" alt="CharacterArc" /></div>
+          <div class="ga-empty__badge"><img :src="appLogo" alt="织星 Clytie" /></div>
           <h1 class="ga-hero">需要我做点什么？</h1>
           <span class="ga-empty__context">
             <Wrench :size="13" />

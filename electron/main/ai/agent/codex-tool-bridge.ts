@@ -151,8 +151,8 @@ function buildToolProtocolPrompt(tools: Tool[]): string {
     inputSchema: tool.definition.inputSchema
   }))
   return [
-    '【CharacterArc 宿主工具协议】',
-    '你可以通过下面的 JSON 协议请求 CharacterArc 执行进程内工具。这里的工具由应用宿主执行，不是 Codex CLI 的 shell 工具；即使本地 shell 工具被禁用，也必须按任务需要调用这些宿主工具。',
+    '【织星 Clytie 宿主工具协议】',
+    '你可以通过下面的 JSON 协议请求织星 Clytie 执行进程内工具。这里的工具由应用宿主执行，不是 Codex CLI 的 shell 工具；即使本地 shell 工具被禁用，也必须按任务需要调用这些宿主工具。',
     '每次回复必须只输出一个 JSON 对象，不能使用 Markdown 代码块，也不能在 JSON 前后添加说明：',
     '{"toolCalls":[{"name":"工具名","arguments":{"参数":"值"}}],"finalText":""}',
     '规则：',
@@ -207,7 +207,7 @@ async function runTextOnly(params: RunCodexToolAgentParams): Promise<CodexToolAg
 
 /**
  * Codex CLI 本身不能直接持有 Electron 进程内函数，因此用受限 JSON 协议桥接：
- * Codex 只选择工具和参数，实际读取与暂存仍由 CharacterArc 宿主执行。
+ * Codex 只选择工具和参数，实际读取与暂存仍由织星 Clytie 宿主执行。
  */
 export async function runCodexToolAgent(
   params: RunCodexToolAgentParams
