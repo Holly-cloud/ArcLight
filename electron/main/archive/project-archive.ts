@@ -55,8 +55,19 @@ export type ProjectArchivePreview = {
   modules: Record<string, { count: number }>
 }
 
+/**
+ * 2026-10-21 项目更名为「织星 Clytie」，新归档写 `'Clytie'`；
+ * `'CharacterArc'` 是更名前的历史值，用户存量归档仍是这个标识，读取时必须继续接受。
+ */
 type ProjectArchiveManifest = Omit<ProjectArchivePreview, 'filePath'> & {
-  app: 'CharacterArc'
+  app: 'Clytie' | 'CharacterArc'
+}
+
+/** 归档 / 导出的应用标识白名单：新品牌名 + 更名前旧值 */
+const KNOWN_ARCHIVE_APP_IDS = ['Clytie', 'CharacterArc'] as const
+
+function isKnownArchiveAppId(value: unknown): boolean {
+  return typeof value === 'string' && (KNOWN_ARCHIVE_APP_IDS as readonly string[]).includes(value)
 }
 
 type ProjectWorkspace = WorkspacePayload['workspaces'][string]
@@ -481,7 +492,7 @@ function buildManifest(
   const electronRequire = eval('require') as NodeJS.Require
   const { app } = electronRequire('electron') as { app: { getVersion: () => string } }
   return {
-    app: 'CharacterArc',
+    app: 'Clytie',
     archiveVersion: '1.0',
     appVersion: app.getVersion(),
     projectId: project.id,
@@ -571,8 +582,8 @@ export async function exportProjectArchive(options: ExportProjectArchiveOptions)
 export async function inspectProjectArchive(filePath: string): Promise<ProjectArchivePreview> {
   const zip = await JSZip.loadAsync(await readFile(filePath))
   const manifest = await readZipJson<ProjectArchiveManifest | null>(zip, 'manifest.json', null)
-  if (!manifest || manifest.app !== 'CharacterArc' || !manifest.projectId || !manifest.projectTitle) {
-    throw new Error('这不是有效的 CharacterArc 项目归档包。')
+  if (!manifest || !isKnownArchiveAppId(manifest.app) || !manifest.projectId || !manifest.projectTitle) {
+    throw new Error('这不是有效的织星 Clytie 项目归档包。')
   }
 
   return {
@@ -590,7 +601,7 @@ async function readArchiveContent(filePath: string): Promise<ProjectArchiveConte
   const zip = await JSZip.loadAsync(await readFile(filePath))
   const manifest = await readZipJson<ProjectArchiveManifest | null>(zip, 'manifest.json', null)
   const project = await readZipJson<ProjectRecord | null>(zip, 'project.json', null)
-  if (!manifest || manifest.app !== 'CharacterArc' || !project) {
+  if (!manifest || !isKnownArchiveAppId(manifest.app) || !project) {
     throw new Error('归档包缺少 manifest.json 或 project.json。')
   }
 

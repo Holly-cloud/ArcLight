@@ -41,16 +41,32 @@ import {
 import { writeWorkspaceEntities } from './workspace-entity-persistence'
 import { resolveAssetImageFile } from './asset-images'
 
-const APP_DATA_DIR_NAME = 'CharacterArc'
+const APP_DATA_DIR_NAME = 'Clytie'
+
+/**
+ * 历史数据目录名，按迁移先后倒序尝试（最旧的在前）。
+ *
+ * - `characterarc`：最早由 package.json 的 name 派生的目录
+ * - `CharacterArc`：2026-10-21 更名前的规范目录
+ *
+ * 2026-10-21 项目更名为「织星 Clytie」，数据目录随之改为 `Clytie`。
+ * 目录改名对用户等于「数据消失」，故按序从各历史目录自动拷贝，
+ * 任一命中即停止（用户升级后新目录已存在，后续启动不再拷贝）。
+ */
+const LEGACY_APP_DATA_DIR_NAMES = ['CharacterArc', 'characterarc'] as const
 
 function configureCanonicalUserDataPath(): void {
   const appDataPath = app.getPath('appData')
   const canonicalUserDataPath = join(appDataPath, APP_DATA_DIR_NAME)
-  const legacyUserDataPath = join(appDataPath, 'characterarc')
 
-  if (!existsSync(canonicalUserDataPath) && existsSync(legacyUserDataPath)) {
-    mkdirSync(canonicalUserDataPath, { recursive: true })
-    cpSync(legacyUserDataPath, canonicalUserDataPath, { recursive: true, force: false, errorOnExist: false })
+  if (!existsSync(canonicalUserDataPath)) {
+    for (const legacyName of LEGACY_APP_DATA_DIR_NAMES) {
+      const legacyUserDataPath = join(appDataPath, legacyName)
+      if (!existsSync(legacyUserDataPath)) continue
+      mkdirSync(canonicalUserDataPath, { recursive: true })
+      cpSync(legacyUserDataPath, canonicalUserDataPath, { recursive: true, force: false, errorOnExist: false })
+      break
+    }
   }
 
   app.setPath('userData', canonicalUserDataPath)
@@ -470,8 +486,11 @@ function validateImportedPayload(payload: unknown): ImportValidationResult {
   }
 
   const data = payload as Record<string, unknown>
+  // 2026-10-21 项目更名为「织星 Clytie」，新导出写 'Clytie'；
+  // 'CharacterArc' 是更名前的历史导出标识，用户存量备份仍是这个值，必须继续接受。
+  const isKnownAppId = data.app === 'Clytie' || data.app === 'CharacterArc'
   if (
-    data.app === 'CharacterArc' &&
+    isKnownAppId &&
     typeof data.schemaVersion === 'string' &&
     typeof data.moduleType === 'string' &&
     data.data &&

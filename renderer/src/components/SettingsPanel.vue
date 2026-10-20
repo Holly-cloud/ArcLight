@@ -71,10 +71,11 @@ function buildExportStem(suffix: string): string {
   return `${safeTitle}-${suffix}`
 }
 
-// 构建导出信封：包装数据为标准的 CharacterArc 导出格式，包含版本号和模块类型
+// 构建导出信封：包装数据为标准导出格式，包含版本号和模块类型
+// app 写新品牌名 'Clytie'；导入端同时兼容更名前的 'CharacterArc'（见 types/app.ts）
 function buildExportEnvelope(moduleType: ImportExportModuleType, data: ProjectImportPayload): CharacterArcExportEnvelope {
   return {
-    app: 'CharacterArc',
+    app: 'Clytie',
     schemaVersion: '2.0',
     moduleType,
     compatibilityNote: '2.x 导出文件可直接导入当前版本；1.x 旧导出会按兼容模式解析，并默认按完整项目导入。',

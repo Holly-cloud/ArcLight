@@ -900,10 +900,16 @@ export interface ProjectImportPayload {
   chapterVersions?: ChapterVersion[]
 }
 
-/** CharacterArc 导出文件的标准信封格式 */
+/**
+ * 导出文件的标准信封格式。
+ *
+ * `app` 字段：项目 2026-10-21 由「CharacterArc／弧光」更名为「织星 Clytie」，
+ * 故新导出写 `'Clytie'`，但导入端必须同时接受旧值 `'CharacterArc'` ——
+ * 用户手里的历史备份仍是旧标识，若只认新值会导致自己的备份无法导入。
+ */
 export interface CharacterArcExportEnvelope {
-  /** 应用标识，固定为 'CharacterArc' */
-  app: 'CharacterArc'
+  /** 应用标识：新导出写 `'Clytie'`；`'CharacterArc'` 为更名前的历史导出，导入时仍需兼容 */
+  app: 'Clytie' | 'CharacterArc'
   /** 导出文件的 schema 版本号 */
   schemaVersion: string
   /** 导出的模块类型 */

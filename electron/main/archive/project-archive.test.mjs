@@ -62,3 +62,38 @@ for (const { name, premise, modules, expected } of [
     }
   })
 }
+
+// 2026-10-21 更名为「织星 Clytie」：新归档写 app='Clytie'，
+// 但用户存量归档仍是更名前的 app='CharacterArc'，两者都必须能导入。
+for (const appId of ['Clytie', 'CharacterArc']) {
+  test(`归档 manifest 的 app 标识 '${appId}' 均可导入`, async () => {
+    const directory = await mkdtemp(join(tmpdir(), 'clytie-appid-archive-'))
+    try {
+      const zip = new JSZip()
+      zip.file('manifest.json', JSON.stringify({ app: appId, archiveVersion: '1.0' }))
+      zip.file('project.json', JSON.stringify({ id: 'source', title: '归档项目', premise: '归档简介' }))
+      const filePath = join(directory, 'project.carc')
+      await writeFile(filePath, await zip.generateAsync({ type: 'nodebuffer' }))
+
+      let saved
+      await importProjectArchive({
+        db: {},
+        filePath,
+        mode: 'overwrite-project',
+        targetProjectId: 'target',
+        modules: ['project'],
+        readWorkspaceSnapshot: () => ({
+          selectedProjectId: 'target',
+          projects: [{ id: 'target', title: '目标项目', premise: '目标简介' }],
+          workspaces: { target: { chapters: [], aiRuns: [] } },
+          knowledgeDocuments: []
+        }),
+        writeWorkspaceSnapshot: (_db, payload) => { saved = payload }
+      })
+
+      assert.equal(saved.projects[0].premise, '归档简介')
+    } finally {
+      await rm(directory, { recursive: true, force: true })
+    }
+  })
+}
