@@ -11,7 +11,7 @@ import { useAppStore } from '@/stores/app'
 import { loadAllChapterContent } from '@/features/chapters/chapterExport'
 import { toIpcPayload } from '@/utils/ipcPayload'
 import type {
-  CharacterArcExportEnvelope,
+  ClytieExportEnvelope,
   ImportExportModuleType,
   ProjectImportPayload
 } from '@/types/app'
@@ -66,14 +66,14 @@ function saveWritingStyleSettings(): void {
 }
 
 function buildExportStem(suffix: string): string {
-  const projectTitle = appStore.currentProject?.title?.trim() || 'characterarc'
+  const projectTitle = appStore.currentProject?.title?.trim() || '织星'
   const safeTitle = projectTitle.replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, '-')
   return `${safeTitle}-${suffix}`
 }
 
 // 构建导出信封：包装数据为标准导出格式，包含版本号和模块类型
-// app 写新品牌名 'Clytie'；导入端同时兼容更名前的 'CharacterArc'（见 types/app.ts）
-function buildExportEnvelope(moduleType: ImportExportModuleType, data: ProjectImportPayload): CharacterArcExportEnvelope {
+// app 写新品牌名 'Clytie'；导入端同时兼容更名前的 'Clytie'（见 types/app.ts）
+function buildExportEnvelope(moduleType: ImportExportModuleType, data: ProjectImportPayload): ClytieExportEnvelope {
   return {
     app: 'Clytie',
     schemaVersion: '2.0',
@@ -95,7 +95,7 @@ async function handleExportProjectArchive(): Promise<void> {
   isExportingArchive.value = true
   try {
     await flushChapterChangesForExport()
-    const result = await window.characterArc.exportProjectArchive({
+    const result = await window.clytie.exportProjectArchive({
       projectId: project.id,
       projectTitle: project.title
     })
@@ -127,7 +127,7 @@ async function handleExportText(): Promise<void> {
       exportedAt: new Date().toISOString()
     }
 
-    const result = await window.characterArc.exportText(toIpcPayload({
+    const result = await window.clytie.exportText(toIpcPayload({
       data: payload,
       title: '导出章节正文 TXT',
       defaultPath: `${buildExportStem('chapters')}.txt`
@@ -154,7 +154,7 @@ async function flushChapterChangesForExport(): Promise<void> {
 
 // 导出角色资料为 JSON 文件
 async function handleExportCharacters(): Promise<void> {
-  const result = await window.characterArc.exportJson(toIpcPayload({
+  const result = await window.clytie.exportJson(toIpcPayload({
     data: buildExportEnvelope('characters', {
       project: appStore.currentProject,
       characters: appStore.characters
@@ -175,7 +175,7 @@ async function handleExportCharacters(): Promise<void> {
 
 // 导出大纲节点为 JSON 文件
 async function handleExportOutline(): Promise<void> {
-  const result = await window.characterArc.exportJson(toIpcPayload({
+  const result = await window.clytie.exportJson(toIpcPayload({
     data: buildExportEnvelope('outline', {
       project: appStore.currentProject,
       outlineVolumes: appStore.outlineVolumes,
@@ -197,7 +197,7 @@ async function handleExportOutline(): Promise<void> {
 
 // 导出灵感卡片为 JSON 文件
 async function handleExportInspiration(): Promise<void> {
-  const result = await window.characterArc.exportJson(toIpcPayload({
+  const result = await window.clytie.exportJson(toIpcPayload({
     data: buildExportEnvelope('inspiration', {
       project: appStore.currentProject,
       inspirationEntries: appStore.inspirationEntries
@@ -218,7 +218,7 @@ async function handleExportInspiration(): Promise<void> {
 
 // 导出关系组织数据为 JSON 文件
 async function handleExportRelations(): Promise<void> {
-  const result = await window.characterArc.exportJson(toIpcPayload({
+  const result = await window.clytie.exportJson(toIpcPayload({
     data: buildExportEnvelope('relations', {
       project: appStore.currentProject,
       characters: appStore.characters,
@@ -249,7 +249,7 @@ async function handleExportChaptersJson(): Promise<void> {
       appStore.chapterVersions,
       (id) => appStore.ensureChapterVersionContent(id)
     )
-    const result = await window.characterArc.exportJson(toIpcPayload({
+    const result = await window.clytie.exportJson(toIpcPayload({
       data: buildExportEnvelope('chapters', {
         project: appStore.currentProject,
         outlineVolumes: appStore.outlineVolumes,

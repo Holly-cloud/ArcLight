@@ -315,30 +315,30 @@ export const DEFAULT_PERMISSION_MATRIX: PermissionMatrix = {
 // ============================================================================
 
 /**
- * 新命名空间：`characterarc:assistant:*`。与旧的 `characterarc:ai:*` 并存，
+ * 新命名空间：`clytie:assistant:*`。与旧的 `clytie:ai:*` 并存，
  * Phase 3 迁移完毕后合并。
  */
 export const ASSISTANT_IPC_CHANNELS = {
   // 会话
-  SESSION_LIST: 'characterarc:assistant:session:list',
-  SESSION_CREATE: 'characterarc:assistant:session:create',
-  SESSION_DELETE: 'characterarc:assistant:session:delete',
-  SESSION_DELETE_BEFORE: 'characterarc:assistant:session:delete-before',
-  SESSION_LOAD: 'characterarc:assistant:session:load',
-  SESSION_RENAME: 'characterarc:assistant:session:rename',
+  SESSION_LIST: 'clytie:assistant:session:list',
+  SESSION_CREATE: 'clytie:assistant:session:create',
+  SESSION_DELETE: 'clytie:assistant:session:delete',
+  SESSION_DELETE_BEFORE: 'clytie:assistant:session:delete-before',
+  SESSION_LOAD: 'clytie:assistant:session:load',
+  SESSION_RENAME: 'clytie:assistant:session:rename',
   // Turn（用户发起一次输入）
-  TURN_SEND: 'characterarc:assistant:turn:send',
-  TURN_CANCEL: 'characterarc:assistant:turn:cancel',
-  TURN_TRUNCATE: 'characterarc:assistant:turn:truncate',
+  TURN_SEND: 'clytie:assistant:turn:send',
+  TURN_CANCEL: 'clytie:assistant:turn:cancel',
+  TURN_TRUNCATE: 'clytie:assistant:turn:truncate',
   // 流式事件订阅（主 → 渲染 push）
-  EVENT_STREAM: 'characterarc:assistant:event:stream',
+  EVENT_STREAM: 'clytie:assistant:event:stream',
   // Staged Changes
-  STAGE_LIST: 'characterarc:assistant:stage:list',
-  STAGE_GET: 'characterarc:assistant:stage:get',
-  STAGE_ACCEPT: 'characterarc:assistant:stage:accept',
-  STAGE_REJECT: 'characterarc:assistant:stage:reject',
-  STAGE_COMMIT: 'characterarc:assistant:stage:commit',
-  STAGE_BIND_TARGET: 'characterarc:assistant:stage:bind-target'
+  STAGE_LIST: 'clytie:assistant:stage:list',
+  STAGE_GET: 'clytie:assistant:stage:get',
+  STAGE_ACCEPT: 'clytie:assistant:stage:accept',
+  STAGE_REJECT: 'clytie:assistant:stage:reject',
+  STAGE_COMMIT: 'clytie:assistant:stage:commit',
+  STAGE_BIND_TARGET: 'clytie:assistant:stage:bind-target'
 } as const
 
 export type AssistantIpcChannel =

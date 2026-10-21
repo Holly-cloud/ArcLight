@@ -218,7 +218,7 @@ async function generateCoverImage(): Promise<void> {
         panel: 'cover-workbench'
       },
       () =>
-        window.characterArc.generateImage({
+        window.clytie.generateImage({
           settings: toIpcPayload(appStore.buildImageRequestSettings()),
           prompt: promptResult.prompt,
           projectId: input.project.id
@@ -250,7 +250,7 @@ async function saveCoverToLocal(dataUrl?: string): Promise<void> {
   }
   try {
     const title = workbench.bookTitle.trim() || 'cover'
-    const result = await window.characterArc.saveCoverImage({
+    const result = await window.clytie.saveCoverImage({
       dataUrl: coverData,
       defaultFileName: `${title}-封面-${Date.now()}.png`
     })

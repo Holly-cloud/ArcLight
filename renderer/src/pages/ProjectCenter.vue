@@ -92,7 +92,7 @@ async function handlePickCover(): Promise<void> {
     return
   }
 
-  const result = await window.characterArc.pickCoverImage()
+  const result = await window.clytie.pickCoverImage()
   if (!result.success || result.canceled || !result.dataUrl) {
     return
   }

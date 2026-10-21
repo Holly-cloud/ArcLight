@@ -15,8 +15,8 @@ function toIpcPayload<T>(value: T): T {
 }
 
 // 通过 contextBridge 将主进程 IPC 方法安全地暴露给渲染进程
-// 所有方法通过 window.characterArc 对象调用，主进程和助手窗口共享同一接口
-contextBridge.exposeInMainWorld('characterArc', {
+// 所有方法通过 window.clytie 对象调用，主进程和助手窗口共享同一接口
+contextBridge.exposeInMainWorld('clytie', {
   /** 当前操作系统平台标识（如 'win32'、'darwin'） */
   platform: process.platform,
   /** 应用版本号 */
@@ -24,12 +24,12 @@ contextBridge.exposeInMainWorld('characterArc', {
 
   // ── 工作区持久化 ──
   /** 从 SQLite 加载当前项目的完整工作区快照 */
-  loadWorkspace: () => ipcRenderer.invoke('characterarc:load-workspace'),
+  loadWorkspace: () => ipcRenderer.invoke('clytie:load-workspace'),
   /** 将完整工作区快照写入 SQLite（全量覆盖写） */
   saveWorkspace: (payload: unknown) => ipcRenderer.invoke(IPC_CHANNELS.SAVE_WORKSPACE, toIpcPayload(payload)),
   /** 窗口关闭前同步写入工作区，避免异步 IPC 被进程退出截断 */
   saveWorkspaceSync: (payload: unknown) =>
-    ipcRenderer.sendSync('characterarc:save-workspace-sync', toIpcPayload(payload)),
+    ipcRenderer.sendSync('clytie:save-workspace-sync', toIpcPayload(payload)),
   /** 仅更新 app_settings 行，避免全量序列化工作区 */
   saveAppSettings: (payload: SaveAppSettingsRequest) =>
     ipcRenderer.invoke(IPC_CHANNELS.SAVE_APP_SETTINGS, toIpcPayload(payload)),
@@ -61,107 +61,107 @@ contextBridge.exposeInMainWorld('characterArc', {
 
   // ── 文件操作 ──
   /** 打开系统文件选择对话框，选取项目封面图片 */
-  pickCoverImage: () => ipcRenderer.invoke('characterarc:pick-cover-image'),
+  pickCoverImage: () => ipcRenderer.invoke('clytie:pick-cover-image'),
   /** 选择一本 TXT 小说并返回续写导入预览 */
-  pickContinuationNovel: () => ipcRenderer.invoke('characterarc:pick-continuation-novel'),
+  pickContinuationNovel: () => ipcRenderer.invoke('clytie:pick-continuation-novel'),
   /** 将当前项目导出为 JSON 文件 */
-  exportJson: (payload: unknown) => ipcRenderer.invoke('characterarc:export-json', toIpcPayload(payload)),
+  exportJson: (payload: unknown) => ipcRenderer.invoke('clytie:export-json', toIpcPayload(payload)),
   /** 将当前项目导出为 .carc 项目归档包 */
-  exportProjectArchive: (payload: unknown) => ipcRenderer.invoke('characterarc:export-project-archive', toIpcPayload(payload)),
+  exportProjectArchive: (payload: unknown) => ipcRenderer.invoke('clytie:export-project-archive', toIpcPayload(payload)),
   /** 选择并预览 .carc 项目归档包 */
-  inspectProjectArchive: () => ipcRenderer.invoke('characterarc:inspect-project-archive'),
+  inspectProjectArchive: () => ipcRenderer.invoke('clytie:inspect-project-archive'),
   /** 按指定模式导入 .carc 项目归档包 */
-  importProjectArchive: (payload: unknown) => ipcRenderer.invoke('characterarc:import-project-archive', toIpcPayload(payload)),
+  importProjectArchive: (payload: unknown) => ipcRenderer.invoke('clytie:import-project-archive', toIpcPayload(payload)),
   /** 将当前项目导出为纯文本文件 */
-  exportText: (payload: unknown) => ipcRenderer.invoke('characterarc:export-text', toIpcPayload(payload)),
+  exportText: (payload: unknown) => ipcRenderer.invoke('clytie:export-text', toIpcPayload(payload)),
   /** 将单个章节导出为 TXT */
-  exportChapterTxt: (payload: unknown) => ipcRenderer.invoke('characterarc:export-chapter-txt', toIpcPayload(payload)),
+  exportChapterTxt: (payload: unknown) => ipcRenderer.invoke('clytie:export-chapter-txt', toIpcPayload(payload)),
   /** 将单个章节导出为 DOCX */
-  exportChapterDocx: (payload: unknown) => ipcRenderer.invoke('characterarc:export-chapter-docx', toIpcPayload(payload)),
+  exportChapterDocx: (payload: unknown) => ipcRenderer.invoke('clytie:export-chapter-docx', toIpcPayload(payload)),
   /** 从 JSON 文件导入项目数据 */
-  importJson: () => ipcRenderer.invoke('characterarc:import-json'),
+  importJson: () => ipcRenderer.invoke('clytie:import-json'),
   /** 读取 Excel/CSV 大纲文件并返回二维表数据 */
-  importOutlineSpreadsheet: () => ipcRenderer.invoke('characterarc:import-outline-spreadsheet'),
+  importOutlineSpreadsheet: () => ipcRenderer.invoke('clytie:import-outline-spreadsheet'),
   /** 下载标准大纲 Excel 模板 */
-  exportOutlineTemplate: () => ipcRenderer.invoke('characterarc:export-outline-template'),
+  exportOutlineTemplate: () => ipcRenderer.invoke('clytie:export-outline-template'),
   /** 将当前项目大纲导出为 Excel */
-  exportOutlineSpreadsheet: (payload: unknown) => ipcRenderer.invoke('characterarc:export-outline-spreadsheet', toIpcPayload(payload)),
+  exportOutlineSpreadsheet: (payload: unknown) => ipcRenderer.invoke('clytie:export-outline-spreadsheet', toIpcPayload(payload)),
   /** 加载当前项目可用的 skills（软件内置 + 项目扩展） */
-  scanProjectSkills: (projectId: string) => ipcRenderer.invoke('characterarc:project-skills-scan', projectId),
+  scanProjectSkills: (projectId: string) => ipcRenderer.invoke('clytie:project-skills-scan', projectId),
   /** 从本地目录导入一组项目扩展 skills 到应用数据目录 */
-  importProjectSkillsPackage: (projectId: string) => ipcRenderer.invoke('characterarc:project-skills-import', projectId),
+  importProjectSkillsPackage: (projectId: string) => ipcRenderer.invoke('clytie:project-skills-import', projectId),
   /** 删除一个用户导入的全局 Skill；内置 Skill 不允许删除 */
-  deleteGlobalSkill: (skillId: string) => ipcRenderer.invoke('characterarc:global-skill-delete', skillId),
+  deleteGlobalSkill: (skillId: string) => ipcRenderer.invoke('clytie:global-skill-delete', skillId),
   /** 读取当前项目可用 skills 的正文内容（供 AI 内部使用） */
-  getProjectSkillsContext: (projectId: string) => ipcRenderer.invoke('characterarc:project-skills-context', projectId),
+  getProjectSkillsContext: (projectId: string) => ipcRenderer.invoke('clytie:project-skills-context', projectId),
 
   // ── AI 任务 ──
   /** 发送一次非流式 AI 生成请求，返回完整结果 */
-  generateAi: (payload: unknown) => ipcRenderer.invoke('characterarc:ai-generate', toIpcPayload(payload)),
+  generateAi: (payload: unknown) => ipcRenderer.invoke('clytie:ai-generate', toIpcPayload(payload)),
   /** 取消一个正在进行的非流式 AI 任务（按 clientTaskId） */
-  cancelAiTask: (clientTaskId: string) => ipcRenderer.invoke('characterarc:ai-cancel', clientTaskId),
+  cancelAiTask: (clientTaskId: string) => ipcRenderer.invoke('clytie:ai-cancel', clientTaskId),
   /** 发起流式 AI 请求，返回 streamId 用于后续事件监听和停止 */
-  startAiStream: (payload: unknown) => ipcRenderer.invoke('characterarc:ai-stream-start', toIpcPayload(payload)),
+  startAiStream: (payload: unknown) => ipcRenderer.invoke('clytie:ai-stream-start', toIpcPayload(payload)),
   /** 通过 streamId 中断正在进行的流式 AI 请求 */
-  stopAiStream: (streamId: string) => ipcRenderer.invoke('characterarc:ai-stream-stop', streamId),
+  stopAiStream: (streamId: string) => ipcRenderer.invoke('clytie:ai-stream-stop', streamId),
   /** 发起 Agent 流式请求（带工具调用），返回 streamId */
-  startAiAgentStream: (payload: unknown) => ipcRenderer.invoke('characterarc:ai-agent-stream-start', toIpcPayload(payload)),
+  startAiAgentStream: (payload: unknown) => ipcRenderer.invoke('clytie:ai-agent-stream-start', toIpcPayload(payload)),
   /** 从 DB 重新读取单个章节内容（agent 编辑后刷新用） */
-  readChapterFromDb: (projectId: string, chapterId: string) => ipcRenderer.invoke('characterarc:ai-read-chapter', { projectId, chapterId }),
+  readChapterFromDb: (projectId: string, chapterId: string) => ipcRenderer.invoke('clytie:ai-read-chapter', { projectId, chapterId }),
   /** 从 DB 读取章节版本（agent 编辑撤销用） */
-  readChapterVersionFromDb: (projectId: string, versionId: string) => ipcRenderer.invoke('characterarc:ai-read-chapter-version', { projectId, versionId }),
+  readChapterVersionFromDb: (projectId: string, versionId: string) => ipcRenderer.invoke('clytie:ai-read-chapter-version', { projectId, versionId }),
   /** 提交章节编辑提案（diff review 确认写回） */
-  commitChapterEdit: (projectId: string, chapterId: string, oldContent: string, newContent: string) => ipcRenderer.invoke('characterarc:commit-chapter-edit', { projectId, chapterId, oldContent, newContent }),
+  commitChapterEdit: (projectId: string, chapterId: string, oldContent: string, newContent: string) => ipcRenderer.invoke('clytie:commit-chapter-edit', { projectId, chapterId, oldContent, newContent }),
   /** 监听流式 AI 的增量文本事件，返回取消监听的清理函数 */
   onAiStreamEvent: (callback: (payload: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload)
-    ipcRenderer.on('characterarc:ai-stream-event', listener)
+    ipcRenderer.on('clytie:ai-stream-event', listener)
     return () => {
-      ipcRenderer.removeListener('characterarc:ai-stream-event', listener)
+      ipcRenderer.removeListener('clytie:ai-stream-event', listener)
     }
   },
   /** 监听 AI 运行记录事件 */
   onAiRunEvent: (callback: (payload: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload)
-    ipcRenderer.on('characterarc:ai-run-event', listener)
+    ipcRenderer.on('clytie:ai-run-event', listener)
     return () => {
-      ipcRenderer.removeListener('characterarc:ai-run-event', listener)
+      ipcRenderer.removeListener('clytie:ai-run-event', listener)
     }
   },
   /** 监听章节轻检告警事件（章节生成后的异步后处理流水线产出） */
   onChapterStateWarnings: (callback: (payload: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload)
-    ipcRenderer.on('characterarc:chapter-state-warnings', listener)
+    ipcRenderer.on('clytie:chapter-state-warnings', listener)
     return () => {
-      ipcRenderer.removeListener('characterarc:chapter-state-warnings', listener)
+      ipcRenderer.removeListener('clytie:chapter-state-warnings', listener)
     }
   },
   /** 监听章节生成后处理问题事件（状态提取/语义索引/流水线故障） */
   onChapterPostGenerationIssues: (callback: (payload: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload)
-    ipcRenderer.on('characterarc:chapter-post-generation-issues', listener)
+    ipcRenderer.on('clytie:chapter-post-generation-issues', listener)
     return () => {
-      ipcRenderer.removeListener('characterarc:chapter-post-generation-issues', listener)
+      ipcRenderer.removeListener('clytie:chapter-post-generation-issues', listener)
     }
   },
   /** 监听章节生成后处理后台任务生命周期 */
   onChapterPostGenerationTask: (callback: (payload: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload)
-    ipcRenderer.on('characterarc:chapter-post-generation-task', listener)
+    ipcRenderer.on('clytie:chapter-post-generation-task', listener)
     return () => {
-      ipcRenderer.removeListener('characterarc:chapter-post-generation-task', listener)
+      ipcRenderer.removeListener('clytie:chapter-post-generation-task', listener)
     }
   },
   /** 测试 AI 连接是否通畅，发送探测请求验证鉴权和网络 */
-  testAiConnection: (settings: unknown) => ipcRenderer.invoke('characterarc:ai-test-connection', toIpcPayload(settings)),
+  testAiConnection: (settings: unknown) => ipcRenderer.invoke('clytie:ai-test-connection', toIpcPayload(settings)),
   /** 测试 HTTP 代理并返回当前出口 IP */
-  testProxyConnection: (proxyUrl: string) => ipcRenderer.invoke('characterarc:ai-test-proxy', proxyUrl),
+  testProxyConnection: (proxyUrl: string) => ipcRenderer.invoke('clytie:ai-test-proxy', proxyUrl),
   /** 获取 AI 供应商的可用模型列表 */
-  fetchModels: (settings: unknown) => ipcRenderer.invoke('characterarc:ai-fetch-models', toIpcPayload(settings)),
+  fetchModels: (settings: unknown) => ipcRenderer.invoke('clytie:ai-fetch-models', toIpcPayload(settings)),
   /** 获取图片生成接口的可用模型列表 */
-  fetchImageModels: (settings: unknown) => ipcRenderer.invoke('characterarc:ai-fetch-image-models', toIpcPayload(settings)),
+  fetchImageModels: (settings: unknown) => ipcRenderer.invoke('clytie:ai-fetch-image-models', toIpcPayload(settings)),
   /** 生成封面图片 */
-  generateImage: (payload: unknown) => ipcRenderer.invoke('characterarc:ai-generate-image', toIpcPayload(payload)),
+  generateImage: (payload: unknown) => ipcRenderer.invoke('clytie:ai-generate-image', toIpcPayload(payload)),
 
   // ── 资产图库（v1.33.0）──
   /** 按资产查询图库条目 */
@@ -187,80 +187,80 @@ contextBridge.exposeInMainWorld('characterArc', {
   /** 拼装指定任务的 prompt 预览（只读，不调模型；不传 context 即基础骨架） */
   renderAiPromptPreview: (payload: unknown) => ipcRenderer.invoke(IPC_CHANNELS.RENDER_AI_PROMPT_PREVIEW, toIpcPayload(payload)),
   /** 读取当前项目的结构化世界状态（角色状态、伏笔、关系、时间线、世界规则、倒计时） */
-  readStoryState: (projectId: string) => ipcRenderer.invoke('characterarc:ai-read-story-state', projectId),
+  readStoryState: (projectId: string) => ipcRenderer.invoke('clytie:ai-read-story-state', projectId),
   /** 螺旋式深度生成（3圈：骨架→展开→校验） */
-  spiralBootstrap: (payload: unknown) => ipcRenderer.invoke('characterarc:ai-spiral-bootstrap', toIpcPayload(payload)),
+  spiralBootstrap: (payload: unknown) => ipcRenderer.invoke('clytie:ai-spiral-bootstrap', toIpcPayload(payload)),
   /** 取消正在进行的螺旋生成 */
-  cancelSpiralBootstrap: () => ipcRenderer.invoke('characterarc:ai-spiral-cancel'),
+  cancelSpiralBootstrap: () => ipcRenderer.invoke('clytie:ai-spiral-cancel'),
   /** 监听螺旋生成进度事件 */
   onSpiralProgress: (callback: (payload: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload)
-    ipcRenderer.on('characterarc:ai-spiral-progress', listener)
+    ipcRenderer.on('clytie:ai-spiral-progress', listener)
     return () => {
-      ipcRenderer.removeListener('characterarc:ai-spiral-progress', listener)
+      ipcRenderer.removeListener('clytie:ai-spiral-progress', listener)
     }
   },
   /** 启动后台状态补录任务 */
-  backfillProjectState: (payload: unknown) => ipcRenderer.invoke('characterarc:ai-backfill-state', toIpcPayload(payload)),
-  readBackfillStateStatus: (projectId: string) => ipcRenderer.invoke('characterarc:ai-backfill-state-status', projectId),
-  readBackfillTaskStatus: (projectId: string) => ipcRenderer.invoke('characterarc:ai-backfill-task-status', projectId),
-  pauseBackfillProjectState: (projectId: string) => ipcRenderer.invoke('characterarc:ai-backfill-state-pause', projectId),
-  resumeBackfillProjectState: (projectId: string) => ipcRenderer.invoke('characterarc:ai-backfill-state-resume', projectId),
+  backfillProjectState: (payload: unknown) => ipcRenderer.invoke('clytie:ai-backfill-state', toIpcPayload(payload)),
+  readBackfillStateStatus: (projectId: string) => ipcRenderer.invoke('clytie:ai-backfill-state-status', projectId),
+  readBackfillTaskStatus: (projectId: string) => ipcRenderer.invoke('clytie:ai-backfill-task-status', projectId),
+  pauseBackfillProjectState: (projectId: string) => ipcRenderer.invoke('clytie:ai-backfill-state-pause', projectId),
+  resumeBackfillProjectState: (projectId: string) => ipcRenderer.invoke('clytie:ai-backfill-state-resume', projectId),
   /** 监听状态补录进度事件 */
   onBackfillStateProgress: (callback: (payload: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload)
-    ipcRenderer.on('characterarc:ai-backfill-state-progress', listener)
+    ipcRenderer.on('clytie:ai-backfill-state-progress', listener)
     return () => {
-      ipcRenderer.removeListener('characterarc:ai-backfill-state-progress', listener)
+      ipcRenderer.removeListener('clytie:ai-backfill-state-progress', listener)
     }
   },
   /** 保存封面图片到本地文件 */
-  saveCoverImage: (payload: unknown) => ipcRenderer.invoke('characterarc:save-cover-image', toIpcPayload(payload)),
+  saveCoverImage: (payload: unknown) => ipcRenderer.invoke('clytie:save-cover-image', toIpcPayload(payload)),
 
   // ── 缩放控制 ──
   /** 设置渲染进程页面缩放比例 */
-  setZoomFactor: (factor: number) => ipcRenderer.invoke('characterarc:set-zoom-factor', factor),
+  setZoomFactor: (factor: number) => ipcRenderer.invoke('clytie:set-zoom-factor', factor),
   /** 获取当前渲染进程页面缩放比例 */
-  getZoomFactor: () => ipcRenderer.invoke('characterarc:get-zoom-factor'),
-  toggleBossKey: () => ipcRenderer.invoke('characterarc:toggle-boss-key'),
-  getBossKeyStatus: () => ipcRenderer.invoke('characterarc:boss-key-status'),
+  getZoomFactor: () => ipcRenderer.invoke('clytie:get-zoom-factor'),
+  toggleBossKey: () => ipcRenderer.invoke('clytie:toggle-boss-key'),
+  getBossKeyStatus: () => ipcRenderer.invoke('clytie:boss-key-status'),
   /** 动态更新 Windows 原生标题栏 Overlay 颜色（随深色/浅色模式切换） */
   setTitleBarOverlay: (options: { color: string; symbolColor: string }) =>
-    ipcRenderer.invoke('characterarc:set-titlebar-overlay', options),
+    ipcRenderer.invoke('clytie:set-titlebar-overlay', options),
 
   // ── 工作区同步 ──
   /** 广播工作区数据同步 */
-  publishWorkspaceSync: (payload: unknown) => ipcRenderer.invoke('characterarc:workspace-sync-publish', toIpcPayload(payload)),
+  publishWorkspaceSync: (payload: unknown) => ipcRenderer.invoke('clytie:workspace-sync-publish', toIpcPayload(payload)),
 
   // ── 事件监听（返回清理函数，组件卸载时调用以移除监听） ──
   /** 监听工作区数据同步事件 */
   onWorkspaceSync: (callback: (payload: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload)
-    ipcRenderer.on('characterarc:workspace-sync-event', listener)
+    ipcRenderer.on('clytie:workspace-sync-event', listener)
     return () => {
-      ipcRenderer.removeListener('characterarc:workspace-sync-event', listener)
+      ipcRenderer.removeListener('clytie:workspace-sync-event', listener)
     }
   },
   /** 监听其他窗口产生的章节增量变更 */
   onChapterMutation: (callback: (payload: ChapterMutationEvent) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: ChapterMutationEvent) => callback(payload)
-    ipcRenderer.on('characterarc:chapter-mutation-event', listener)
+    ipcRenderer.on('clytie:chapter-mutation-event', listener)
     return () => {
-      ipcRenderer.removeListener('characterarc:chapter-mutation-event', listener)
+      ipcRenderer.removeListener('clytie:chapter-mutation-event', listener)
     }
   },
   /** 监听项目备份导入进度 */
   onProjectArchiveImportProgress: (callback: (payload: unknown) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload)
-    ipcRenderer.on('characterarc:project-archive-import-progress', listener)
+    ipcRenderer.on('clytie:project-archive-import-progress', listener)
     return () => {
-      ipcRenderer.removeListener('characterarc:project-archive-import-progress', listener)
+      ipcRenderer.removeListener('clytie:project-archive-import-progress', listener)
     }
   },
 
   // ── AI 助手会话 ──
-  listSessions: (projectId: string) => ipcRenderer.invoke('characterarc:session-list', projectId),
-  loadSession: (sessionId: string) => ipcRenderer.invoke('characterarc:session-load', sessionId),
+  listSessions: (projectId: string) => ipcRenderer.invoke('clytie:session-list', projectId),
+  loadSession: (sessionId: string) => ipcRenderer.invoke('clytie:session-load', sessionId),
   saveSession: (payload: {
     id: string
     projectId: string
@@ -270,84 +270,84 @@ contextBridge.exposeInMainWorld('characterArc', {
     lastProposalPrompt?: string
     lastAssistantReply?: string
   }) =>
-    ipcRenderer.invoke('characterarc:session-save', toIpcPayload(payload)),
-  deleteSession: (sessionId: string) => ipcRenderer.invoke('characterarc:session-delete', sessionId),
+    ipcRenderer.invoke('clytie:session-save', toIpcPayload(payload)),
+  deleteSession: (sessionId: string) => ipcRenderer.invoke('clytie:session-delete', sessionId),
 
   // ── 检查更新 & 公告 ──
-  checkUpdate: () => ipcRenderer.invoke('characterarc:check-update'),
-  fetchAnnouncements: () => ipcRenderer.invoke('characterarc:fetch-announcements'),
-  fetchTutorial: () => ipcRenderer.invoke('characterarc:fetch-tutorial'),
-  openExternalUrl: (url: string) => ipcRenderer.invoke('characterarc:open-external-url', url),
+  checkUpdate: () => ipcRenderer.invoke('clytie:check-update'),
+  fetchAnnouncements: () => ipcRenderer.invoke('clytie:fetch-announcements'),
+  fetchTutorial: () => ipcRenderer.invoke('clytie:fetch-tutorial'),
+  openExternalUrl: (url: string) => ipcRenderer.invoke('clytie:open-external-url', url),
 
   // ── 番茄风向标 ──
   /** 抓取番茄风向标榜单数据（主进程带本地缓存，force=true 时强制刷新） */
   fetchFanqieTrends: (path: string, force = false) =>
-    ipcRenderer.invoke('characterarc:fanqie-trends-fetch', { path, force }),
+    ipcRenderer.invoke('clytie:fanqie-trends-fetch', { path, force }),
   /** 抓取七猫风向标公开静态榜单数据（主进程带本地缓存与路径白名单） */
   fetchQimaoTrends: (path: string, force = false) =>
-    ipcRenderer.invoke('characterarc:qimao-trends-fetch', { path, force }),
+    ipcRenderer.invoke('clytie:qimao-trends-fetch', { path, force }),
   /** 抓取纵横风向标公开静态榜单数据（主进程带本地缓存与路径白名单） */
   fetchZonghengTrends: (path: string, force = false) =>
-    ipcRenderer.invoke('characterarc:zongheng-trends-fetch', { path, force }),
+    ipcRenderer.invoke('clytie:zongheng-trends-fetch', { path, force }),
   /** 抓取起点中文网公开榜单数据（主进程带本地缓存） */
   fetchQidianRank: (type: string, category = '-1', force = false) =>
-    ipcRenderer.invoke('characterarc:qidian-rank-fetch', { type, category, force }),
+    ipcRenderer.invoke('clytie:qidian-rank-fetch', { type, category, force }),
   /** 读取 AI 扫榜历史记录 */
   listRankingScanHistory: (projectId?: string) =>
-    ipcRenderer.invoke('characterarc:ranking-scan-list', projectId ?? ''),
+    ipcRenderer.invoke('clytie:ranking-scan-list', projectId ?? ''),
   /** 新增或更新一条 AI 扫榜历史记录 */
   saveRankingScanHistory: (payload: unknown) =>
-    ipcRenderer.invoke('characterarc:ranking-scan-save', toIpcPayload(payload)),
+    ipcRenderer.invoke('clytie:ranking-scan-save', toIpcPayload(payload)),
   /** 删除一条 AI 扫榜历史记录 */
   deleteRankingScanHistory: (id: string) =>
-    ipcRenderer.invoke('characterarc:ranking-scan-delete', id),
+    ipcRenderer.invoke('clytie:ranking-scan-delete', id),
 
   // ── Assistant Runtime v2 ──
   /**
-   * 全新一代 AI 助手运行时。命名空间 `characterarc:assistant:*`，
+   * 全新一代 AI 助手运行时。命名空间 `clytie:assistant:*`，
    * 与旧的 `ai:*` 通道并存。Phase 1 阶段：Session/Stage 类可用，
    * Turn 类需 Phase 2 后端注入 executionPlan + committer 才能真正响应。
    */
   assistant: {
     // Session
     sessionList: (payload: unknown) =>
-      ipcRenderer.invoke('characterarc:assistant:session:list', toIpcPayload(payload)),
+      ipcRenderer.invoke('clytie:assistant:session:list', toIpcPayload(payload)),
     sessionCreate: (payload: unknown) =>
-      ipcRenderer.invoke('characterarc:assistant:session:create', toIpcPayload(payload)),
+      ipcRenderer.invoke('clytie:assistant:session:create', toIpcPayload(payload)),
     sessionDelete: (payload: unknown) =>
-      ipcRenderer.invoke('characterarc:assistant:session:delete', toIpcPayload(payload)),
+      ipcRenderer.invoke('clytie:assistant:session:delete', toIpcPayload(payload)),
     sessionDeleteBefore: (payload: unknown) =>
-      ipcRenderer.invoke('characterarc:assistant:session:delete-before', toIpcPayload(payload)),
+      ipcRenderer.invoke('clytie:assistant:session:delete-before', toIpcPayload(payload)),
     sessionLoad: (payload: unknown) =>
-      ipcRenderer.invoke('characterarc:assistant:session:load', toIpcPayload(payload)),
+      ipcRenderer.invoke('clytie:assistant:session:load', toIpcPayload(payload)),
     sessionRename: (payload: unknown) =>
-      ipcRenderer.invoke('characterarc:assistant:session:rename', toIpcPayload(payload)),
+      ipcRenderer.invoke('clytie:assistant:session:rename', toIpcPayload(payload)),
     // Turn
     turnSend: (payload: unknown) =>
-      ipcRenderer.invoke('characterarc:assistant:turn:send', toIpcPayload(payload)),
+      ipcRenderer.invoke('clytie:assistant:turn:send', toIpcPayload(payload)),
     turnCancel: (payload: unknown) =>
-      ipcRenderer.invoke('characterarc:assistant:turn:cancel', toIpcPayload(payload)),
+      ipcRenderer.invoke('clytie:assistant:turn:cancel', toIpcPayload(payload)),
     turnTruncate: (payload: unknown) =>
-      ipcRenderer.invoke('characterarc:assistant:turn:truncate', toIpcPayload(payload)),
+      ipcRenderer.invoke('clytie:assistant:turn:truncate', toIpcPayload(payload)),
     // Stage
     stageList: (payload: unknown) =>
-      ipcRenderer.invoke('characterarc:assistant:stage:list', toIpcPayload(payload)),
+      ipcRenderer.invoke('clytie:assistant:stage:list', toIpcPayload(payload)),
     stageGet: (payload: unknown) =>
-      ipcRenderer.invoke('characterarc:assistant:stage:get', toIpcPayload(payload)),
+      ipcRenderer.invoke('clytie:assistant:stage:get', toIpcPayload(payload)),
     stageAccept: (payload: unknown) =>
-      ipcRenderer.invoke('characterarc:assistant:stage:accept', toIpcPayload(payload)),
+      ipcRenderer.invoke('clytie:assistant:stage:accept', toIpcPayload(payload)),
     stageReject: (payload: unknown) =>
-      ipcRenderer.invoke('characterarc:assistant:stage:reject', toIpcPayload(payload)),
+      ipcRenderer.invoke('clytie:assistant:stage:reject', toIpcPayload(payload)),
     stageCommit: (payload: unknown) =>
-      ipcRenderer.invoke('characterarc:assistant:stage:commit', toIpcPayload(payload)),
+      ipcRenderer.invoke('clytie:assistant:stage:commit', toIpcPayload(payload)),
     stageBindTarget: (payload: unknown) =>
-      ipcRenderer.invoke('characterarc:assistant:stage:bind-target', toIpcPayload(payload)),
+      ipcRenderer.invoke('clytie:assistant:stage:bind-target', toIpcPayload(payload)),
     /** 订阅主进程推送的 TurnEvent 流。返回 unsubscribe 函数。 */
     onEvent: (callback: (payload: unknown) => void) => {
       const listener = (_event: Electron.IpcRendererEvent, payload: unknown) => callback(payload)
-      ipcRenderer.on('characterarc:assistant:event:stream', listener)
+      ipcRenderer.on('clytie:assistant:event:stream', listener)
       return () => {
-        ipcRenderer.removeListener('characterarc:assistant:event:stream', listener)
+        ipcRenderer.removeListener('clytie:assistant:event:stream', listener)
       }
     }
   }

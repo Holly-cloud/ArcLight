@@ -17,7 +17,7 @@ const emit = defineEmits<{
   (e: 'loaded', latestDate: string): void
 }>()
 
-const currentVersion = computed(() => window.characterArc.version)
+const currentVersion = computed(() => window.clytie.version)
 const announcements = ref<AnnouncementItem[]>(SHARED_LOCAL_ANNOUNCEMENTS)
 const loading = ref(false)
 const isRemote = ref(false)
@@ -34,7 +34,7 @@ async function fetchRemote(): Promise<void> {
   loading.value = true
   fetchIssue.value = 'none'
   try {
-    const res = await window.characterArc.fetchAnnouncements()
+    const res = await window.clytie.fetchAnnouncements()
     const resolution = res.success ? resolveFreshAnnouncements(res.data, SHARED_LOCAL_ANNOUNCEMENTS) : null
     if (resolution) {
       announcements.value = resolution.items

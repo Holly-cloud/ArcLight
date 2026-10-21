@@ -85,7 +85,7 @@ export async function runAiTask(
   // 白名单内的任务直接尝试走 agent loop，不预判 provider 能力。
   // 如果模型不支持 tool_use，运行时会抛错，在 catch 中降级或提示用户。
   const settingsForRouting = normalizeSettings(task.settings)
-  // Codex CLI 自己运行在独立进程中，无法直接执行 CharacterArc 的进程内 tools；
+  // Codex CLI 自己运行在独立进程中，无法直接执行 Clytie 的进程内 tools；
   // 此模式仍使用相同的完整任务 Prompt，并走单次/流式文本链路。
   const usesAgentRoute = AGENT_TASK_WHITELIST.has(task.task)
     && !isCodexCliProvider(settingsForRouting.provider)

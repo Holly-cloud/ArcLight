@@ -24,7 +24,7 @@ function readSampleValue(databasePath) {
 }
 
 test('数据库回滚先备份当前数据，再恢复所选备份并更新版本标记', async () => {
-  const workspaceDir = await mkdtemp(join(tmpdir(), 'characterarc-rollback-'))
+  const workspaceDir = await mkdtemp(join(tmpdir(), 'clytie-rollback-'))
   try {
     const databasePath = join(workspaceDir, 'workspace.db')
     const db = new DatabaseSync(databasePath)

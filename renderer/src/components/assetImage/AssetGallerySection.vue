@@ -4,7 +4,7 @@
 // - 生成选项改为按钮 + 锚定浮层（位置稳定，不随网格数量位移）；移除常驻计费警告条
 // - 点一次即发起受跟踪的非阻塞任务，可连点排队多张；完成后图库自动刷新
 // - 仅 Naive UI + lucide 图标；颜色全走 --arc-* 令牌；滚动容器用 .arc-scrollbar
-// - 渲染层不直接访问文件系统：显示走 arc-asset://，读写走 window.characterArc（IPC）
+// - 渲染层不直接访问文件系统：显示走 arc-asset://，读写走 window.clytie（IPC）
 import { computed, ref, watch } from 'vue'
 import { NButton, NEmpty, NImage, NPopconfirm, NSpin, NTag, useMessage } from 'naive-ui'
 import { Download, Sparkles, Star, Trash2 } from 'lucide-vue-next'
@@ -72,7 +72,7 @@ async function runGeneration(payload: GeneratePayload): Promise<void> {
         panel: 'asset-library'
       },
       async () => {
-        const response = await window.characterArc.generateImage(toIpcPayload({
+        const response = await window.clytie.generateImage(toIpcPayload({
           settings: appStore.buildImageRequestSettings(payload.imageProfileId),
           prompt: payload.prompt,
           projectId: props.projectId,
@@ -161,7 +161,7 @@ async function handleExport(item: AssetImageItem): Promise<void> {
   const ext = item.mime.includes('jpeg') || item.mime.includes('jpg')
     ? 'jpg'
     : item.mime.includes('webp') ? 'webp' : 'png'
-  const response = await window.characterArc.exportAssetImage({
+  const response = await window.clytie.exportAssetImage({
     imageId: item.id,
     defaultFileName: `${props.assetName || 'asset'}-${item.createdAt.slice(0, 10)}.${ext}`
   })
@@ -188,7 +188,7 @@ function imageSrc(item: AssetImageItem): string {
 async function handleImageError(item: AssetImageItem): Promise<void> {
   if (protocolBlockedFallback.value[item.id]) return
   try {
-    const response = await window.characterArc.readAssetImageDataUrl(item.id)
+    const response = await window.clytie.readAssetImageDataUrl(item.id)
     if (response.success && response.dataUrl) {
       protocolBlockedFallback.value = { ...protocolBlockedFallback.value, [item.id]: response.dataUrl }
     }

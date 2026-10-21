@@ -135,7 +135,7 @@ async function addGalleryReference(imageId: string): Promise<void> {
     return
   }
   try {
-    const response = await window.characterArc.readAssetImageDataUrl(imageId)
+    const response = await window.clytie.readAssetImageDataUrl(imageId)
     if (!response.success || !response.dataUrl) {
       throw new Error(response.error ?? '读取参考图失败')
     }
@@ -156,7 +156,7 @@ async function addLocalReference(): Promise<void> {
     message.warning(check.message ?? '参考图数量超限')
     return
   }
-  const response = await window.characterArc.pickReferenceImage()
+  const response = await window.clytie.pickReferenceImage()
   if (response.canceled) return
   if (!response.success || !response.dataUrl) {
     message.error(response.error ?? '读取参考图失败')

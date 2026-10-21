@@ -57,7 +57,7 @@ export type ProjectArchivePreview = {
 
 /**
  * 2026-10-21 项目更名为「织星 Clytie」，新归档写 `'Clytie'`；
- * `'CharacterArc'` 是更名前的历史值，用户存量归档仍是这个标识，读取时必须继续接受。
+ * `'Clytie'` 是更名前的历史值，用户存量归档仍是这个标识，读取时必须继续接受。
  */
 type ProjectArchiveManifest = Omit<ProjectArchivePreview, 'filePath'> & {
   app: 'Clytie' | 'CharacterArc'
@@ -224,7 +224,7 @@ function parseJson<T>(text: string, fallback: T): T {
 }
 
 function safeArchiveName(name: string): string {
-  return name.replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, '-').slice(0, 80) || 'characterarc-project'
+  return name.replace(/[\\/:*?"<>|]/g, '-').replace(/\s+/g, '-').slice(0, 80) || 'clytie-project'
 }
 
 function idWithPrefix(prefix: string): string {

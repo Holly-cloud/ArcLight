@@ -43,7 +43,7 @@ async function loadCatalog(): Promise<void> {
   catalogLoading.value = true
   catalogError.value = ''
   try {
-    const response = await window.characterArc.listAiPromptCatalog()
+    const response = await window.clytie.listAiPromptCatalog()
     if (!response.success || !response.entries) {
       throw new Error(response.error ?? '读取任务目录失败')
     }
@@ -87,7 +87,7 @@ async function renderPreview(): Promise<void> {
   try {
     const payload: { task: string; context?: Record<string, unknown> } = { task }
     if (projectPreview.value) payload.context = buildCurrentProjectContext()
-    const response = await window.characterArc.renderAiPromptPreview(payload)
+    const response = await window.clytie.renderAiPromptPreview(payload)
     if (!response.success || !response.preview) {
       throw new Error(response.error ?? '拼装 prompt 失败')
     }

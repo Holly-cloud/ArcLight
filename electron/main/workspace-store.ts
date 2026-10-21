@@ -39,7 +39,7 @@ export type WorkspaceUpgradeProgress = {
 }
 
 export function getWorkspaceDirPath(): string {
-  const override = process.env.CHARACTERARC_WORKSPACE_DIR?.trim()
+  const override = process.env.CLYTIE_WORKSPACE_DIR?.trim()
   if (override) return override
   const electronRequire = eval('require') as NodeJS.Require
   const { app } = electronRequire('electron') as { app: { getPath: (name: 'userData') => string } }

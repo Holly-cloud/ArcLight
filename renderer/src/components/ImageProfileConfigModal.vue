@@ -128,7 +128,7 @@ async function handleFetchModels(): Promise<void> {
   }
   isFetchingModels.value = true
   try {
-    const result = await window.characterArc.fetchImageModels(
+    const result = await window.clytie.fetchImageModels(
       toIpcPayload(appStore.buildImageRequestSettings(profile.id))
     )
     if (!result.success) throw new Error(result.error ?? '获取图片模型列表失败')

@@ -806,7 +806,7 @@ async function handleExportChapterTxt(chapter: ChapterDraft): Promise<void> {
     message.error('章节正文加载失败，暂时无法导出')
     return
   }
-  const result = await window.characterArc.exportChapterTxt(toIpcPayload({
+  const result = await window.clytie.exportChapterTxt(toIpcPayload({
     title: loadedChapter.title,
     content: getPlainTextFromEditorContent(loadedChapter.content ?? ''),
     defaultFileName: buildChapterExportFileName(loadedChapter)

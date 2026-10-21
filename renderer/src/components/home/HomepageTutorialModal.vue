@@ -42,14 +42,14 @@ function resourceIcon(type: TutorialResourceType) {
 
 function openResource(resource: TutorialResource): void {
   if (!resource.url || !/^https?:\/\//i.test(resource.url)) return
-  window.characterArc.openExternalUrl(resource.url)
+  window.clytie.openExternalUrl(resource.url)
 }
 
 async function fetchRemote(): Promise<void> {
   loading.value = true
   fetchIssue.value = 'none'
   try {
-    const result = await window.characterArc.fetchTutorial()
+    const result = await window.clytie.fetchTutorial()
     if (!result.success) {
       fetchIssue.value = 'failed'
       tutorial.value = LOCAL_TUTORIAL

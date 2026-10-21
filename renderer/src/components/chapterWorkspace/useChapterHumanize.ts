@@ -94,7 +94,7 @@ export function useChapterHumanize(): {
             chapterContent: getPlainTextFromEditorContent(chapter.content ?? ''),
             projectSkills
           })
-          return window.characterArc.generateAi(toIpcPayload({
+          return window.clytie.generateAi(toIpcPayload({
             task: 'chapter-assistant',
             settings: appStore.appSettings,
             context

@@ -183,7 +183,7 @@ export async function fetchQidianRank(
     const response = await fetch(`${QIDIAN_RANK_URLS[normalizedType]}${categoryPath}`, {
       cache: 'no-store',
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136 Safari/537.36 CharacterArc/1.17',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/136 Safari/537.36 Clytie/1.17',
         'Accept-Language': 'zh-CN,zh;q=0.9',
         Accept: 'text/html,application/xhtml+xml'
       },

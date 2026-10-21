@@ -630,7 +630,7 @@ export const AGENT_STREAM_MAX_ITERATIONS = 16
 
 /**
  * 章节轻检告警事件 payload。章节生成后的异步后处理流水线产出，
- * 通过 `characterarc:chapter-state-warnings` 广播给 renderer，
+ * 通过 `clytie:chapter-state-warnings` 广播给 renderer，
  * 由章节编辑器展示为 n-alert 供用户修正。
  */
 export type ChapterStateWarningsPayload = {

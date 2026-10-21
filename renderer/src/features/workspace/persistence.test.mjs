@@ -49,7 +49,7 @@ test('章节排序保存失败后自动重试并保留较新的排序', async ()
     clearTimeout(id) {
       timers.delete(id)
     },
-    characterArc: {
+    clytie: {
       saveChapterOrder(payload) {
         calls.push(payload)
         if (calls.length === 1) {
@@ -120,7 +120,7 @@ test('工作区实体批处理会保留新增的场景/道具字段', async () =
     clearTimeout(id) {
       timers.delete(id)
     },
-    characterArc: {
+    clytie: {
       saveWorkspaceEntities(payload) {
         calls.push(payload)
         resolveSaved()

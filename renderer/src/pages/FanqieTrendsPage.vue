@@ -150,7 +150,7 @@ const scanCatalogLoading = ref(false)
 const qimaoBoards = ref<QimaoBoardMeta[]>([])
 const zonghengBoards = ref<ZonghengBoardMeta[]>([])
 const enqueueRankingScanSave = createSerialSaveQueue((payload: RankingScanHistoryRecord) =>
-  window.characterArc.saveRankingScanHistory(payload)
+  window.clytie.saveRankingScanHistory(payload)
 )
 let rankingScanHistoryLoadRequest = 0
 
@@ -160,7 +160,7 @@ function openBookUrl(url: unknown): void {
     message.warning('该书暂无原文链接')
     return
   }
-  void window.characterArc.openExternalUrl(target)
+  void window.clytie.openExternalUrl(target)
 }
 
 async function copyBookIntro(intro: unknown): Promise<void> {
@@ -332,7 +332,7 @@ const filteredScanHistory = computed(() => {
 })
 
 function favoriteStorageKey(): string {
-  return `character-arc:ranking-idea-favorites:${appStore.selectedProjectId || 'global'}`
+  return `clytie:ranking-idea-favorites:${appStore.selectedProjectId || 'global'}`
 }
 
 function cloneDirection(direction: RankingIdeaDirection): RankingIdeaDirection {
@@ -524,7 +524,7 @@ function fmtScore(n: number): string {
 }
 
 async function fetchJson(path: string, force = false): Promise<AnyRecord> {
-  const res = await window.characterArc.fetchFanqieTrends(path, force)
+  const res = await window.clytie.fetchFanqieTrends(path, force)
   if (!res.success || res.data == null) {
     throw new Error(res.error || '加载失败')
   }
@@ -535,14 +535,14 @@ async function fetchJson(path: string, force = false): Promise<AnyRecord> {
 }
 
 async function fetchQimaoJson(path: string, force = false): Promise<AnyRecord> {
-  const res = await window.characterArc.fetchQimaoTrends(path, force)
+  const res = await window.clytie.fetchQimaoTrends(path, force)
   if (!res.success || res.data == null) throw new Error(res.error || '七猫榜单加载失败')
   if (res.mirror) srcNote.value = `${res.fromCache ? '缓存 · ' : '镜像 · '}${res.mirror}`
   return res.data as AnyRecord
 }
 
 async function fetchZonghengJson(path: string, force = false): Promise<AnyRecord> {
-  const res = await window.characterArc.fetchZonghengTrends(path, force)
+  const res = await window.clytie.fetchZonghengTrends(path, force)
   if (!res.success || res.data == null) throw new Error(res.error || '纵横榜单加载失败')
   if (res.mirror) srcNote.value = `${res.fromCache ? '缓存 · ' : '镜像 · '}${res.mirror}`
   return res.data as AnyRecord
@@ -597,7 +597,7 @@ async function switchBoard(slug: string, force = false): Promise<void> {
   errorMsg.value = ''
   try {
     if (platform.value === 'qidian') {
-      const result = await window.characterArc.fetchQidianRank(slug, qidianCategory.value, force)
+      const result = await window.clytie.fetchQidianRank(slug, qidianCategory.value, force)
       if (!result.success || !result.data) {
         throw new Error(result.error || '起点榜单加载失败')
       }
@@ -902,7 +902,7 @@ async function loadRankingScanHistory(): Promise<void> {
   const requestId = ++rankingScanHistoryLoadRequest
   const projectId = appStore.selectedProjectId || ''
   try {
-    const result = await window.characterArc.listRankingScanHistory(projectId)
+    const result = await window.clytie.listRankingScanHistory(projectId)
     if (!result.success || !Array.isArray(result.result)) return
     if (requestId !== rankingScanHistoryLoadRequest || projectId !== (appStore.selectedProjectId || '')) return
     const loaded = result.result
@@ -1032,7 +1032,7 @@ function createNewRankingScan(): void {
 async function cancelRankingScan(): Promise<void> {
   if (!scanClientTaskId.value) return
   scanCancelRequested.value = true
-  await window.characterArc.cancelAiTask(scanClientTaskId.value)
+  await window.clytie.cancelAiTask(scanClientTaskId.value)
   scanStage.value = 'cancelled'
   scanLoading.value = false
   appendScanLog('用户取消任务，已保存当前进度', 'warn')
@@ -1042,7 +1042,7 @@ async function cancelRankingScan(): Promise<void> {
 async function cancelIdeaGeneration(): Promise<void> {
   if (!scanClientTaskId.value) return
   ideaCancelRequested.value = true
-  await window.characterArc.cancelAiTask(scanClientTaskId.value)
+  await window.clytie.cancelAiTask(scanClientTaskId.value)
   scanStage.value = ideaDirections.value.length ? 'ideas' : 'report'
   appendScanLog('已取消创作方向生成', 'warn')
   persistScanHistory('success')
@@ -1223,7 +1223,7 @@ async function runRankingStyleScan(force = false): Promise<void> {
     scanReport.value = ''
     scanGeneratedAt.value = ''
     updateScanProgress(58, 3, '正在生成市场风向报告')
-    const response = await window.characterArc.generateAi(toIpcPayload({
+    const response = await window.clytie.generateAi(toIpcPayload({
       clientTaskId: scanClientTaskId.value,
       task: 'ranking-style-analysis',
       settings: appStore.appSettings,
@@ -1302,7 +1302,7 @@ async function generateIdeaDirections(force = false): Promise<void> {
       return
     }
 
-    const response = await window.characterArc.generateAi(toIpcPayload({
+    const response = await window.clytie.generateAi(toIpcPayload({
       clientTaskId: scanClientTaskId.value,
       task: 'ranking-idea-combinations',
       settings: appStore.appSettings,
@@ -1363,7 +1363,7 @@ async function refreshSelectedDirectionIdeas(): Promise<void> {
     await prepareSelectedRankingForScan()
     if (ideaCancelRequested.value) return
     const books = collectRankingScanBooks()
-    const response = await window.characterArc.generateAi(toIpcPayload({
+    const response = await window.clytie.generateAi(toIpcPayload({
       clientTaskId: scanClientTaskId.value,
       task: 'ranking-idea-combinations',
       settings: appStore.appSettings,
@@ -1560,7 +1560,7 @@ onMounted(() => {
 
 onBeforeUnmount(() => {
   if (scanClientTaskId.value) {
-    void window.characterArc.cancelAiTask(scanClientTaskId.value)
+    void window.clytie.cancelAiTask(scanClientTaskId.value)
   }
 })
 </script>

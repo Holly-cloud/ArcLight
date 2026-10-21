@@ -254,7 +254,7 @@ async function scanAvailableProjectSkills(): Promise<void> {
 
   isLoadingProjectSkills.value = true
   try {
-    const result = await window.characterArc.scanProjectSkills(projectId)
+    const result = await window.clytie.scanProjectSkills(projectId)
     if (requestId !== projectSkillsScanRequestId || !props.show || project.value?.id !== projectId) return
     if (!result.success) {
       throw new Error(result.error ?? 'skills 加载失败')

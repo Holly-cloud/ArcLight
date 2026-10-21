@@ -80,7 +80,7 @@ async function handleFetchModels(): Promise<void> {
   if (isFetchingModels.value) return
   isFetchingModels.value = true
   try {
-    const result = await window.characterArc.fetchModels(toIpcPayload({ ...appStore.appSettings }))
+    const result = await window.clytie.fetchModels(toIpcPayload({ ...appStore.appSettings }))
     if (result.success && result.result) {
       fetchedModels.value = result.result
     }

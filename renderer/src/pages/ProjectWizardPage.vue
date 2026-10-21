@@ -209,7 +209,7 @@ async function cancelGeneration(): Promise<void> {
   if (formData.generationMode !== 'deep') return
   if (isCancelling.value) return
   isCancelling.value = true
-  await window.characterArc.cancelSpiralBootstrap()
+  await window.clytie.cancelSpiralBootstrap()
 }
 
 function selectGenre(genreKey: string): void {
@@ -236,7 +236,7 @@ async function optimizePremise(): Promise<void> {
 
   isPremiseOptimizing.value = true
   try {
-    const result = await window.characterArc.generateAi(
+    const result = await window.clytie.generateAi(
       toIpcPayload({
         task: 'premise-enhance',
         settings: appStore.appSettings,
@@ -300,12 +300,12 @@ async function goNext(): Promise<void> {
   try {
     let workspaceSeed: ProjectWorkspaceSeed
     if (formData.generationMode === 'deep') {
-      const cleanup = window.characterArc.onSpiralProgress((event) => {
+      const cleanup = window.clytie.onSpiralProgress((event) => {
         updateSpiralProgress(event)
       })
 
       try {
-        const result = await window.characterArc.spiralBootstrap(
+        const result = await window.clytie.spiralBootstrap(
           toIpcPayload({
             settings: appStore.appSettings,
             projectTitle: formData.title,
@@ -325,7 +325,7 @@ async function goNext(): Promise<void> {
         cleanup()
       }
     } else if (formData.generationMode === 'quick') {
-      const result = await window.characterArc.generateAi(
+      const result = await window.clytie.generateAi(
         toIpcPayload({
           task: 'project-bootstrap',
           settings: appStore.appSettings,

@@ -1,8 +1,8 @@
 /**
  * Assistant Runtime v2 · IPC 层
  *
- * 注册 `characterarc:assistant:*` 命名空间下的全部通道。
- * 与旧的 `characterarc:ai:*` 并存互不影响，Phase 3 迁移完毕后合并。
+ * 注册 `clytie:assistant:*` 命名空间下的全部通道。
+ * 与旧的 `clytie:ai:*` 并存互不影响，Phase 3 迁移完毕后合并。
  *
  * Phase 1 阶段：Session / Stage 类通道全部就绪；Turn 类通道需要
  * `resolveTurnExecutionPlan` + `commitChange` 依赖，由 Phase 2 注入。

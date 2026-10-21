@@ -225,9 +225,9 @@ async function createUpgradeWindow(): Promise<{
     if (!allowClose) event.preventDefault()
   })
   window.webContents.on('will-navigate', (event, url) => {
-    if (!url.startsWith('characterarc-upgrade://')) return
+    if (!url.startsWith('clytie-upgrade://')) return
     event.preventDefault()
-    const action = url.slice('characterarc-upgrade://'.length).replace(/\/$/, '')
+    const action = url.slice('clytie-upgrade://'.length).replace(/\/$/, '')
     if (action === 'retry') {
       app.relaunch()
       app.exit(0)
@@ -272,7 +272,7 @@ async function createUpgradeWindow(): Promise<{
   const render = (): void => {
     if (window.isDestroyed()) return
     void window.webContents.executeJavaScript(
-      `window.__characterArcUpgradeUpdate(${JSON.stringify(state)})`,
+      `window.__clytieUpgradeUpdate(${JSON.stringify(state)})`,
       true
     )
   }
@@ -345,14 +345,14 @@ function buildUpgradeHtml(): string {
     <div class="meta"><span id="percent">1%</span><span id="detail"></span></div>
     <div class="note" id="note">升级前会先备份旧数据库。数据量较大时可能需要几分钟，请勿强制关闭应用。</div>
     <div class="actions">
-      <button id="retryButton" class="primary" onclick="location.href='characterarc-upgrade://retry'">重新尝试</button>
-      <button id="restoreButton" onclick="location.href='characterarc-upgrade://restore'">恢复旧数据</button>
-      <button id="backupButton" onclick="location.href='characterarc-upgrade://open-backup'">打开备份目录</button>
-      <button onclick="location.href='characterarc-upgrade://exit'">退出应用</button>
+      <button id="retryButton" class="primary" onclick="location.href='clytie-upgrade://retry'">重新尝试</button>
+      <button id="restoreButton" onclick="location.href='clytie-upgrade://restore'">恢复旧数据</button>
+      <button id="backupButton" onclick="location.href='clytie-upgrade://open-backup'">打开备份目录</button>
+      <button onclick="location.href='clytie-upgrade://exit'">退出应用</button>
     </div>
   </main>
   <script>
-    window.__characterArcUpgradeUpdate = function (state) {
+    window.__clytieUpgradeUpdate = function (state) {
       document.getElementById('title').textContent = state.title || '';
       document.getElementById('message').textContent = state.message || '';
       document.getElementById('detail').textContent = state.detail || '';

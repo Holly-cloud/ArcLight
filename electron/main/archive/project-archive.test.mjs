@@ -29,10 +29,10 @@ for (const { name, premise, modules, expected } of [
   { name: '未选择项目资料模块时保留目标简介', premise: '归档简介', modules: ['worldview'], expected: '目标简介' }
 ]) {
   test(name, async () => {
-    const directory = await mkdtemp(join(tmpdir(), 'characterarc-premise-archive-'))
+    const directory = await mkdtemp(join(tmpdir(), 'clytie-premise-archive-'))
     try {
       const zip = new JSZip()
-      zip.file('manifest.json', JSON.stringify({ app: 'CharacterArc', archiveVersion: '1.0' }))
+      zip.file('manifest.json', JSON.stringify({ app: 'Clytie', archiveVersion: '1.0' }))
       zip.file('project.json', JSON.stringify({ id: 'source', title: '归档项目', premise }))
       const filePath = join(directory, 'project.carc')
       await writeFile(filePath, await zip.generateAsync({ type: 'nodebuffer' }))
@@ -64,8 +64,8 @@ for (const { name, premise, modules, expected } of [
 }
 
 // 2026-10-21 更名为「织星 Clytie」：新归档写 app='Clytie'，
-// 但用户存量归档仍是更名前的 app='CharacterArc'，两者都必须能导入。
-for (const appId of ['Clytie', 'CharacterArc']) {
+// 但用户存量归档仍是更名前的 app='Clytie'，两者都必须能导入。
+for (const appId of ['Clytie', 'Clytie']) {
   test(`归档 manifest 的 app 标识 '${appId}' 均可导入`, async () => {
     const directory = await mkdtemp(join(tmpdir(), 'clytie-appid-archive-'))
     try {

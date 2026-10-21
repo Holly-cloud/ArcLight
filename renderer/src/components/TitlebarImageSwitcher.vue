@@ -42,7 +42,7 @@ async function handleFetchModels(): Promise<void> {
   if (isFetchingModels.value) return
   isFetchingModels.value = true
   try {
-    const result = await window.characterArc.fetchImageModels(toIpcPayload(appStore.buildImageRequestSettings()))
+    const result = await window.clytie.fetchImageModels(toIpcPayload(appStore.buildImageRequestSettings()))
     if (result.success && result.result) {
       fetchedModels.value = result.result
     }

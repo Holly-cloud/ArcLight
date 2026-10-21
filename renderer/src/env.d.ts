@@ -1,20 +1,20 @@
 /// <reference types="vite/client" />
 
 declare global {
-  type CharacterArcExportRequest = {
+  type ClytieExportRequest = {
     data: unknown
     title?: string
     defaultPath?: string
   }
 
-  type CharacterArcImportMeta = {
+  type ClytieImportMeta = {
     schemaVersion: string
     moduleType: import('@/types/app').ImportExportModuleType
     compatibilityNote: string
     isLegacy: boolean
   }
 
-  type CharacterArcProjectArchiveModule =
+  type ClytieProjectArchiveModule =
     | 'project'
     | 'worldview'
     | 'characters'
@@ -29,9 +29,9 @@ declare global {
     | 'aiRuns'
     | 'assistantSessions'
 
-  type CharacterArcProjectArchiveImportMode = 'new-project' | 'overwrite-project'
+  type ClytieProjectArchiveImportMode = 'new-project' | 'overwrite-project'
 
-  type CharacterArcProjectArchivePreview = {
+  type ClytieProjectArchivePreview = {
     filePath: string
     archiveVersion: string
     appVersion: string
@@ -41,7 +41,7 @@ declare global {
     modules: Record<string, { count: number }>
   }
 
-  type CharacterArcAiStreamEvent =
+  type ClytieAiStreamEvent =
     | {
         streamId: string
         type: 'chunk'
@@ -107,18 +107,18 @@ declare global {
         newContent: string
       }
 
-  type CharacterArcProjectArchiveImportProgressPayload = {
+  type ClytieProjectArchiveImportProgressPayload = {
     phase: 'preparing' | 'reading' | 'mapping' | 'merging' | 'writing' | 'assistant' | 'assets' | 'syncing' | 'done' | 'error'
     message: string
     percent: number
   }
 
-  type CharacterArcAiRunEventPayload = {
+  type ClytieAiRunEventPayload = {
     projectId: string
     meta: Omit<import('@/types/app').AiRunRecord, 'projectId'>
   }
 
-  type CharacterArcChapterStateWarningsPayload = {
+  type ClytieChapterStateWarningsPayload = {
     projectId: string
     chapterId: string
     chapterIndex: number
@@ -130,7 +130,7 @@ declare global {
     }>
   }
 
-  type CharacterArcChapterPostGenerationIssuesPayload = {
+  type ClytieChapterPostGenerationIssuesPayload = {
     projectId: string
     chapterId: string
     chapterIndex: number
@@ -143,7 +143,7 @@ declare global {
     }>
   }
 
-  type CharacterArcChapterPostGenerationTaskPayload = {
+  type ClytieChapterPostGenerationTaskPayload = {
     taskKey: string
     runId: string
     projectId: string
@@ -156,7 +156,7 @@ declare global {
     error?: string
   }
 
-  type CharacterArcBackfillStateProgressPayload = {
+  type ClytieBackfillStateProgressPayload = {
     taskId: string
     projectId: string
     status: 'running' | 'pausing' | 'paused' | 'completed' | 'failed'
@@ -167,11 +167,11 @@ declare global {
     message?: string
     startedAt: string
     updatedAt: string
-    result?: CharacterArcBackfillStateResult
+    result?: ClytieBackfillStateResult
     error?: string
   }
 
-  type CharacterArcBackfillStateResult = {
+  type ClytieBackfillStateResult = {
     totalChapters: number
     processedChapters: number
     skipped: number
@@ -179,7 +179,7 @@ declare global {
     errors: Array<{ chapterTitle: string; message: string }>
   }
 
-  type CharacterArcBackfillChapterStatus = {
+  type ClytieBackfillChapterStatus = {
     chapterId: string
     chapterTitle: string
     chapterIndex: number
@@ -192,7 +192,7 @@ declare global {
   }
 
   interface Window {
-    characterArc: {
+    clytie: {
       platform: string
       version: string
       loadWorkspace: () => Promise<{
@@ -294,11 +294,11 @@ declare global {
         versionId?: string
         error?: string
       }>
-      onAiStreamEvent: (callback: (payload: CharacterArcAiStreamEvent) => void) => () => void
-      onAiRunEvent: (callback: (payload: CharacterArcAiRunEventPayload) => void) => () => void
-      onChapterStateWarnings: (callback: (payload: CharacterArcChapterStateWarningsPayload) => void) => () => void
-      onChapterPostGenerationIssues: (callback: (payload: CharacterArcChapterPostGenerationIssuesPayload) => void) => () => void
-      onChapterPostGenerationTask: (callback: (payload: CharacterArcChapterPostGenerationTaskPayload) => void) => () => void
+      onAiStreamEvent: (callback: (payload: ClytieAiStreamEvent) => void) => () => void
+      onAiRunEvent: (callback: (payload: ClytieAiRunEventPayload) => void) => () => void
+      onChapterStateWarnings: (callback: (payload: ClytieChapterStateWarningsPayload) => void) => () => void
+      onChapterPostGenerationIssues: (callback: (payload: ClytieChapterPostGenerationIssuesPayload) => void) => () => void
+      onChapterPostGenerationTask: (callback: (payload: ClytieChapterPostGenerationTaskPayload) => void) => () => void
       spiralBootstrap: (payload: unknown) => Promise<{
         success: boolean
         result?: import('@/features/wizard/projectSeed').SpiralBootstrapResult
@@ -318,30 +318,30 @@ declare global {
         }
       }) => Promise<{
         success: boolean
-        result?: CharacterArcBackfillStateProgressPayload
+        result?: ClytieBackfillStateProgressPayload
         error?: string
       }>
       readBackfillStateStatus: (projectId: string) => Promise<{
         success: boolean
-        result?: CharacterArcBackfillChapterStatus[]
+        result?: ClytieBackfillChapterStatus[]
         error?: string
       }>
       readBackfillTaskStatus: (projectId: string) => Promise<{
         success: boolean
-        result?: CharacterArcBackfillStateProgressPayload | null
+        result?: ClytieBackfillStateProgressPayload | null
         error?: string
       }>
       pauseBackfillProjectState: (projectId: string) => Promise<{
         success: boolean
-        result?: CharacterArcBackfillStateProgressPayload
+        result?: ClytieBackfillStateProgressPayload
         error?: string
       }>
       resumeBackfillProjectState: (projectId: string) => Promise<{
         success: boolean
-        result?: CharacterArcBackfillStateProgressPayload
+        result?: ClytieBackfillStateProgressPayload
         error?: string
       }>
-      onBackfillStateProgress: (callback: (payload: CharacterArcBackfillStateProgressPayload) => void) => () => void
+      onBackfillStateProgress: (callback: (payload: ClytieBackfillStateProgressPayload) => void) => () => void
       readStoryState: (projectId: string) => Promise<{
         success: boolean
         result?: {
@@ -436,7 +436,7 @@ declare global {
         assetId?: string
         /** 参考图来源（图库 id 列表，写入图库元数据） */
         referenceIds?: string[]
-        /** 取消令牌：命中 characterarc:ai-cancel */
+        /** 取消令牌：命中 clytie:ai-cancel */
         clientTaskId?: string
       }) => Promise<{
         success: boolean
@@ -500,7 +500,7 @@ declare global {
         preview?: import('@shared/ipc-types').AiPromptPreviewResult
         error?: string
       }>
-      exportJson: (payload: CharacterArcExportRequest | unknown) => Promise<{
+      exportJson: (payload: ClytieExportRequest | unknown) => Promise<{
         success: boolean
         canceled: boolean
         filePath?: string
@@ -515,21 +515,21 @@ declare global {
         success: boolean
         canceled: boolean
         filePath?: string
-        preview?: CharacterArcProjectArchivePreview
+        preview?: ClytieProjectArchivePreview
         error?: string
       }>
       importProjectArchive: (payload: {
         filePath: string
-        mode: CharacterArcProjectArchiveImportMode
+        mode: ClytieProjectArchiveImportMode
         targetProjectId?: string
-        modules?: CharacterArcProjectArchiveModule[]
+        modules?: ClytieProjectArchiveModule[]
       }) => Promise<{
         success: boolean
         canceled: boolean
         selectedProjectId?: string
         error?: string
       }>
-      exportText: (payload: CharacterArcExportRequest | unknown) => Promise<{
+      exportText: (payload: ClytieExportRequest | unknown) => Promise<{
         success: boolean
         canceled: boolean
         filePath?: string
@@ -563,7 +563,7 @@ declare global {
         success: boolean
         canceled: boolean
         payload?: unknown
-        meta?: CharacterArcImportMeta
+        meta?: ClytieImportMeta
         error?: string
       }>
       importOutlineSpreadsheet: () => Promise<{
@@ -619,7 +619,7 @@ declare global {
       onChapterMutation: (
         callback: (payload: import('@shared/ipc-types').ChapterMutationEvent) => void
       ) => () => void
-      onProjectArchiveImportProgress: (callback: (payload: CharacterArcProjectArchiveImportProgressPayload) => void) => () => void
+      onProjectArchiveImportProgress: (callback: (payload: ClytieProjectArchiveImportProgressPayload) => void) => () => void
       checkUpdate: () => Promise<{
         success: boolean
         result?: {

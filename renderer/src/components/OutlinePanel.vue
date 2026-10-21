@@ -729,7 +729,7 @@ async function handleExpandOutline(userPrompt = ''): Promise<void> {
         panel: 'outline',
       },
       () =>
-        window.characterArc.generateAi(toIpcPayload({
+        window.clytie.generateAi(toIpcPayload({
           task: 'outline-enhance',
           settings: appStore.appSettings,
           context: {
@@ -790,7 +790,7 @@ async function handleExpandVolumeOutline(volume: OutlineVolume, userPrompt = '')
         panel: 'outline',
       },
       () =>
-        window.characterArc.generateAi(toIpcPayload({
+        window.clytie.generateAi(toIpcPayload({
             task: 'outline-batch',
             settings: appStore.appSettings,
             context: {
@@ -1045,7 +1045,7 @@ function getOrderedOutlineItemsForExport(): OutlineItem[] {
 }
 
 async function openOutlineImport(): Promise<void> {
-  const result = await window.characterArc.importOutlineSpreadsheet()
+  const result = await window.clytie.importOutlineSpreadsheet()
   if (result.canceled) return
   if (!result.success || !result.rows) {
     message.error(result.error ?? '无法读取大纲文件')
@@ -1429,7 +1429,7 @@ function commitOutlineImport(): void {
 }
 
 async function downloadOutlineTemplate(): Promise<void> {
-  const result = await window.characterArc.exportOutlineTemplate()
+  const result = await window.clytie.exportOutlineTemplate()
   if (result.canceled) return
   result.success ? message.success('大纲模板已保存') : message.error(result.error ?? '模板下载失败')
 }
@@ -1466,7 +1466,7 @@ function previewOutlineExport(): void {
 async function confirmExport(): Promise<void> {
   exportPreviewVisible.value = false
   try {
-    const result = await window.characterArc.exportOutlineSpreadsheet(toIpcPayload({
+    const result = await window.clytie.exportOutlineSpreadsheet(toIpcPayload({
       projectTitle: appStore.currentProject?.title,
       volumes: appStore.outlineVolumes,
       items: getOrderedOutlineItemsForExport()
@@ -1827,7 +1827,7 @@ async function handleAiEnhanceItem(): Promise<void> {
         panel: 'outline'
       },
       () =>
-        window.characterArc.generateAi(toIpcPayload({
+        window.clytie.generateAi(toIpcPayload({
           task: 'outline-enhance',
           settings: appStore.appSettings,
           context: {
@@ -1905,7 +1905,7 @@ async function handleAiEnhanceVolume(): Promise<void> {
         panel: 'outline'
       },
       () =>
-        window.characterArc.generateAi(toIpcPayload({
+        window.clytie.generateAi(toIpcPayload({
           task: 'outline-enhance',
           settings: appStore.appSettings,
           context: {

@@ -9,7 +9,7 @@ type WorkspaceUpgradeWorkerRequest = {
 async function run(): Promise<void> {
   const request = workerData as WorkspaceUpgradeWorkerRequest
   try {
-    process.env.CHARACTERARC_WORKSPACE_DIR = request.workspaceDir
+    process.env.CLYTIE_WORKSPACE_DIR = request.workspaceDir
     const db = await ensureWorkspaceDb({
       onUpgradeProgress: (progress) => parentPort?.postMessage({ type: 'progress', progress })
     })

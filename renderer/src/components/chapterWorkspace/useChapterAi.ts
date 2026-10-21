@@ -348,7 +348,7 @@ export function useChapterAi(): {
   async function refreshSessions(): Promise<void> {
     const projectId = appStore.currentProject?.id
     if (!projectId) return
-    const result = await window.characterArc.listSessions(projectId)
+    const result = await window.clytie.listSessions(projectId)
     if (result.success && result.result) {
       sessions.value = result.result.filter((session) => !sharedDeletedSessionIds.has(session.id))
     }
@@ -396,7 +396,7 @@ export function useChapterAi(): {
     }
     const sessionId = currentSessionId.value
     if (!sessionId || sharedDeletedSessionIds.has(sessionId)) return
-    const result = await window.characterArc.saveSession(toIpcPayload({
+    const result = await window.clytie.saveSession(toIpcPayload({
       id: sessionId,
       projectId,
       title: deriveSessionTitle(),
@@ -406,7 +406,7 @@ export function useChapterAi(): {
       throw new Error(result.error ?? '保存历史会话失败')
     }
     if (sharedDeletedSessionIds.has(sessionId)) {
-      void window.characterArc.deleteSession(sessionId)
+      void window.clytie.deleteSession(sessionId)
       return
     }
     await refreshSessions()
@@ -416,7 +416,7 @@ export function useChapterAi(): {
     if (sharedDeletedSessionIds.has(sessionId)) {
       throw new Error('该历史会话已删除')
     }
-    const result = await window.characterArc.loadSession(sessionId)
+    const result = await window.clytie.loadSession(sessionId)
     if (!result.success || !result.result) {
       throw new Error(result.error ?? '加载历史会话失败')
     }
@@ -438,7 +438,7 @@ export function useChapterAi(): {
       showDiffReview.value = false
       agentStatus.value = ''
     }
-    const result = await window.characterArc.deleteSession(sessionId)
+    const result = await window.clytie.deleteSession(sessionId)
     if (!result.success) {
       sharedDeletedSessionIds.delete(sessionId)
       if (wasCurrent) {
@@ -504,7 +504,7 @@ export function useChapterAi(): {
     }
   }
 
-  function handleStreamEvent(payload: CharacterArcAiStreamEvent): void {
+  function handleStreamEvent(payload: ClytieAiStreamEvent): void {
     if (payload.streamId !== streamId) return
 
     if (payload.type === 'reasoning') {
@@ -774,7 +774,7 @@ export function useChapterAi(): {
 
   function registerStreamListener(): void {
     if (removeListener) return
-    removeListener = window.characterArc.onAiStreamEvent(handleStreamEvent)
+    removeListener = window.clytie.onAiStreamEvent(handleStreamEvent)
   }
 
   function unregisterStreamListener(): void {
@@ -881,8 +881,8 @@ export function useChapterAi(): {
           })
 
           const startFn = useAgentMode
-            ? window.characterArc.startAiAgentStream
-            : window.characterArc.startAiStream
+            ? window.clytie.startAiAgentStream
+            : window.clytie.startAiStream
 
           const result = await startFn(toIpcPayload({
             task: 'chapter-assistant',
@@ -955,7 +955,7 @@ export function useChapterAi(): {
 
   async function stop(): Promise<void> {
     if (!streamId) return
-    await window.characterArc.stopAiStream(streamId)
+    await window.clytie.stopAiStream(streamId)
   }
 
   function resetMessages(): void {
@@ -1015,7 +1015,7 @@ export function useChapterAi(): {
     const projectId = appStore.currentProject?.id
     if (!projectId) return false
 
-    const response = await window.characterArc.commitChapterEdit(projectId, proposal.chapterId, proposal.oldContent, proposal.newContent)
+    const response = await window.clytie.commitChapterEdit(projectId, proposal.chapterId, proposal.oldContent, proposal.newContent)
     if (!response.success) {
       throw new Error(response.error ?? '章节正文写回失败')
     }
@@ -1029,7 +1029,7 @@ export function useChapterAi(): {
     if (!projectId) return false
 
     for (const proposal of [...pendingEditProposals.value]) {
-      const response = await window.characterArc.commitChapterEdit(projectId, proposal.chapterId, proposal.oldContent, proposal.newContent)
+      const response = await window.clytie.commitChapterEdit(projectId, proposal.chapterId, proposal.oldContent, proposal.newContent)
       if (!response.success) {
         throw new Error(response.error ?? `章节正文写回失败：${proposal.preview}`)
       }

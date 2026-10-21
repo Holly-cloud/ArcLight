@@ -210,7 +210,7 @@ async function generateAllDocuments(): Promise<void> {
       },
       async () => {
         const projectSkills = await loadEnabledProjectSkillsContext(currentProject.value!)
-        return window.characterArc.generateAi(toIpcPayload({
+        return window.clytie.generateAi(toIpcPayload({
           task: 'workflow-documents',
           settings: appStore.appSettings,
           context: {

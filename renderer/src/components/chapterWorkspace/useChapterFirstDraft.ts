@@ -225,7 +225,7 @@ export function useChapterFirstDraft(): {
   // response reaches the renderer, so retain those early events until the id
   // is bound below instead of dropping them.
   let awaitingStreamId = false
-  let pendingStreamEvents: CharacterArcAiStreamEvent[] = []
+  let pendingStreamEvents: ClytieAiStreamEvent[] = []
 
   const progressPercent = ref(0)
   const progressText = ref('')
@@ -349,7 +349,7 @@ export function useChapterFirstDraft(): {
     return 'AI 初稿生成失败'
   }
 
-  function handleStreamEvent(payload: CharacterArcAiStreamEvent): void {
+  function handleStreamEvent(payload: ClytieAiStreamEvent): void {
     if (payload.streamId !== streamId.value) {
       if (awaitingStreamId) pendingStreamEvents.push(payload)
       return
@@ -419,7 +419,7 @@ export function useChapterFirstDraft(): {
 
   function registerStreamListener(): void {
     if (removeListener) return
-    removeListener = window.characterArc.onAiStreamEvent(handleStreamEvent)
+    removeListener = window.clytie.onAiStreamEvent(handleStreamEvent)
   }
 
   function unregisterStreamListener(): void {
@@ -453,9 +453,9 @@ export function useChapterFirstDraft(): {
 
     pendingStreamEvents = []
     awaitingStreamId = true
-    let result: Awaited<ReturnType<typeof window.characterArc.startAiStream>>
+    let result: Awaited<ReturnType<typeof window.clytie.startAiStream>>
     try {
-      result = await window.characterArc.startAiStream(toIpcPayload({
+      result = await window.clytie.startAiStream(toIpcPayload({
         task,
         settings: appStore.appSettings,
         context
@@ -982,7 +982,7 @@ export function useChapterFirstDraft(): {
   async function stop(): Promise<void> {
     if (!streamId.value || isStopping.value) return
     isStopping.value = true
-    const result = await window.characterArc.stopAiStream(streamId.value)
+    const result = await window.clytie.stopAiStream(streamId.value)
     if (!result.success) {
       if (isAlreadyStoppedStreamError(result.error ?? '')) {
         releaseCurrentStreamState()

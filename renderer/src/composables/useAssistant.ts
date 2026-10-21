@@ -190,7 +190,7 @@ function formatAssistantError(error: unknown, seen = new Set<object>()): string 
 }
 
 export function useAssistant(options: UseAssistantOptions) {
-  const A = window.characterArc.assistant
+  const A = window.clytie.assistant
   const appStore = useAppStore()
 
   // === 会话 ===
@@ -266,7 +266,7 @@ export function useAssistant(options: UseAssistantOptions) {
     discoveredSkills.value = []
     if (!projectId) return
     try {
-      const result = await window.characterArc.scanProjectSkills(projectId)
+      const result = await window.clytie.scanProjectSkills(projectId)
       if (options.projectId() !== projectId || !result.success) return
       const scannedSkills = result.skills ?? []
       discoveredSkills.value = scannedSkills

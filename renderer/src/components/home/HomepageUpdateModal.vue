@@ -30,7 +30,7 @@ async function check(): Promise<void> {
   error.value = ''
   updateInfo.value = null
   try {
-    const result = await window.characterArc.checkUpdate()
+    const result = await window.clytie.checkUpdate()
     if (!result.success || !result.result) {
       error.value = result.error ?? '检查更新失败，请稍后重试'
       return
@@ -44,7 +44,7 @@ async function check(): Promise<void> {
 }
 
 function openUrl(url: string): void {
-  window.characterArc.openExternalUrl(url)
+  window.clytie.openExternalUrl(url)
 }
 
 function formatSize(bytes: number): string {

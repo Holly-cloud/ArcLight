@@ -244,7 +244,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:export-json', async (_event, payload: unknown) => {
+  ipcMain.handle('clytie:export-json', async (_event, payload: unknown) => {
     const window = deps.windowManager.getActiveWindow()
     if (!window) {
       return { success: false, canceled: true }
@@ -258,7 +258,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
 
     const result = await dialog.showSaveDialog(window, {
       title: request.title ?? '导出项目数据',
-      defaultPath: request.defaultPath ?? 'characterarc-export.json',
+      defaultPath: request.defaultPath ?? 'clytie-export.json',
       filters: [{ name: 'JSON 文件', extensions: ['json'] }]
     })
 
@@ -274,7 +274,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:export-project-archive', async (_event, payload: unknown) => {
+  ipcMain.handle('clytie:export-project-archive', async (_event, payload: unknown) => {
     const window = deps.windowManager.getActiveWindow()
     if (!window) {
       return { success: false, canceled: true }
@@ -288,8 +288,8 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
 
     const result = await dialog.showSaveDialog(window, {
       title: '导出项目归档包',
-      defaultPath: getProjectArchiveDefaultName(String(request.projectTitle ?? 'CharacterArc 项目')),
-      filters: [{ name: 'CharacterArc 项目归档', extensions: ['carc'] }]
+      defaultPath: getProjectArchiveDefaultName(String(request.projectTitle ?? 'Clytie 项目')),
+      filters: [{ name: 'Clytie 项目归档', extensions: ['carc'] }]
     })
 
     if (result.canceled || !result.filePath) {
@@ -314,7 +314,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:inspect-project-archive', async () => {
+  ipcMain.handle('clytie:inspect-project-archive', async () => {
     const window = deps.windowManager.getActiveWindow()
     if (!window) {
       return { success: false, canceled: true }
@@ -323,7 +323,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     const result = await dialog.showOpenDialog(window, {
       title: '选择项目归档包',
       properties: ['openFile'],
-      filters: [{ name: 'CharacterArc 项目归档', extensions: ['carc'] }]
+      filters: [{ name: 'Clytie 项目归档', extensions: ['carc'] }]
     })
 
     if (result.canceled || result.filePaths.length === 0) {
@@ -342,11 +342,11 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:import-project-archive', async (_event, payload: unknown) => {
+  ipcMain.handle('clytie:import-project-archive', async (_event, payload: unknown) => {
     const request = (payload ?? {}) as ProjectArchiveImportRequest
     const filePath = String(request.filePath ?? '').trim()
     const sendProgress = (progress: ProjectArchiveImportProgressPayload): void => {
-      _event.sender.send('characterarc:project-archive-import-progress', progress)
+      _event.sender.send('clytie:project-archive-import-progress', progress)
     }
     if (!filePath) {
       return { success: false, canceled: false, error: '缺少要导入的项目归档文件。' }
@@ -367,7 +367,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
       const workspace = deps.readWorkspaceSnapshotForRenderer(db)
       if (workspace) {
         deps.setLatestWorkspaceSnapshot(workspace)
-        deps.windowManager.broadcastWindowEvent('characterarc:workspace-sync-event', workspace)
+        deps.windowManager.broadcastWindowEvent('clytie:workspace-sync-event', workspace)
       }
       sendProgress({ phase: 'done', message: '导入完成', percent: 100 })
       return { success: true, canceled: false, selectedProjectId: result.selectedProjectId }
@@ -385,7 +385,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:export-text', async (_event, payload: unknown) => {
+  ipcMain.handle('clytie:export-text', async (_event, payload: unknown) => {
     const window = deps.windowManager.getActiveWindow()
     if (!window) {
       return { success: false, canceled: true }
@@ -399,7 +399,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
 
     const result = await dialog.showSaveDialog(window, {
       title: request.title ?? '导出章节文本',
-      defaultPath: request.defaultPath ?? 'characterarc-export.txt',
+      defaultPath: request.defaultPath ?? 'clytie-export.txt',
       filters: [{ name: '文本文档', extensions: ['txt'] }]
     })
 
@@ -416,7 +416,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     let activeVolumeId = ''
 
     const text = [
-      data.project?.title ? `# ${data.project.title}` : '# CharacterArc 导出',
+      data.project?.title ? `# ${data.project.title}` : '# Clytie 导出',
       '',
       ...(data.chapters ?? []).flatMap((chapter, index) => {
         const shouldPrintVolume = chapter.volumeId && chapter.volumeId !== activeVolumeId
@@ -444,7 +444,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:export-chapter-txt', async (_event, payload: unknown) => {
+  ipcMain.handle('clytie:export-chapter-txt', async (_event, payload: unknown) => {
     const window = deps.windowManager.getActiveWindow()
     if (!window) {
       return { success: false, canceled: true }
@@ -471,7 +471,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     return { success: true, canceled: false, filePath: result.filePath }
   })
 
-  ipcMain.handle('characterarc:export-chapter-docx', async (_event, payload: unknown) => {
+  ipcMain.handle('clytie:export-chapter-docx', async (_event, payload: unknown) => {
     const window = deps.windowManager.getActiveWindow()
     if (!window) {
       return { success: false, canceled: true }
@@ -523,7 +523,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     return { success: true, canceled: false, filePath: result.filePath }
   })
 
-  ipcMain.handle('characterarc:import-json', async () => {
+  ipcMain.handle('clytie:import-json', async () => {
     const window = deps.windowManager.getActiveWindow()
     if (!window) {
       return { success: false, canceled: true }
@@ -569,7 +569,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:import-outline-spreadsheet', async () => {
+  ipcMain.handle('clytie:import-outline-spreadsheet', async () => {
     const window = deps.windowManager.getActiveWindow()
     if (!window) return { success: false, canceled: true }
 
@@ -610,12 +610,12 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:export-outline-template', async () => {
+  ipcMain.handle('clytie:export-outline-template', async () => {
     const window = deps.windowManager.getActiveWindow()
     if (!window) return { success: false, canceled: true }
     const result = await dialog.showSaveDialog(window, {
       title: '下载大纲 Excel 模板',
-      defaultPath: 'CharacterArc-大纲导入模板.xlsx',
+      defaultPath: 'Clytie-大纲导入模板.xlsx',
       filters: [{ name: 'Excel 工作簿', extensions: ['xlsx'] }]
     })
     if (result.canceled || !result.filePath) return { success: false, canceled: true }
@@ -653,7 +653,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     return { success: true, canceled: false, filePath: result.filePath }
   })
 
-  ipcMain.handle('characterarc:export-outline-spreadsheet', async (_event, payload: unknown) => {
+  ipcMain.handle('clytie:export-outline-spreadsheet', async (_event, payload: unknown) => {
     const window = deps.windowManager.getActiveWindow()
     if (!window) return { success: false, canceled: true }
     const request = (payload ?? {}) as {
@@ -709,7 +709,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     return { success: true, canceled: false, filePath: result.filePath }
   })
 
-  ipcMain.handle('characterarc:pick-cover-image', async () => {
+  ipcMain.handle('clytie:pick-cover-image', async () => {
     const window = deps.windowManager.getActiveWindow()
     if (!window) {
       return { success: false, canceled: true }
@@ -736,7 +736,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:pick-continuation-novel', async () => {
+  ipcMain.handle('clytie:pick-continuation-novel', async () => {
     const window = deps.windowManager.getActiveWindow()
     if (!window) {
       return { success: false, canceled: true }
@@ -764,7 +764,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:save-cover-image', async (_event, payload: unknown) => {
+  ipcMain.handle('clytie:save-cover-image', async (_event, payload: unknown) => {
     const window = deps.windowManager.getActiveWindow()
     if (!window) {
       return { success: false, canceled: true }
@@ -948,11 +948,11 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:workspace-sync-publish', (event, payload: unknown) => {
+  ipcMain.handle('clytie:workspace-sync-publish', (event, payload: unknown) => {
     if (payload && typeof payload === 'object') {
       deps.setLatestWorkspaceSnapshot(deps.normalizeWorkspacePayload(payload))
     }
-    deps.windowManager.broadcastWindowEvent('characterarc:workspace-sync-event', payload, event.sender.id)
+    deps.windowManager.broadcastWindowEvent('clytie:workspace-sync-event', payload, event.sender.id)
     return { success: true }
   })
 
@@ -965,7 +965,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
       deps.writeChapterRows(db, payload)
       const mutation: ChapterMutationEvent = { kind: 'upsert', ...payload }
       deps.applyChapterMutation(mutation)
-      deps.windowManager.broadcastWindowEvent('characterarc:chapter-mutation-event', mutation, event.sender.id)
+      deps.windowManager.broadcastWindowEvent('clytie:chapter-mutation-event', mutation, event.sender.id)
       return { success: true }
     } catch (error) {
       console.error('[workspace] saveChapters failed:', error)
@@ -985,7 +985,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
       deps.writeChapterOrder(db, payload)
       const mutation: ChapterMutationEvent = { kind: 'reorder', ...payload }
       deps.applyChapterMutation(mutation)
-      deps.windowManager.broadcastWindowEvent('characterarc:chapter-mutation-event', mutation, event.sender.id)
+      deps.windowManager.broadcastWindowEvent('clytie:chapter-mutation-event', mutation, event.sender.id)
       return { success: true }
     } catch (error) {
       console.error('[workspace] saveChapterOrder failed:', error)
@@ -1022,7 +1022,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:load-workspace', async () => {
+  ipcMain.handle('clytie:load-workspace', async () => {
     try {
       const db = await deps.ensureWorkspaceDb()
       const workspace = deps.readWorkspaceSnapshotForRenderer(db)
@@ -1048,7 +1048,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:get-zoom-factor', () => {
+  ipcMain.handle('clytie:get-zoom-factor', () => {
     const window = deps.windowManager.getActiveWindow()
     if (!window) {
       return {
@@ -1063,7 +1063,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:set-zoom-factor', (_event, factor: unknown) => {
+  ipcMain.handle('clytie:set-zoom-factor', (_event, factor: unknown) => {
     const window = deps.windowManager.getActiveWindow()
     if (!window) {
       return {
@@ -1082,13 +1082,13 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:toggle-boss-key', () => deps.windowManager.toggleBossKey())
+  ipcMain.handle('clytie:toggle-boss-key', () => deps.windowManager.toggleBossKey())
 
-  ipcMain.handle('characterarc:boss-key-status', () => ({
+  ipcMain.handle('clytie:boss-key-status', () => ({
     registered: deps.windowManager.isBossKeyRegistered()
   }))
 
-  ipcMain.handle('characterarc:set-titlebar-overlay', (_event, options: unknown) => {
+  ipcMain.handle('clytie:set-titlebar-overlay', (_event, options: unknown) => {
     const value = options as { color?: unknown; symbolColor?: unknown } | null
     const colors = value && typeof value.color === 'string' && typeof value.symbolColor === 'string'
       ? { color: value.color, symbolColor: value.symbolColor }
@@ -1096,7 +1096,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     deps.windowManager.updateTitleBarOverlayColors(colors)
   })
 
-  ipcMain.handle('characterarc:save-workspace', async (_event, payload: unknown) => {
+  ipcMain.handle('clytie:save-workspace', async (_event, payload: unknown) => {
     try {
       const db = await deps.ensureWorkspaceDb()
       const normalized = deps.normalizeWorkspacePayload(payload)
@@ -1114,7 +1114,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.on('characterarc:save-workspace-sync', (event, payload: unknown) => {
+  ipcMain.on('clytie:save-workspace-sync', (event, payload: unknown) => {
     try {
       const db = deps.getWorkspaceDbIfInitialized()
       if (!db) {
@@ -1123,7 +1123,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
       const normalized = deps.normalizeWorkspacePayload(payload)
       deps.writeWorkspaceSnapshot(db, normalized)
       deps.setLatestWorkspaceSnapshot(normalized)
-      deps.windowManager.broadcastWindowEvent('characterarc:workspace-sync-event', normalized, event.sender.id)
+      deps.windowManager.broadcastWindowEvent('clytie:workspace-sync-event', normalized, event.sender.id)
       event.returnValue = { success: true }
     } catch (error) {
       console.error('[workspace] saveWorkspaceSync failed:', error)
@@ -1134,7 +1134,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:save-app-settings', async (_event, payload: unknown) => {
+  ipcMain.handle('clytie:save-app-settings', async (_event, payload: unknown) => {
     try {
       const db = await deps.ensureWorkspaceDb()
       const record = (payload ?? {}) as {
@@ -1158,7 +1158,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:project-skills-scan', async (_event, projectId: unknown) => {
+  ipcMain.handle('clytie:project-skills-scan', async (_event, projectId: unknown) => {
     try {
       const resolvedProjectId = String(projectId ?? '').trim() || undefined
       await refreshSkillRegistry(resolvedProjectId)
@@ -1168,7 +1168,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:project-skills-import', async (_event, projectId: unknown) => {
+  ipcMain.handle('clytie:project-skills-import', async (_event, projectId: unknown) => {
     try {
       const resolvedProjectId = String(projectId ?? '').trim() || undefined
 
@@ -1223,7 +1223,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:global-skill-delete', async (_event, skillId: unknown) => {
+  ipcMain.handle('clytie:global-skill-delete', async (_event, skillId: unknown) => {
     try {
       const normalizedSkillId = String(skillId ?? '').trim()
       if (!normalizedSkillId || basename(normalizedSkillId) !== normalizedSkillId || normalizedSkillId === '.' || normalizedSkillId === '..') {
@@ -1244,7 +1244,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:project-skills-context', async (_event, projectId: unknown) => {
+  ipcMain.handle('clytie:project-skills-context', async (_event, projectId: unknown) => {
     try {
       const resolvedProjectId = String(projectId ?? '').trim()
       if (!resolvedProjectId) {
@@ -1259,7 +1259,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
   })
 
   // ── 提交章节编辑提案 ──
-  ipcMain.handle('characterarc:commit-chapter-edit', async (_event, payload: unknown) => {
+  ipcMain.handle('clytie:commit-chapter-edit', async (_event, payload: unknown) => {
     try {
       const { projectId, chapterId, oldContent, newContent } = payload as {
         projectId: string
@@ -1276,14 +1276,14 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
   })
 
   // ── 检查更新（GitHub Release API） ──
-  ipcMain.handle('characterarc:check-update', async () => {
+  ipcMain.handle('clytie:check-update', async () => {
     try {
       const { app } = await import('electron')
       const currentVersion = app.getVersion()
       const controller = new AbortController()
       const timer = setTimeout(() => controller.abort(), 15_000)
       const response = await fetch('https://api.github.com/repos/uu201/character-arc/releases/latest', {
-        headers: { Accept: 'application/vnd.github.v3+json', 'User-Agent': 'CharacterArc-Desktop' },
+        headers: { Accept: 'application/vnd.github.v3+json', 'User-Agent': 'Clytie-Desktop' },
         signal: controller.signal
       })
       clearTimeout(timer)
@@ -1322,7 +1322,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:fetch-announcements', async () => {
+  ipcMain.handle('clytie:fetch-announcements', async () => {
     return fetchWithCache({
       repo: 'uu201/character-arc',
       branch: 'main',
@@ -1335,7 +1335,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     })
   })
 
-  ipcMain.handle('characterarc:fetch-tutorial', async () => {
+  ipcMain.handle('clytie:fetch-tutorial', async () => {
     return fetchWithCache({
       repo: 'uu201/character-arc',
       branch: 'main',
@@ -1348,33 +1348,33 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     })
   })
 
-  ipcMain.handle('characterarc:open-external-url', (_event, url: string) => {
+  ipcMain.handle('clytie:open-external-url', (_event, url: string) => {
     if (typeof url === 'string' && (url.startsWith('https://') || url.startsWith('http://'))) {
       shell.openExternal(url)
     }
   })
 
   // ── 番茄风向标：抓取榜单数据（主进程缓存，避免每次请求） ──
-  ipcMain.handle('characterarc:fanqie-trends-fetch', async (_event, payload: { path?: string; force?: boolean }) => {
+  ipcMain.handle('clytie:fanqie-trends-fetch', async (_event, payload: { path?: string; force?: boolean }) => {
     const remotePath = typeof payload?.path === 'string' ? payload.path : ''
     const force = payload?.force === true
     return fetchFanqieTrends(remotePath, force)
   })
 
   // ── 七猫风向标：公开静态榜单 API（主进程缓存 + 路径白名单） ──
-  ipcMain.handle('characterarc:qimao-trends-fetch', async (_event, payload: { path?: string; force?: boolean }) => {
+  ipcMain.handle('clytie:qimao-trends-fetch', async (_event, payload: { path?: string; force?: boolean }) => {
     const remotePath = typeof payload?.path === 'string' ? payload.path : ''
     return fetchQimaoTrends(remotePath, payload?.force === true)
   })
 
   // ── 纵横风向标：公开静态榜单 API（主进程缓存 + 路径白名单） ──
-  ipcMain.handle('characterarc:zongheng-trends-fetch', async (_event, payload: { path?: string; force?: boolean }) => {
+  ipcMain.handle('clytie:zongheng-trends-fetch', async (_event, payload: { path?: string; force?: boolean }) => {
     const remotePath = typeof payload?.path === 'string' ? payload.path : ''
     return fetchZonghengTrends(remotePath, payload?.force === true)
   })
 
   // ── 起点中文网：公开移动端榜单（按榜单与作品分类缓存） ──
-  ipcMain.handle('characterarc:qidian-rank-fetch', async (
+  ipcMain.handle('clytie:qidian-rank-fetch', async (
     _event,
     payload: { type?: string; category?: string; force?: boolean }
   ) => {
@@ -1384,7 +1384,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
   })
 
   // ── AI 扫榜历史：持久化任务参数、报告和过程日志 ──
-  ipcMain.handle('characterarc:ranking-scan-list', async (_event, projectId?: unknown) => {
+  ipcMain.handle('clytie:ranking-scan-list', async (_event, projectId?: unknown) => {
     try {
       const db = await deps.ensureWorkspaceDb()
       const scope = typeof projectId === 'string' ? projectId : ''
@@ -1437,7 +1437,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:ranking-scan-save', async (_event, payload: unknown) => {
+  ipcMain.handle('clytie:ranking-scan-save', async (_event, payload: unknown) => {
     try {
       const input = payload && typeof payload === 'object' ? payload as Record<string, unknown> : {}
       const id = typeof input.id === 'string' ? input.id.trim() : ''
@@ -1506,7 +1506,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:ranking-scan-delete', async (_event, id: unknown) => {
+  ipcMain.handle('clytie:ranking-scan-delete', async (_event, id: unknown) => {
     try {
       const recordId = typeof id === 'string' ? id.trim() : ''
       if (!recordId) return { success: false, error: '扫榜记录 id 无效' }
@@ -1520,7 +1520,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
 
   // ── AI 助手会话持久化 ──
 
-  ipcMain.handle('characterarc:session-list', async (_event, projectId: string) => {
+  ipcMain.handle('clytie:session-list', async (_event, projectId: string) => {
     try {
       const db = await deps.ensureWorkspaceDb()
       const rows = db.prepare(
@@ -1532,7 +1532,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:session-load', async (_event, sessionId: string) => {
+  ipcMain.handle('clytie:session-load', async (_event, sessionId: string) => {
     try {
       const db = await deps.ensureWorkspaceDb()
       const row = db.prepare(
@@ -1547,7 +1547,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:session-save', async (_event, payload: {
+  ipcMain.handle('clytie:session-save', async (_event, payload: {
     id: string
     projectId: string
     title: string
@@ -1576,7 +1576,7 @@ export function registerMainIpcHandlers(deps: RegisterMainIpcHandlersDeps): void
     }
   })
 
-  ipcMain.handle('characterarc:session-delete', async (_event, sessionId: string) => {
+  ipcMain.handle('clytie:session-delete', async (_event, sessionId: string) => {
     try {
       const db = await deps.ensureWorkspaceDb()
       db.prepare('DELETE FROM assistant_sessions WHERE id = ?').run(sessionId)

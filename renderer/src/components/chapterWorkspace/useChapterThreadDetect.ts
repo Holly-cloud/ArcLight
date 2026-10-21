@@ -57,7 +57,7 @@ export function useChapterThreadDetect(): {
           panel: 'chapters'
         },
         () =>
-          window.characterArc.generateAi(toIpcPayload({
+          window.clytie.generateAi(toIpcPayload({
             task: 'plot-thread-detect',
             settings: appStore.appSettings,
             context: {

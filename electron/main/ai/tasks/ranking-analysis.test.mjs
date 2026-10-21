@@ -43,7 +43,7 @@ test('脑洞任务要求四个方向、每个三个组合，并在前端手动�
   assert.match(pageSource, /开始扫榜/)
   assert.match(pageSource, /refreshSelectedDirectionIdeas/)
   assert.match(pageSource, /我的收藏/)
-  assert.match(pageSource, /character-arc:ranking-idea-favorites/)
+  assert.match(pageSource, /clytie:ranking-idea-favorites/)
   assert.match(pageSource, /appStore\.openWizard\(\{ title: idea\.title, genre: idea\.genre, premise \}\)/)
 })
 

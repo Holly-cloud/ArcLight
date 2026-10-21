@@ -104,7 +104,7 @@ async function fetchJsonFromMirrors(
         + (filePath.includes('?') ? '' : `?t=${Date.now()}`)
       const res = await fetch(url, {
         cache: 'no-store',
-        headers: { 'User-Agent': 'CharacterArc-Desktop' },
+        headers: { 'User-Agent': 'Clytie-Desktop' },
         signal: controller.signal
       })
       if (!res.ok) throw new Error(`HTTP ${res.status}`)

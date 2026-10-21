@@ -515,7 +515,7 @@ async function handleAiEnhance(): Promise<void> {
         panel: 'asset-library'
       },
       () =>
-        window.characterArc.generateAi(toIpcPayload({
+        window.clytie.generateAi(toIpcPayload({
           task: 'character-enhance',
           settings: appStore.appSettings,
           context: {
@@ -613,7 +613,7 @@ async function handleGenerateVisualPrompt(): Promise<void> {
         description: `正在为「${requestName || '未命名资产'}」生成视觉提示词`,
         panel: 'asset-library'
       },
-      () => window.characterArc.generateAi(toIpcPayload({
+      () => window.clytie.generateAi(toIpcPayload({
         task: 'asset-visual-prompt',
         clientKey: VISUAL_PROMPT_TASK_KEY,
         settings: appStore.appSettings,

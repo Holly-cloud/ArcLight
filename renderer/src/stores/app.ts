@@ -316,9 +316,9 @@ export const useAppStore = defineStore('app', () => {
   /** 用户在编辑器中当前选中的文本状态 */
   const currentChapterSelection = ref<ChapterSelectionState | null>(null)
   /** 章节轻检告警：key 为 chapterId，value 为告警 payload。由章节生成后的异步后处理流水线推送。 */
-  const chapterStateWarnings = ref<Map<string, CharacterArcChapterStateWarningsPayload>>(new Map())
+  const chapterStateWarnings = ref<Map<string, ClytieChapterStateWarningsPayload>>(new Map())
   /** 章节生成后处理问题：key 为 chapterId，value 为问题 payload。issues 为空时会自动清理旧提示。 */
-  const chapterPostGenerationIssues = ref<Map<string, CharacterArcChapterPostGenerationIssuesPayload>>(new Map())
+  const chapterPostGenerationIssues = ref<Map<string, ClytieChapterPostGenerationIssuesPayload>>(new Map())
   /** 当前选中的章节 ID */
   const selectedChapterId = ref(stored.workspaces[stored.selectedProjectId]?.chapters[0]?.id ?? '')
   const chapterContentLoadingKeys = ref<Set<string>>(new Set())
@@ -493,7 +493,7 @@ export const useAppStore = defineStore('app', () => {
 
   // ── AI 事件处理 ──
 
-  function handleAiRunEvent(payload: CharacterArcAiRunEventPayload): void {
+  function handleAiRunEvent(payload: ClytieAiRunEventPayload): void {
     if (!payload?.meta) {
       return
     }
@@ -543,7 +543,7 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
-  function handleChapterStateWarnings(payload: CharacterArcChapterStateWarningsPayload): void {
+  function handleChapterStateWarnings(payload: ClytieChapterStateWarningsPayload): void {
     if (!payload?.chapterId || !Array.isArray(payload.violations) || !payload.violations.length) {
       return
     }
@@ -552,7 +552,7 @@ export const useAppStore = defineStore('app', () => {
     chapterStateWarnings.value = next
   }
 
-  function getChapterStateWarnings(chapterId: string): CharacterArcChapterStateWarningsPayload | null {
+  function getChapterStateWarnings(chapterId: string): ClytieChapterStateWarningsPayload | null {
     if (!chapterId) return null
     return chapterStateWarnings.value.get(chapterId) ?? null
   }
@@ -564,7 +564,7 @@ export const useAppStore = defineStore('app', () => {
     chapterStateWarnings.value = next
   }
 
-  function handleChapterPostGenerationIssues(payload: CharacterArcChapterPostGenerationIssuesPayload): void {
+  function handleChapterPostGenerationIssues(payload: ClytieChapterPostGenerationIssuesPayload): void {
     if (!payload?.chapterId || !Array.isArray(payload.issues)) {
       return
     }
@@ -577,7 +577,7 @@ export const useAppStore = defineStore('app', () => {
     chapterPostGenerationIssues.value = next
   }
 
-  function handleChapterPostGenerationTask(payload: CharacterArcChapterPostGenerationTaskPayload): void {
+  function handleChapterPostGenerationTask(payload: ClytieChapterPostGenerationTaskPayload): void {
     if (!payload?.taskKey || !payload.runId) return
     const next = applyExternalAiTaskEvent(aiTaskRuns.value, {
       taskKey: payload.taskKey,
@@ -610,14 +610,14 @@ export const useAppStore = defineStore('app', () => {
     return `chapter-state-backfill:${projectId}`
   }
 
-  function resolveBackfillProgress(payload: CharacterArcBackfillStateProgressPayload): number {
+  function resolveBackfillProgress(payload: ClytieBackfillStateProgressPayload): number {
     if (payload.status === 'completed') return 100
     if (payload.total <= 0) return payload.phase === 'starting' ? 5 : 10
     const phaseRatio = payload.phase === 'applying' ? 0.85 : payload.phase === 'extracting' ? 0.35 : 0.1
     return Math.min(99, Math.max(1, Math.round(((Math.max(0, payload.current - 1) + phaseRatio) / payload.total) * 100)))
   }
 
-  function describeBackfillTask(payload: CharacterArcBackfillStateProgressPayload): string {
+  function describeBackfillTask(payload: ClytieBackfillStateProgressPayload): string {
     if (payload.status === 'completed') {
       const result = payload.result
       if (!result?.totalChapters) return '故事状态已是最新，无需重复同步'
@@ -630,7 +630,7 @@ export const useAppStore = defineStore('app', () => {
     return [position, chapter, payload.message].filter(Boolean).join(' · ')
   }
 
-  function handleBackfillStateProgress(payload: CharacterArcBackfillStateProgressPayload): void {
+  function handleBackfillStateProgress(payload: ClytieBackfillStateProgressPayload): void {
     if (!payload?.projectId || !payload.taskId) return
     const key = backfillTaskKey(payload.projectId)
     const existing = aiTaskRuns.value.get(key)
@@ -685,7 +685,7 @@ export const useAppStore = defineStore('app', () => {
     })
 
     try {
-      const response = await window.characterArc.backfillProjectState(toIpcPayload({
+      const response = await window.clytie.backfillProjectState(toIpcPayload({
         settings: appSettings.value,
         projectId,
         selection: { mode: 'custom', chapterIds: ids }
@@ -701,7 +701,7 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
-  function getChapterPostGenerationIssues(chapterId: string): CharacterArcChapterPostGenerationIssuesPayload | null {
+  function getChapterPostGenerationIssues(chapterId: string): ClytieChapterPostGenerationIssuesPayload | null {
     if (!chapterId) return null
     return chapterPostGenerationIssues.value.get(chapterId) ?? null
   }
@@ -786,7 +786,7 @@ export const useAppStore = defineStore('app', () => {
 
     chapterContentLoadingKeys.value = new Set(chapterContentLoadingKeys.value).add(key)
     const promise = (async () => {
-      const response = await window.characterArc.readChapterFromDb(projectId, chapterId)
+      const response = await window.clytie.readChapterFromDb(projectId, chapterId)
       if (!response.success || !response.result) return null
       const data = response.result
       let loaded: ChapterDraft | null = null
@@ -837,7 +837,7 @@ export const useAppStore = defineStore('app', () => {
     const inFlight = chapterVersionContentPromises.get(key)
     if (inFlight) return inFlight
     const promise = (async () => {
-      const response = await window.characterArc.readChapterVersionFromDb(projectId, versionId)
+      const response = await window.clytie.readChapterVersionFromDb(projectId, versionId)
       if (!response.success || !response.result) return null
       const data = response.result
       let loaded: ChapterVersion | null = null
@@ -1091,7 +1091,7 @@ export const useAppStore = defineStore('app', () => {
    * Vue 可先挂载加载界面；章节正文继续在后台按需加载。
    */
   async function initialize(): Promise<void> {
-    const result = await window.characterArc.loadWorkspace()
+    const result = await window.clytie.loadWorkspace()
     if (result.success && result.payload) {
       applyWorkspaceState(result.payload as Partial<StoredState>)
       persistenceError.value = null
@@ -3368,7 +3368,7 @@ export const useAppStore = defineStore('app', () => {
   async function reloadChapterFromDb(chapterId: string): Promise<void> {
     const projectId = currentProject.value?.id
     if (!projectId) return
-    const res = await window.characterArc.readChapterFromDb(projectId, chapterId)
+    const res = await window.clytie.readChapterFromDb(projectId, chapterId)
     if (!res.success || !res.result) return
     const data = res.result
     updateChapter(chapterId, {
@@ -3554,7 +3554,7 @@ export const useAppStore = defineStore('app', () => {
     } else if (!version) {
       const projectId = currentProject.value?.id
       if (projectId) {
-        const res = await window.characterArc.readChapterVersionFromDb(projectId, versionId)
+        const res = await window.clytie.readChapterVersionFromDb(projectId, versionId)
         if (res.success && res.result) {
           version = {
             id: res.result.id,
@@ -4364,7 +4364,7 @@ export const useAppStore = defineStore('app', () => {
 
   /** 懒加载某资产图库（走专用 IPC），返回排序后的条目 */
   async function loadAssetImages(projectId: string, kind: AssetImageKind, assetId: string): Promise<AssetImageItem[]> {
-    const response = await window.characterArc.listAssetImages({ projectId, kind, assetId })
+    const response = await window.clytie.listAssetImages({ projectId, kind, assetId })
     if (!response.success) {
       throw new Error(response.error ?? '读取资产图库失败')
     }
@@ -4387,7 +4387,7 @@ export const useAppStore = defineStore('app', () => {
     kind: AssetImageKind,
     assetId: string
   ): Promise<void> {
-    const response = await window.characterArc.deleteAssetImage(imageId)
+    const response = await window.clytie.deleteAssetImage(imageId)
     if (!response.success) {
       throw new Error(response.error ?? '删除资产图像失败')
     }
@@ -4404,7 +4404,7 @@ export const useAppStore = defineStore('app', () => {
     kind: AssetImageKind,
     assetId: string
   ): Promise<void> {
-    const response = await window.characterArc.setPrimaryAssetImage(imageId)
+    const response = await window.clytie.setPrimaryAssetImage(imageId)
     if (!response.success) {
       throw new Error(response.error ?? '设置首选图失败')
     }
@@ -4426,17 +4426,17 @@ export const useAppStore = defineStore('app', () => {
       }
     }
     assetImagesByAsset.value = next
-    void window.characterArc.pruneAssetImages({ projectId, kind, assetId })
+    void window.clytie.pruneAssetImages({ projectId, kind, assetId })
   }
 
   // ── 事件监听注册 ──
-  window.characterArc.onWorkspaceSync(handleRemoteWorkspaceSync)
-  window.characterArc.onChapterMutation(handleRemoteChapterMutation)
-  window.characterArc.onAiRunEvent(handleAiRunEvent)
-  window.characterArc.onChapterStateWarnings(handleChapterStateWarnings)
-  window.characterArc.onChapterPostGenerationIssues(handleChapterPostGenerationIssues)
-  window.characterArc.onChapterPostGenerationTask(handleChapterPostGenerationTask)
-  window.characterArc.onBackfillStateProgress(handleBackfillStateProgress)
+  window.clytie.onWorkspaceSync(handleRemoteWorkspaceSync)
+  window.clytie.onChapterMutation(handleRemoteChapterMutation)
+  window.clytie.onAiRunEvent(handleAiRunEvent)
+  window.clytie.onChapterStateWarnings(handleChapterStateWarnings)
+  window.clytie.onChapterPostGenerationIssues(handleChapterPostGenerationIssues)
+  window.clytie.onChapterPostGenerationTask(handleChapterPostGenerationTask)
+  window.clytie.onBackfillStateProgress(handleBackfillStateProgress)
 
   // ── 响应式监听器 ──
   // 切换章节时清空选中文本

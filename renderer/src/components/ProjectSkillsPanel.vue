@@ -146,7 +146,7 @@ async function scanProjectSkills(): Promise<void> {
 
   isScanningProjectSkills.value = true
   try {
-    const result = await window.characterArc.scanProjectSkills(scanTargetId.value)
+    const result = await window.clytie.scanProjectSkills(scanTargetId.value)
     if (!result.success) {
       throw new Error(result.error ?? 'Skill 扫描失败')
     }
@@ -207,7 +207,7 @@ async function importProjectSkillsPackage(): Promise<void> {
 
   isImportingProjectSkills.value = true
   try {
-    const result = await window.characterArc.importProjectSkillsPackage(scanTargetId.value)
+    const result = await window.clytie.importProjectSkillsPackage(scanTargetId.value)
     if (result.canceled) {
       return
     }
@@ -299,7 +299,7 @@ function toggleProjectSkillStage(skillId: string, stageId: NovelWorkflowStageId)
 
 async function deleteGlobalSkill(skill: ProjectSkillItem): Promise<void> {
   if (isProjectScope.value || skill.scope === 'builtin') return
-  const result = await window.characterArc.deleteGlobalSkill(skill.id)
+  const result = await window.clytie.deleteGlobalSkill(skill.id)
   if (!result.success) {
     message.error(result.error ?? '删除全局 Skill 失败')
     return

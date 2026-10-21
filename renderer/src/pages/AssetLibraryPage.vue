@@ -83,7 +83,7 @@ async function loadCovers(): Promise<void> {
     return
   }
   try {
-    const response = await window.characterArc.listPrimaryAssetImages(toIpcPayload({ projectId }))
+    const response = await window.clytie.listPrimaryAssetImages(toIpcPayload({ projectId }))
     coverMap.value = response.success ? buildPrimaryCoverMap(response.result) : {}
   } catch {
     coverMap.value = {}
@@ -289,7 +289,7 @@ async function handleReextract(): Promise<void> {
         description: `正在为 ${targets.length} 张资产卡提取建议`,
         panel: 'asset-library'
       },
-      () => window.characterArc.generateAi(toIpcPayload({
+      () => window.clytie.generateAi(toIpcPayload({
         task: 'asset-reextract',
         clientKey: REEXTRACT_TASK_KEY,
         settings: appStore.appSettings,

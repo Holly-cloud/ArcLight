@@ -47,11 +47,14 @@ const APP_DATA_DIR_NAME = 'Clytie'
  * 历史数据目录名，按迁移先后倒序尝试（最旧的在前）。
  *
  * - `characterarc`：最早由 package.json 的 name 派生的目录
- * - `CharacterArc`：2026-10-21 更名前的规范目录
+ * - `CharacterArc`：2026-10-21 更名前的规范目录（**用户当前数据所在**）
  *
  * 2026-10-21 项目更名为「织星 Clytie」，数据目录随之改为 `Clytie`。
  * 目录改名对用户等于「数据消失」，故按序从各历史目录自动拷贝，
  * 任一命中即停止（用户升级后新目录已存在，后续启动不再拷贝）。
+ *
+ * ⚠️ 列表里绝不能出现 `Clytie` 自身——那是当前目录，
+ * 写成历史名会导致跳过真正的旧目录、用户数据"消失"。
  */
 const LEGACY_APP_DATA_DIR_NAMES = ['CharacterArc', 'characterarc'] as const
 
@@ -173,7 +176,7 @@ async function refreshWorkspaceSnapshot(): Promise<void> {
   const snapshot = readWorkspaceSnapshot(db, { includeChapterContent: false })
   if (!snapshot) return
   updateLatestWorkspaceSnapshot(snapshot)
-  windowManager.broadcastWindowEvent('characterarc:workspace-sync-event', snapshot)
+  windowManager.broadcastWindowEvent('clytie:workspace-sync-event', snapshot)
 }
 
 async function syncCommittedStageChanges(changes: CommittedStageChange[]): Promise<void> {
@@ -205,7 +208,7 @@ async function syncCommittedStageChanges(changes: CommittedStageChange[]): Promi
 
   for (const mutation of mutations) {
     applyChapterMutationToLatestSnapshot(mutation)
-    windowManager.broadcastWindowEvent('characterarc:chapter-mutation-event', mutation)
+    windowManager.broadcastWindowEvent('clytie:chapter-mutation-event', mutation)
   }
 }
 
@@ -225,19 +228,19 @@ function appendAiRunToLatestSnapshot(payload: WorkspaceAiRunEventPayload): void 
 
 function emitAiRunEvent(payload: WorkspaceAiRunEventPayload): void {
   appendAiRunToLatestSnapshot(payload)
-  windowManager.broadcastWindowEvent('characterarc:ai-run-event', payload)
+  windowManager.broadcastWindowEvent('clytie:ai-run-event', payload)
 }
 
 function emitChapterStateWarnings(payload: ChapterStateWarningsPayload): void {
-  windowManager.broadcastWindowEvent('characterarc:chapter-state-warnings', payload)
+  windowManager.broadcastWindowEvent('clytie:chapter-state-warnings', payload)
 }
 
 function emitChapterPostGenerationIssues(payload: ChapterPostGenerationIssuesPayload): void {
-  windowManager.broadcastWindowEvent('characterarc:chapter-post-generation-issues', payload)
+  windowManager.broadcastWindowEvent('clytie:chapter-post-generation-issues', payload)
 }
 
 function emitChapterPostGenerationTask(payload: ChapterPostGenerationTaskPayload): void {
-  windowManager.broadcastWindowEvent('characterarc:chapter-post-generation-task', payload)
+  windowManager.broadcastWindowEvent('clytie:chapter-post-generation-task', payload)
 }
 
 /** 导出文件 schema 版本号 */
@@ -487,7 +490,7 @@ function validateImportedPayload(payload: unknown): ImportValidationResult {
 
   const data = payload as Record<string, unknown>
   // 2026-10-21 项目更名为「织星 Clytie」，新导出写 'Clytie'；
-  // 'CharacterArc' 是更名前的历史导出标识，用户存量备份仍是这个值，必须继续接受。
+  // 'Clytie' 是更名前的历史导出标识，用户存量备份仍是这个值，必须继续接受。
   const isKnownAppId = data.app === 'Clytie' || data.app === 'CharacterArc'
   if (
     isKnownAppId &&

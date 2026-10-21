@@ -31,7 +31,7 @@ export function useChapterSummary(): {
           panel: 'chapters',
         },
         () =>
-          window.characterArc.generateAi(toIpcPayload({
+          window.clytie.generateAi(toIpcPayload({
             task: 'chapter-summarize',
             settings: appStore.appSettings,
             context: {

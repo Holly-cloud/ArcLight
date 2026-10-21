@@ -15,7 +15,7 @@ async function run(): Promise<void> {
   const request = workerData as ImportProjectArchiveWorkerRequest
   try {
     if (request.workspaceDir) {
-      process.env.CHARACTERARC_WORKSPACE_DIR = request.workspaceDir
+      process.env.CLYTIE_WORKSPACE_DIR = request.workspaceDir
     }
     const db = await ensureWorkspaceDb()
     const result = await importProjectArchive({

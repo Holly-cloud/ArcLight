@@ -38,7 +38,7 @@ const codexSettings = {
 }
 
 test('Codex CLI 可通过宿主工具生成暂存变更，重复调用不会重复写入', async (t) => {
-  const directory = await mkdtemp(join(tmpdir(), 'characterarc-codex-agent-'))
+  const directory = await mkdtemp(join(tmpdir(), 'clytie-codex-agent-'))
   const executable = join(directory, 'fake-codex')
   const toolResponse = JSON.stringify({
     toolCalls: [{

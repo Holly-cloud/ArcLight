@@ -830,7 +830,7 @@ async function handleAiEnhanceOrg(): Promise<void> {
     const result = await appStore.runTrackedAiTask(
       { key: ENHANCE_ORG_KEY, kind: 'character', label: 'AI 补充组织', description: '正在根据上下文补充组织信息', panel: 'relations' },
       () =>
-        window.characterArc.generateAi(toIpcPayload({
+        window.clytie.generateAi(toIpcPayload({
           task: 'relation-enhance',
           settings: appStore.appSettings,
           context: {
@@ -884,7 +884,7 @@ async function handleAiEnhanceRel(): Promise<void> {
     const result = await appStore.runTrackedAiTask(
       { key: ENHANCE_REL_KEY, kind: 'character', label: 'AI 补充关系', description: '正在根据上下文补充角色关系', panel: 'relations' },
       () =>
-        window.characterArc.generateAi(toIpcPayload({
+        window.clytie.generateAi(toIpcPayload({
           task: 'relation-enhance',
           settings: appStore.appSettings,
           context: {
@@ -939,7 +939,7 @@ async function handleAiEnhanceMem(): Promise<void> {
     const result = await appStore.runTrackedAiTask(
       { key: ENHANCE_MEM_KEY, kind: 'character', label: 'AI 补充归属', description: '正在根据上下文补充成员归属信息', panel: 'relations' },
       () =>
-        window.characterArc.generateAi(toIpcPayload({
+        window.clytie.generateAi(toIpcPayload({
           task: 'relation-enhance',
           settings: appStore.appSettings,
           context: {

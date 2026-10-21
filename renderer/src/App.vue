@@ -24,9 +24,9 @@ const FanqieTrendsPage = defineAsyncComponent(() => import('@/pages/FanqieTrends
 // 全局应用状态
 const appStore = useAppStore()
 // 当前运行平台（win32 / darwin / linux），用于适配标题栏高度
-const platform = window.characterArc?.platform ?? 'unknown'
+const platform = window.clytie?.platform ?? 'unknown'
 const appName = '织星'
-const appVersion = window.characterArc?.version ?? ''
+const appVersion = window.clytie?.version ?? ''
 const bossKeyRegistered = ref(true)
 const bossKeyTitle = computed(() => {
   const shortcut = platform === 'darwin' ? 'Command+Shift+H' : 'Ctrl+Shift+H'
@@ -101,7 +101,7 @@ watch(
   () => appStore.appSettings.uiScale,
   async (factor) => {
     const nextFactor = Number.isFinite(factor) ? Math.min(1.75, Math.max(0.75, factor)) : 1
-    await window.characterArc.setZoomFactor(nextFactor)
+    await window.clytie.setZoomFactor(nextFactor)
   },
   { immediate: true }
 )
@@ -114,7 +114,7 @@ watch(
       document.documentElement.style.setProperty(key, value)
     }
     if (platform === 'win32') {
-      void window.characterArc.setTitleBarOverlay({
+      void window.clytie.setTitleBarOverlay({
         color: vars['--arc-bg-body'],
         symbolColor: vars['--arc-text-secondary']
       })
@@ -138,7 +138,7 @@ function shouldShowManualSaveToast(): boolean {
 
 async function toggleBossKey(): Promise<void> {
   try {
-    const result = await window.characterArc.toggleBossKey()
+    const result = await window.clytie.toggleBossKey()
     if (!result.success) message.error(result.error || '窗口隐藏失败')
   } catch {
     message.error('窗口隐藏失败，请重试')
@@ -186,7 +186,7 @@ function handleBeforeUnload() {
 }
 
 onMounted(() => {
-  void window.characterArc.getBossKeyStatus().then((status) => {
+  void window.clytie.getBossKeyStatus().then((status) => {
     bossKeyRegistered.value = status.registered
   }).catch(() => {
     bossKeyRegistered.value = false

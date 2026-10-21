@@ -48,7 +48,7 @@ const activeAiStreams = new Map<string, AbortController>()
 /**
  * 非流式任务的 AbortController（按 clientTaskId 索引）。
  * 前端 `runTrackedAiTask` 发起请求时带上 `clientTaskId`，
- * 超时或用户手动取消时通过 `characterarc:ai-cancel` 通道 abort。
+ * 超时或用户手动取消时通过 `clytie:ai-cancel` 通道 abort。
  */
 const activeAiTasks = new Map<string, AbortController>()
 type BackfillTaskRecord = {
@@ -64,7 +64,7 @@ function isActiveBackfillTask(snapshot: BackfillTaskSnapshot): boolean {
 function broadcastBackfillTask(snapshot: BackfillTaskSnapshot): void {
   for (const window of BrowserWindow.getAllWindows()) {
     if (!window.isDestroyed() && !window.webContents.isDestroyed()) {
-      window.webContents.send('characterarc:ai-backfill-state-progress', snapshot)
+      window.webContents.send('clytie:ai-backfill-state-progress', snapshot)
     }
   }
 }
@@ -96,7 +96,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
   setChapterPostGenerationTaskEmitter((payload) => deps?.emitChapterPostGenerationTask(payload))
 
   // ── 非流式 AI 生成（支持 abort） ──
-  ipcMain.handle('characterarc:ai-generate', async (_event, payload: AiTaskPayload) => {
+  ipcMain.handle('clytie:ai-generate', async (_event, payload: AiTaskPayload) => {
     const clientTaskId = payload.clientTaskId || ''
     const controller = new AbortController()
     if (clientTaskId) {
@@ -128,7 +128,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
   })
 
   // ── 取消非流式任务 ──
-  ipcMain.handle('characterarc:ai-cancel', async (_event, clientTaskId: unknown) => {
+  ipcMain.handle('clytie:ai-cancel', async (_event, clientTaskId: unknown) => {
     const key = typeof clientTaskId === 'string' ? clientTaskId : ''
     const controller = activeAiTasks.get(key)
     if (!controller) return { success: false, error: '未找到对应的运行中任务' }
@@ -137,7 +137,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
   })
 
   // ── 流式 AI 生成（支持自动升级到 Agent 路径） ──
-  ipcMain.handle('characterarc:ai-stream-start', async (event, payload: AiTaskPayload) => {
+  ipcMain.handle('clytie:ai-stream-start', async (event, payload: AiTaskPayload) => {
     try {
       const streamId = `stream-${randomUUID()}`
       const controller = new AbortController()
@@ -163,37 +163,37 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
                   onTextDelta: (delta) => {
                     streamedContent += delta
                     if (!event.sender.isDestroyed()) {
-                      event.sender.send('characterarc:ai-stream-event', { streamId, type: 'chunk', delta, charCount: streamedContent.length })
+                      event.sender.send('clytie:ai-stream-event', { streamId, type: 'chunk', delta, charCount: streamedContent.length })
                     }
                   },
                   onReasoningDelta: (delta) => {
                     if (!event.sender.isDestroyed()) {
-                      event.sender.send('characterarc:ai-stream-event', { streamId, type: 'reasoning', delta })
+                      event.sender.send('clytie:ai-stream-event', { streamId, type: 'reasoning', delta })
                     }
                   },
                   onToolUseStart: (toolUseId, toolName, args) => {
                     if (!event.sender.isDestroyed()) {
-                      event.sender.send('characterarc:ai-stream-event', { streamId, type: 'tool_use_start', toolUseId, toolName, args })
+                      event.sender.send('clytie:ai-stream-event', { streamId, type: 'tool_use_start', toolUseId, toolName, args })
                     }
                   },
                   onToolResult: (toolUseId, toolName, content, isError, durationMs) => {
                     if (!event.sender.isDestroyed()) {
-                      event.sender.send('characterarc:ai-stream-event', { streamId, type: 'tool_result', toolUseId, toolName, content, isError, durationMs })
+                      event.sender.send('clytie:ai-stream-event', { streamId, type: 'tool_result', toolUseId, toolName, content, isError, durationMs })
                     }
                   },
                   onAgentStatus: (message, iteration, maxIterations) => {
                     if (!event.sender.isDestroyed()) {
-                      event.sender.send('characterarc:ai-stream-event', { streamId, type: 'agent_status', message, iteration, maxIterations })
+                      event.sender.send('clytie:ai-stream-event', { streamId, type: 'agent_status', message, iteration, maxIterations })
                     }
                   },
                   onEditApplied: (chapterId, editType, preview, versionId) => {
                     if (!event.sender.isDestroyed()) {
-                      event.sender.send('characterarc:ai-stream-event', { streamId, type: 'edit_applied', chapterId, editType, preview, versionId })
+                      event.sender.send('clytie:ai-stream-event', { streamId, type: 'edit_applied', chapterId, editType, preview, versionId })
                     }
                   },
                   onEditProposed: (chapterId, proposalId, editType, preview, oldContent, newContent) => {
                     if (!event.sender.isDestroyed()) {
-                      event.sender.send('characterarc:ai-stream-event', { streamId, type: 'edit_proposed', chapterId, proposalId, editType, preview, oldContent, newContent })
+                      event.sender.send('clytie:ai-stream-event', { streamId, type: 'edit_proposed', chapterId, proposalId, editType, preview, oldContent, newContent })
                     }
                   }
                 },
@@ -202,7 +202,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
               )
               deps!.emitAiRunEvent({ projectId: result.meta.projectId ?? '', meta: { id: randomUUID(), ...result.meta } })
               if (!event.sender.isDestroyed()) {
-                event.sender.send('characterarc:ai-stream-event', {
+                event.sender.send('clytie:ai-stream-event', {
                   streamId,
                   type: 'done',
                   content: (result.result as { content?: string }).content ?? streamedContent,
@@ -222,12 +222,12 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
               onTextDelta: (delta: string) => {
                 streamedContent += delta
                 if (!event.sender.isDestroyed()) {
-                  event.sender.send('characterarc:ai-stream-event', { streamId, type: 'chunk', delta, charCount: streamedContent.length })
+                  event.sender.send('clytie:ai-stream-event', { streamId, type: 'chunk', delta, charCount: streamedContent.length })
                 }
               },
               onReasoningDelta: (delta: string) => {
                 if (!event.sender.isDestroyed()) {
-                  event.sender.send('characterarc:ai-stream-event', { streamId, type: 'reasoning', delta })
+                  event.sender.send('clytie:ai-stream-event', { streamId, type: 'reasoning', delta })
                 }
               }
             },
@@ -236,7 +236,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
           )
           deps!.emitAiRunEvent({ projectId: result.meta.projectId ?? '', meta: { id: randomUUID(), ...result.meta } })
           if (!event.sender.isDestroyed()) {
-            event.sender.send('characterarc:ai-stream-event', {
+            event.sender.send('clytie:ai-stream-event', {
               streamId,
               type: 'done',
               content: (result.result as { content?: string }).content ?? streamedContent,
@@ -250,7 +250,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
             deps!.emitAiRunEvent({ projectId: String((aiRunMeta as { projectId?: string }).projectId ?? ''), meta: { id: randomUUID(), ...aiRunMeta } })
           }
           if (!event.sender.isDestroyed()) {
-            event.sender.send('characterarc:ai-stream-event', controller.signal.aborted
+            event.sender.send('clytie:ai-stream-event', controller.signal.aborted
               ? { streamId, type: 'canceled', content: streamedContent }
               : { streamId, type: 'error', error: formatAiErrorMessage(error, 'AI 流式调用失败') }
             )
@@ -267,7 +267,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
   })
 
   // ── 停止流式任务 ──
-  ipcMain.handle('characterarc:ai-stream-stop', async (event, streamId: unknown) => {
+  ipcMain.handle('clytie:ai-stream-stop', async (event, streamId: unknown) => {
     const key = typeof streamId === 'string' ? streamId : ''
     const controller = activeAiStreams.get(key)
     if (!controller) return { success: false, error: '当前没有可停止的生成任务' }
@@ -275,14 +275,14 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
 
     // 发送 canceled 事件给前端，确保用户看到停止反馈
     if (!event.sender.isDestroyed()) {
-      event.sender.send('characterarc:ai-stream-event', { streamId: key, type: 'canceled', content: '' })
+      event.sender.send('clytie:ai-stream-event', { streamId: key, type: 'canceled', content: '' })
     }
 
     return { success: true }
   })
 
   // ── Agent 流式生成（带工具调用） ──
-  ipcMain.handle('characterarc:ai-agent-stream-start', async (event, payload: AiTaskPayload) => {
+  ipcMain.handle('clytie:ai-agent-stream-start', async (event, payload: AiTaskPayload) => {
     try {
       const streamId = `agent-${randomUUID()}`
       const controller = new AbortController()
@@ -300,37 +300,37 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
                   onTextDelta: (delta) => {
                     streamedContent += delta
                     if (!event.sender.isDestroyed()) {
-                      event.sender.send('characterarc:ai-stream-event', { streamId, type: 'chunk', delta, charCount: streamedContent.length })
+                      event.sender.send('clytie:ai-stream-event', { streamId, type: 'chunk', delta, charCount: streamedContent.length })
                     }
                   },
                   onReasoningDelta: (delta) => {
                     if (!event.sender.isDestroyed()) {
-                      event.sender.send('characterarc:ai-stream-event', { streamId, type: 'reasoning', delta })
+                      event.sender.send('clytie:ai-stream-event', { streamId, type: 'reasoning', delta })
                     }
                   },
                   onToolUseStart: (toolUseId, toolName, args) => {
                     if (!event.sender.isDestroyed()) {
-                      event.sender.send('characterarc:ai-stream-event', { streamId, type: 'tool_use_start', toolUseId, toolName, args })
+                      event.sender.send('clytie:ai-stream-event', { streamId, type: 'tool_use_start', toolUseId, toolName, args })
                     }
                   },
                   onToolResult: (toolUseId, toolName, content, isError, durationMs) => {
                     if (!event.sender.isDestroyed()) {
-                      event.sender.send('characterarc:ai-stream-event', { streamId, type: 'tool_result', toolUseId, toolName, content, isError, durationMs })
+                      event.sender.send('clytie:ai-stream-event', { streamId, type: 'tool_result', toolUseId, toolName, content, isError, durationMs })
                     }
                   },
                   onAgentStatus: (message, iteration, maxIterations) => {
                     if (!event.sender.isDestroyed()) {
-                      event.sender.send('characterarc:ai-stream-event', { streamId, type: 'agent_status', message, iteration, maxIterations })
+                      event.sender.send('clytie:ai-stream-event', { streamId, type: 'agent_status', message, iteration, maxIterations })
                     }
                   },
                   onEditApplied: (chapterId, editType, preview, versionId) => {
                     if (!event.sender.isDestroyed()) {
-                      event.sender.send('characterarc:ai-stream-event', { streamId, type: 'edit_applied', chapterId, editType, preview, versionId })
+                      event.sender.send('clytie:ai-stream-event', { streamId, type: 'edit_applied', chapterId, editType, preview, versionId })
                     }
                   },
                   onEditProposed: (chapterId, proposalId, editType, preview, oldContent, newContent) => {
                     if (!event.sender.isDestroyed()) {
-                      event.sender.send('characterarc:ai-stream-event', { streamId, type: 'edit_proposed', chapterId, proposalId, editType, preview, oldContent, newContent })
+                      event.sender.send('clytie:ai-stream-event', { streamId, type: 'edit_proposed', chapterId, proposalId, editType, preview, oldContent, newContent })
                     }
                   }
                 },
@@ -339,7 +339,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
               )
               deps!.emitAiRunEvent({ projectId: result.meta.projectId ?? '', meta: { id: randomUUID(), ...result.meta } })
               if (!event.sender.isDestroyed()) {
-                event.sender.send('characterarc:ai-stream-event', { streamId, type: 'done', content: streamedContent, result: result.result })
+                event.sender.send('clytie:ai-stream-event', { streamId, type: 'done', content: streamedContent, result: result.result })
               }
               return
             } catch (agentError) {
@@ -354,12 +354,12 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
               onTextDelta: (delta: string) => {
                 streamedContent += delta
                 if (!event.sender.isDestroyed()) {
-                  event.sender.send('characterarc:ai-stream-event', { streamId, type: 'chunk', delta, charCount: streamedContent.length })
+                  event.sender.send('clytie:ai-stream-event', { streamId, type: 'chunk', delta, charCount: streamedContent.length })
                 }
               },
               onReasoningDelta: (delta: string) => {
                 if (!event.sender.isDestroyed()) {
-                  event.sender.send('characterarc:ai-stream-event', { streamId, type: 'reasoning', delta })
+                  event.sender.send('clytie:ai-stream-event', { streamId, type: 'reasoning', delta })
                 }
               }
             },
@@ -368,7 +368,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
           )
           deps!.emitAiRunEvent({ projectId: result.meta.projectId ?? '', meta: { id: randomUUID(), ...result.meta } })
           if (!event.sender.isDestroyed()) {
-            event.sender.send('characterarc:ai-stream-event', {
+            event.sender.send('clytie:ai-stream-event', {
               streamId,
               type: 'done',
               content: (result.result as { content?: string }).content ?? streamedContent,
@@ -377,7 +377,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
           }
         } catch (error) {
           if (!event.sender.isDestroyed()) {
-            event.sender.send('characterarc:ai-stream-event', controller.signal.aborted
+            event.sender.send('clytie:ai-stream-event', controller.signal.aborted
               ? { streamId, type: 'canceled', content: streamedContent }
               : { streamId, type: 'error', error: formatAiErrorMessage(error, 'AI Agent 调用失败') }
             )
@@ -394,7 +394,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
   })
 
   // ── 连接测试 ──
-  ipcMain.handle('characterarc:ai-test-connection', async (_event, settings: unknown) => {
+  ipcMain.handle('clytie:ai-test-connection', async (_event, settings: unknown) => {
     try {
       const result = await testAiConnection(settings as AppSettings)
       return { success: true, result }
@@ -403,7 +403,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
     }
   })
 
-  ipcMain.handle('characterarc:ai-test-proxy', async (_event, proxyUrl: unknown) => {
+  ipcMain.handle('clytie:ai-test-proxy', async (_event, proxyUrl: unknown) => {
     try {
       const result = await testProxyConnection(String(proxyUrl ?? ''))
       return { success: true, result }
@@ -413,7 +413,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
   })
 
   // ── 模型列表 ──
-  ipcMain.handle('characterarc:ai-fetch-models', async (_event, settings: unknown) => {
+  ipcMain.handle('clytie:ai-fetch-models', async (_event, settings: unknown) => {
     try {
       const result = await fetchModels(settings as AppSettings)
       return { success: true, result }
@@ -422,7 +422,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
     }
   })
 
-  ipcMain.handle('characterarc:ai-fetch-image-models', async (_event, settings: unknown) => {
+  ipcMain.handle('clytie:ai-fetch-image-models', async (_event, settings: unknown) => {
     try {
       const result = await fetchImageModels(settings as AppSettings)
       return { success: true, result }
@@ -432,7 +432,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
   })
 
   // ── 图片生成 ──
-  ipcMain.handle('characterarc:ai-generate-image', async (_event, payload: unknown) => {
+  ipcMain.handle('clytie:ai-generate-image', async (_event, payload: unknown) => {
     const request = payload as {
       settings?: AppSettings
       prompt?: string
@@ -515,7 +515,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
   })
 
   // ── 读取当前项目的结构化世界状态（供前端状态面板展示） ──
-  ipcMain.handle('characterarc:ai-read-story-state', async (_event, projectId: unknown) => {
+  ipcMain.handle('clytie:ai-read-story-state', async (_event, projectId: unknown) => {
     try {
       const id = String(projectId ?? '').trim()
       if (!id) throw new Error('缺少 projectId。')
@@ -528,7 +528,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
   })
 
   // ── 读取章节版本（供 agent 编辑撤销） ──
-  ipcMain.handle('characterarc:ai-read-chapter-version', async (_event, payload: unknown) => {
+  ipcMain.handle('clytie:ai-read-chapter-version', async (_event, payload: unknown) => {
     try {
       const req = payload as { projectId?: string; versionId?: string }
       const projectId = String(req?.projectId ?? '').trim()
@@ -546,7 +546,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
   })
 
   // ── 读取单个章节内容（供 agent 编辑后前端刷新） ──
-  ipcMain.handle('characterarc:ai-read-chapter', async (_event, payload: unknown) => {
+  ipcMain.handle('clytie:ai-read-chapter', async (_event, payload: unknown) => {
     try {
       const req = payload as { projectId?: string; chapterId?: string }
       const projectId = String(req?.projectId ?? '').trim()
@@ -567,7 +567,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
   /** 当前进行中的螺旋生成任务的 AbortController */
   let activeSpiralController: AbortController | null = null
 
-  ipcMain.handle('characterarc:ai-spiral-bootstrap', async (event, payload: unknown) => {
+  ipcMain.handle('clytie:ai-spiral-bootstrap', async (event, payload: unknown) => {
     const controller = new AbortController()
     activeSpiralController = controller
     try {
@@ -587,7 +587,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
 
       const result = await runSpiralBootstrap(input, (progressEvent) => {
         if (!event.sender.isDestroyed()) {
-          event.sender.send('characterarc:ai-spiral-progress', progressEvent)
+          event.sender.send('clytie:ai-spiral-progress', progressEvent)
         }
       }, controller.signal, (meta) => {
         deps!.emitAiRunEvent({ projectId: meta.projectId, meta: { id: randomUUID(), ...meta } })
@@ -604,14 +604,14 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
     }
   })
 
-  ipcMain.handle('characterarc:ai-spiral-cancel', async () => {
+  ipcMain.handle('clytie:ai-spiral-cancel', async () => {
     if (!activeSpiralController) return { success: false, error: '没有正在进行的螺旋生成任务' }
     activeSpiralController.abort()
     return { success: true }
   })
 
   // ── 已有章节状态补录 ──
-  ipcMain.handle('characterarc:ai-backfill-state-status', async (_event, projectId: unknown) => {
+  ipcMain.handle('clytie:ai-backfill-state-status', async (_event, projectId: unknown) => {
     try {
       const normalizedProjectId = String(projectId ?? '').trim()
       if (!normalizedProjectId) throw new Error('缺少 projectId。')
@@ -621,7 +621,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
     }
   })
 
-  ipcMain.handle('characterarc:ai-backfill-task-status', (_event, projectId: unknown) => {
+  ipcMain.handle('clytie:ai-backfill-task-status', (_event, projectId: unknown) => {
     try {
       const normalizedProjectId = String(projectId ?? '').trim()
       if (!normalizedProjectId) throw new Error('缺少 projectId。')
@@ -631,7 +631,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
     }
   })
 
-  ipcMain.handle('characterarc:ai-backfill-state-pause', (_event, projectId: unknown) => {
+  ipcMain.handle('clytie:ai-backfill-state-pause', (_event, projectId: unknown) => {
     try {
       const normalizedProjectId = String(projectId ?? '').trim()
       const record = backfillTasks.get(normalizedProjectId)
@@ -651,7 +651,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
     }
   })
 
-  ipcMain.handle('characterarc:ai-backfill-state-resume', (_event, projectId: unknown) => {
+  ipcMain.handle('clytie:ai-backfill-state-resume', (_event, projectId: unknown) => {
     try {
       const normalizedProjectId = String(projectId ?? '').trim()
       const record = backfillTasks.get(normalizedProjectId)
@@ -668,7 +668,7 @@ export function registerAiIpcHandlers(injectedDeps: AiIpcDeps): void {
     }
   })
 
-  ipcMain.handle('characterarc:ai-backfill-state', (_event, payload: unknown) => {
+  ipcMain.handle('clytie:ai-backfill-state', (_event, payload: unknown) => {
     try {
       const request = payload as { settings?: AppSettings; projectId?: string; selection?: BackfillSelection }
       const projectId = String(request?.projectId ?? '').trim()

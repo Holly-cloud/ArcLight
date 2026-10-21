@@ -6,7 +6,7 @@ export interface CollapseStorage {
 }
 
 export function volumeCollapseStorageKey(scope: VolumeCollapseScope, projectId: string): string {
-  return `characterarc:volume-collapse:${scope}:${projectId}`
+  return `clytie:volume-collapse:${scope}:${projectId}`
 }
 
 export function normalizeCollapsedVolumeIds(value: unknown, validVolumeIds: readonly string[]): string[] {

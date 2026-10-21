@@ -15,7 +15,7 @@ import {
 } from './workspace-upgrade-backup.ts'
 
 test('可删除指定备份，且拒绝无效备份 ID', async () => {
-  const workspaceDir = await mkdtemp(join(tmpdir(), 'characterarc-backup-delete-'))
+  const workspaceDir = await mkdtemp(join(tmpdir(), 'clytie-backup-delete-'))
   try {
     const db = new DatabaseSync(join(workspaceDir, 'workspace.db'))
     db.exec('CREATE TABLE sample (id INTEGER PRIMARY KEY, value TEXT NOT NULL);')
@@ -44,7 +44,7 @@ test('可删除指定备份，且拒绝无效备份 ID', async () => {
 })
 
 test('升级前备份可打开、带校验清单并记录版本标记', async () => {
-  const workspaceDir = await mkdtemp(join(tmpdir(), 'characterarc-upgrade-'))
+  const workspaceDir = await mkdtemp(join(tmpdir(), 'clytie-upgrade-'))
   try {
     const db = new DatabaseSync(join(workspaceDir, 'workspace.db'))
     db.exec(`CREATE TABLE sample (id INTEGER PRIMARY KEY, value TEXT NOT NULL);`)
@@ -96,7 +96,7 @@ test('升级前备份可打开、带校验清单并记录版本标记', async ()
 })
 
 test('恢复升级备份中途失败时原数据库文件会完整还原', async () => {
-  const workspaceDir = await mkdtemp(join(tmpdir(), 'characterarc-upgrade-atomic-'))
+  const workspaceDir = await mkdtemp(join(tmpdir(), 'clytie-upgrade-atomic-'))
   const RealDate = Date
   const fixedDate = '2026-10-02T12:34:56.789Z'
   try {

@@ -35,11 +35,11 @@ function renderMarkdown(content: string): string {
   return marked.parse(content, { async: false }) as string
 }
 
-type StoryState = NonNullable<Awaited<ReturnType<typeof window.characterArc.readStoryState>>['result']>
+type StoryState = NonNullable<Awaited<ReturnType<typeof window.clytie.readStoryState>>['result']>
 
 const isRunningStoryAudit = ref(false)
 const isStartingBackfill = ref(false)
-const backfillProgress = ref<CharacterArcBackfillStateProgressPayload | null>(null)
+const backfillProgress = ref<ClytieBackfillStateProgressPayload | null>(null)
 const isBackfillingState = computed(() => {
   const status = backfillProgress.value?.status
   return status === 'running' || status === 'pausing' || status === 'paused'
@@ -47,7 +47,7 @@ const isBackfillingState = computed(() => {
 const isBackfillPaused = computed(() => backfillProgress.value?.status === 'paused')
 const isBackfillPausing = computed(() => backfillProgress.value?.status === 'pausing')
 const isBackfillControlsLocked = computed(() => isStartingBackfill.value || isBackfillingState.value)
-const backfillStatuses = ref<CharacterArcBackfillChapterStatus[]>([])
+const backfillStatuses = ref<ClytieBackfillChapterStatus[]>([])
 const isLoadingBackfillStatuses = ref(false)
 const backfillMode = ref<'pending' | 'failed' | 'range'>('pending')
 const rangeStart = ref(1)
@@ -117,7 +117,7 @@ async function loadStoryState(): Promise<void> {
   const projectId = project.id
   isLoadingStoryState.value = true
   try {
-    const response = await window.characterArc.readStoryState(projectId)
+    const response = await window.clytie.readStoryState(projectId)
     if (appStore.currentProject?.id !== projectId) return
     if (!response.success || !response.result) {
       throw new Error(response.error ?? '读取世界状态失败')
@@ -143,7 +143,7 @@ async function loadBackfillStatuses(): Promise<void> {
   const projectId = project.id
   isLoadingBackfillStatuses.value = true
   try {
-    const response = await window.characterArc.readBackfillStateStatus(projectId)
+    const response = await window.clytie.readBackfillStateStatus(projectId)
     if (appStore.currentProject?.id !== projectId) return
     if (!response.success || !response.result) {
       throw new Error(response.error ?? '读取补录状态失败')
@@ -168,7 +168,7 @@ async function loadBackfillTaskStatus(): Promise<void> {
     return
   }
 
-  const response = await window.characterArc.readBackfillTaskStatus(projectId)
+  const response = await window.clytie.readBackfillTaskStatus(projectId)
   if (appStore.currentProject?.id !== projectId) return
   if (!response.success) {
     message.error(response.error ?? '读取状态补录任务失败')
@@ -183,7 +183,7 @@ const knowledgeHistoryRef = ref<HTMLElement | null>(null)
 
 const notifiedBackfillTaskIds = new Set<string>()
 
-function handleBackfillTaskFinished(payload: CharacterArcBackfillStateProgressPayload): void {
+function handleBackfillTaskFinished(payload: ClytieBackfillStateProgressPayload): void {
   if (notifiedBackfillTaskIds.has(payload.taskId)) return
   notifiedBackfillTaskIds.add(payload.taskId)
   void loadStoryState()
@@ -205,7 +205,7 @@ function handleBackfillTaskFinished(payload: CharacterArcBackfillStateProgressPa
   message.success(`状态补录完成：${result.processedChapters} / ${result.totalChapters} 章成功，${result.skipped} 章跳过。`)
 }
 
-const cleanupBackfillProgress = window.characterArc.onBackfillStateProgress((payload) => {
+const cleanupBackfillProgress = window.clytie.onBackfillStateProgress((payload) => {
   if (payload.projectId !== appStore.currentProject?.id) return
   backfillProgress.value = payload
   if (payload.status === 'completed' || payload.status === 'failed') {
@@ -214,7 +214,7 @@ const cleanupBackfillProgress = window.characterArc.onBackfillStateProgress((pay
 })
 
 // 助手写回后会同步工作区；世界状态不在工作区快照内，需要单独重新读取。
-const cleanupWorkspaceSync = window.characterArc.onWorkspaceSync(() => {
+const cleanupWorkspaceSync = window.clytie.onWorkspaceSync(() => {
   void loadStoryState()
 })
 
@@ -266,7 +266,7 @@ const backfillModeOptions = [
   { label: '指定章节范围', value: 'range' }
 ]
 
-const backfillStatusMeta: Record<CharacterArcBackfillChapterStatus['status'], {
+const backfillStatusMeta: Record<ClytieBackfillChapterStatus['status'], {
   label: string
   type: 'success' | 'warning' | 'info' | 'error' | 'default'
 }> = {
@@ -281,8 +281,8 @@ const backfillStatusMeta: Record<CharacterArcBackfillChapterStatus['status'], {
 function resolveBackfillStatusMeta(
   status: unknown,
   chapterTitle = ''
-): (typeof backfillStatusMeta)[CharacterArcBackfillChapterStatus['status']] {
-  const normalized = String(status) as CharacterArcBackfillChapterStatus['status']
+): (typeof backfillStatusMeta)[ClytieBackfillChapterStatus['status']] {
+  const normalized = String(status) as ClytieBackfillChapterStatus['status']
   if (
     normalized === 'running'
     && isBackfillingState.value
@@ -365,7 +365,7 @@ async function runStoryDeepAudit(): Promise<void> {
   isRunningStoryAudit.value = true
   const loading = message.loading('AI 正在对全局状态进行一致性审计，可能需要 1-2 分钟…', { duration: 0 })
   try {
-    const response = await window.characterArc.generateAi(toIpcPayload({
+    const response = await window.clytie.generateAi(toIpcPayload({
       task: 'story-deep-audit',
       settings: appStore.appSettings,
       context: {
@@ -450,7 +450,7 @@ async function runStateBackfillTask(projectId: string): Promise<void> {
       : backfillMode.value === 'range'
         ? { mode: 'custom' as const, chapterIds: selectedBackfillChapterIds.value }
         : { mode: 'pending' as const }
-    const response = await window.characterArc.backfillProjectState(toIpcPayload({
+    const response = await window.clytie.backfillProjectState(toIpcPayload({
       settings: appStore.appSettings,
       projectId,
       selection
@@ -472,7 +472,7 @@ async function runStateBackfillTask(projectId: string): Promise<void> {
 async function pauseStateBackfill(): Promise<void> {
   const projectId = appStore.currentProject?.id
   if (!projectId || !isBackfillingState.value) return
-  const response = await window.characterArc.pauseBackfillProjectState(projectId)
+  const response = await window.clytie.pauseBackfillProjectState(projectId)
   if (!response.success || !response.result) {
     message.error(response.error ?? '暂停状态补录失败')
     return
@@ -485,7 +485,7 @@ async function pauseStateBackfill(): Promise<void> {
 async function resumeStateBackfill(): Promise<void> {
   const projectId = appStore.currentProject?.id
   if (!projectId || !isBackfillPaused.value) return
-  const response = await window.characterArc.resumeBackfillProjectState(projectId)
+  const response = await window.clytie.resumeBackfillProjectState(projectId)
   if (!response.success || !response.result) {
     message.error(response.error ?? '继续状态补录失败')
     return

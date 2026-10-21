@@ -229,7 +229,7 @@ function cloneChapters(items: ContinuationImportChapter[]): ContinuationImportCh
 async function pickNovel(): Promise<void> {
   isPicking.value = true
   try {
-    const result = await window.characterArc.pickContinuationNovel()
+    const result = await window.clytie.pickContinuationNovel()
     if (result.canceled) return
     if (!result.success || !result.preview) {
       throw new Error(result.error || '读取小说文件失败')
@@ -413,7 +413,7 @@ function selectAnalysisChapters(): ContinuationImportChapter[] {
 async function cancelAnalysis(): Promise<void> {
   analysisCanceled.value = true
   if (activeAiTaskId.value) {
-    await window.characterArc.cancelAiTask(activeAiTaskId.value)
+    await window.clytie.cancelAiTask(activeAiTaskId.value)
   }
 }
 
@@ -462,7 +462,7 @@ async function runAiAnalysis(): Promise<void> {
       if (analysisCanceled.value) throw new Error('AI 分析已取消')
       analysisMessage.value = `正在分析章节批次 ${index + 1}/${batches.length}`
       activeAiTaskId.value = entityId('continuation-analysis')
-      const result = await window.characterArc.generateAi(toIpcPayload({
+      const result = await window.clytie.generateAi(toIpcPayload({
         task: 'continuation-import-chunk',
         settings: appStore.appSettings,
         clientTaskId: activeAiTaskId.value,
@@ -488,7 +488,7 @@ async function runAiAnalysis(): Promise<void> {
 
     analysisMessage.value = '正在聚合人物、关系、世界观和续写状态'
     activeAiTaskId.value = entityId('continuation-aggregate')
-    const aggregateResult = await window.characterArc.generateAi(toIpcPayload({
+    const aggregateResult = await window.clytie.generateAi(toIpcPayload({
       task: 'continuation-import-aggregate',
       settings: appStore.appSettings,
       clientTaskId: activeAiTaskId.value,
@@ -575,7 +575,7 @@ function buildWorkflowDocuments(): ReturnType<typeof createDefaultWorkflowDocume
 async function startStoryStateBackfill(projectId: string): Promise<void> {
   try {
     await appStore.persistWorkspace()
-    const response = await window.characterArc.backfillProjectState(toIpcPayload({
+    const response = await window.clytie.backfillProjectState(toIpcPayload({
       settings: appStore.appSettings,
       projectId,
       selection: { mode: 'pending' }

@@ -201,7 +201,7 @@ async function materializeCodexImages(images: TurnImageAttachment[] = []): Promi
   paths: string[]
 }> {
   if (images.length === 0) return { paths: [] }
-  const directory = await mkdtemp(join(tmpdir(), 'characterarc-codex-images-'))
+  const directory = await mkdtemp(join(tmpdir(), 'clytie-codex-images-'))
   const paths: string[] = []
   try {
     for (const [index, image] of images.entries()) {

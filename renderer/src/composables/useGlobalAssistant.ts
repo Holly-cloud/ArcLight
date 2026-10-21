@@ -540,7 +540,7 @@ export function useGlobalAssistant(options: UseGlobalAssistantOptions = {}) {
 
   // 流式事件处理：按 streamId 门控，仅发起本次发送的实例会通过，store 写入只发生一次。
   // 滚动已解耦——由各壳自行 watch messages 处理。
-  function handleStreamEvent(payload: CharacterArcAiStreamEvent): void {
+  function handleStreamEvent(payload: ClytieAiStreamEvent): void {
     if (payload.streamId !== sharedStreamId || !sharedStreamingMessageId) {
       return
     }
@@ -633,7 +633,7 @@ export function useGlobalAssistant(options: UseGlobalAssistantOptions = {}) {
 
   function registerStreamListener(): void {
     if (sharedRemoveStreamListener) return
-    sharedRemoveStreamListener = window.characterArc.onAiStreamEvent(handleStreamEvent)
+    sharedRemoveStreamListener = window.clytie.onAiStreamEvent(handleStreamEvent)
   }
 
   onMounted(() => {
@@ -1233,7 +1233,7 @@ export function useGlobalAssistant(options: UseGlobalAssistantOptions = {}) {
     const project = appStore.currentProject
     if (!project) return false
 
-    const response = await window.characterArc.generateAi(toIpcPayload({
+    const response = await window.clytie.generateAi(toIpcPayload({
       task: 'assistant-intent',
       settings: appStore.appSettings,
       context: {
@@ -1269,7 +1269,7 @@ export function useGlobalAssistant(options: UseGlobalAssistantOptions = {}) {
         return
       }
 
-      const response = await window.characterArc.generateAi(toIpcPayload({
+      const response = await window.clytie.generateAi(toIpcPayload({
         task: 'global-assistant-proposal',
         clientKey: PROPOSAL_TASK_KEY,
         clientTaskId: appStore.getClientTaskId(),
@@ -1568,7 +1568,7 @@ export function useGlobalAssistant(options: UseGlobalAssistantOptions = {}) {
       const projectId = appStore.currentProject?.id
       if (!chapterProposal || !projectId) return false
 
-      const response = await window.characterArc.commitChapterEdit(
+      const response = await window.clytie.commitChapterEdit(
         projectId,
         chapterProposal.chapterId,
         chapterProposal.oldContent,
@@ -1816,7 +1816,7 @@ export function useGlobalAssistant(options: UseGlobalAssistantOptions = {}) {
     const currentChapterIndex = appStore.chapters.length
 
     try {
-      const response = await window.characterArc.generateAi(toIpcPayload({
+      const response = await window.clytie.generateAi(toIpcPayload({
         task: 'story-deep-audit',
         settings: appStore.appSettings,
         context: {
@@ -1899,7 +1899,7 @@ export function useGlobalAssistant(options: UseGlobalAssistantOptions = {}) {
       const selectedChapter = appStore.selectedChapter
       const intentHint = buildGlobalChapterIntentHint(prompt)
       const userPromptForAi = intentHint ? `${intentHint}\n\n原始用户请求：\n${prompt}` : prompt
-      const response = await window.characterArc.startAiAgentStream(toIpcPayload({
+      const response = await window.clytie.startAiAgentStream(toIpcPayload({
         task: 'global-assistant',
         clientKey: AI_TASK_KEY,
         clientTaskId: appStore.getClientTaskId(),
@@ -1990,7 +1990,7 @@ export function useGlobalAssistant(options: UseGlobalAssistantOptions = {}) {
 
   async function stopStreaming(): Promise<void> {
     if (!sharedStreamId) return
-    await window.characterArc.stopAiStream(sharedStreamId)
+    await window.clytie.stopAiStream(sharedStreamId)
   }
 
   return {

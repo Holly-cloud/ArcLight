@@ -261,7 +261,7 @@ async function handleAiEnhance(): Promise<void> {
         panel: 'world'
       },
       () =>
-        window.characterArc.generateAi(toIpcPayload({
+        window.clytie.generateAi(toIpcPayload({
           task: 'worldview-enhance',
           settings: appStore.appSettings,
           context: {

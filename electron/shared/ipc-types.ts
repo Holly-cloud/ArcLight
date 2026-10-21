@@ -313,29 +313,29 @@ export type ChapterMutationEvent =
   | ({ kind: 'reorder' } & SaveChapterOrderRequest)
 
 export const IPC_CHANNELS = {
-  LOAD_WORKSPACE: 'characterarc:load-workspace',
-  SAVE_WORKSPACE: 'characterarc:save-workspace',
-  SAVE_APP_SETTINGS: 'characterarc:save-app-settings',
-  SAVE_CHAPTERS: 'characterarc:save-chapters',
-  SAVE_CHAPTER_ORDER: 'characterarc:save-chapter-order',
-  SAVE_WORKSPACE_ENTITIES: 'characterarc:save-workspace-entities',
-  BACKUP_CURRENT_DATABASE: 'characterarc:backup-current-database',
-  LIST_DATABASE_BACKUPS: 'characterarc:list-database-backups',
-  DELETE_DATABASE_BACKUP: 'characterarc:delete-database-backup',
-  ROLLBACK_DATABASE: 'characterarc:rollback-database',
+  LOAD_WORKSPACE: 'clytie:load-workspace',
+  SAVE_WORKSPACE: 'clytie:save-workspace',
+  SAVE_APP_SETTINGS: 'clytie:save-app-settings',
+  SAVE_CHAPTERS: 'clytie:save-chapters',
+  SAVE_CHAPTER_ORDER: 'clytie:save-chapter-order',
+  SAVE_WORKSPACE_ENTITIES: 'clytie:save-workspace-entities',
+  BACKUP_CURRENT_DATABASE: 'clytie:backup-current-database',
+  LIST_DATABASE_BACKUPS: 'clytie:list-database-backups',
+  DELETE_DATABASE_BACKUP: 'clytie:delete-database-backup',
+  ROLLBACK_DATABASE: 'clytie:rollback-database',
   // ── 资产图库（v1.33.0）──
-  LIST_ASSET_IMAGES: 'characterarc:list-asset-images',
+  LIST_ASSET_IMAGES: 'clytie:list-asset-images',
   /** 列出项目内各资产的「首选图」引用（v1.36.0：资产库卡片封面用，单次查询避免 N+1） */
-  LIST_PRIMARY_ASSET_IMAGES: 'characterarc:list-primary-asset-images',
-  DELETE_ASSET_IMAGE: 'characterarc:delete-asset-image',
-  SET_PRIMARY_IMAGE: 'characterarc:set-primary-image',
-  EXPORT_ASSET_IMAGE: 'characterarc:export-asset-image',
-  PICK_REFERENCE_IMAGE: 'characterarc:pick-reference-image',
-  READ_ASSET_IMAGE: 'characterarc:read-asset-image',
-  PRUNE_ASSET_IMAGES: 'characterarc:prune-asset-images',
+  LIST_PRIMARY_ASSET_IMAGES: 'clytie:list-primary-asset-images',
+  DELETE_ASSET_IMAGE: 'clytie:delete-asset-image',
+  SET_PRIMARY_IMAGE: 'clytie:set-primary-image',
+  EXPORT_ASSET_IMAGE: 'clytie:export-asset-image',
+  PICK_REFERENCE_IMAGE: 'clytie:pick-reference-image',
+  READ_ASSET_IMAGE: 'clytie:read-asset-image',
+  PRUNE_ASSET_IMAGES: 'clytie:prune-asset-images',
   // ── Prompt 中心（v1.35.0）──
-  LIST_AI_PROMPT_CATALOG: 'characterarc:ai-prompt-catalog',
-  RENDER_AI_PROMPT_PREVIEW: 'characterarc:ai-prompt-preview'
+  LIST_AI_PROMPT_CATALOG: 'clytie:ai-prompt-catalog',
+  RENDER_AI_PROMPT_PREVIEW: 'clytie:ai-prompt-preview'
 } as const
 
 export type IpcChannel = typeof IPC_CHANNELS[keyof typeof IPC_CHANNELS]

@@ -7,20 +7,20 @@ const appStore = useAppStore()
 const message = useMessage()
 
 const archiveImportModalVisible = ref(false)
-const archiveImportPreview = ref<CharacterArcProjectArchivePreview | null>(null)
+const archiveImportPreview = ref<ClytieProjectArchivePreview | null>(null)
 const archiveImportFilePath = ref('')
-const archiveImportMode = ref<CharacterArcProjectArchiveImportMode>('new-project')
+const archiveImportMode = ref<ClytieProjectArchiveImportMode>('new-project')
 const archiveTargetProjectId = ref('')
-const archiveSelectedModules = ref<CharacterArcProjectArchiveModule[]>([])
+const archiveSelectedModules = ref<ClytieProjectArchiveModule[]>([])
 const isInspectingArchive = ref(false)
 const isImportingArchive = ref(false)
-const archiveImportProgress = ref<CharacterArcProjectArchiveImportProgressPayload>({
+const archiveImportProgress = ref<ClytieProjectArchiveImportProgressPayload>({
   phase: 'preparing',
   message: '正在准备导入任务...',
   percent: 0
 })
 
-const archiveModuleOptions: Array<{ label: string; value: CharacterArcProjectArchiveModule }> = [
+const archiveModuleOptions: Array<{ label: string; value: ClytieProjectArchiveModule }> = [
   { label: '项目信息', value: 'project' },
   { label: '世界观', value: 'worldview' },
   { label: '角色与势力', value: 'characters' },
@@ -36,7 +36,7 @@ const archiveModuleOptions: Array<{ label: string; value: CharacterArcProjectArc
   { label: '助手会话', value: 'assistantSessions' }
 ]
 
-const archiveModeOptions: Array<{ label: string; value: CharacterArcProjectArchiveImportMode }> = [
+const archiveModeOptions: Array<{ label: string; value: ClytieProjectArchiveImportMode }> = [
   { label: '新建项目', value: 'new-project' },
   { label: '覆盖项目', value: 'overwrite-project' }
 ]
@@ -60,7 +60,7 @@ const archiveImportProgressStatus = computed(() =>
       : 'default'
 )
 
-const cleanupArchiveImportProgress = window.characterArc.onProjectArchiveImportProgress((payload) => {
+const cleanupArchiveImportProgress = window.clytie.onProjectArchiveImportProgress((payload) => {
   if (!isImportingArchive.value) return
   archiveImportProgress.value = payload
 })
@@ -76,7 +76,7 @@ function resetArchiveModules(): void {
 async function pickArchive(): Promise<void> {
   isInspectingArchive.value = true
   try {
-    const result = await window.characterArc.inspectProjectArchive()
+    const result = await window.clytie.inspectProjectArchive()
     if (result.canceled) {
       return
     }
@@ -115,7 +115,7 @@ async function confirmArchiveImport(): Promise<void> {
   }
   isImportingArchive.value = true
   try {
-    const result = await window.characterArc.importProjectArchive({
+    const result = await window.clytie.importProjectArchive({
       filePath: archiveImportFilePath.value,
       mode: archiveImportMode.value,
       targetProjectId: archiveImportMode.value === 'overwrite-project' ? archiveTargetProjectId.value : undefined,

@@ -125,7 +125,7 @@ export function createWorkspacePersistence(deps: WorkspacePersistenceDeps) {
       isWorkspaceEntityPersisting.value = true
       for (let index = 0; index < batches.length; index += 1) {
         failedIndex = index
-        const result = await window.characterArc.saveWorkspaceEntities(toIpcPayload(batches[index]))
+        const result = await window.clytie.saveWorkspaceEntities(toIpcPayload(batches[index]))
         if (!result.success) throw new Error(result.error ?? '工作区实体保存失败')
         failedIndex = index + 1
       }
@@ -213,7 +213,7 @@ export function createWorkspacePersistence(deps: WorkspacePersistenceDeps) {
     chapterPersistPromise = (async () => {
       beginChapterPersist()
       for (const batch of batches) {
-        const result = await window.characterArc.saveChapters(toIpcPayload(batch))
+        const result = await window.clytie.saveChapters(toIpcPayload(batch))
         if (!result.success) throw new Error(result.error ?? '章节保存失败')
       }
       persistenceError.value = null
@@ -292,7 +292,7 @@ export function createWorkspacePersistence(deps: WorkspacePersistenceDeps) {
           persistenceError.value = null
           await flushChapterPersists()
           if (persistenceError.value) throw new Error(persistenceError.value)
-          const result = await window.characterArc.saveChapterOrder(toIpcPayload(next))
+          const result = await window.clytie.saveChapterOrder(toIpcPayload(next))
           if (!result.success) throw new Error(result.error ?? '章节排序保存失败')
           currentBatch = null
         }
@@ -332,7 +332,7 @@ export function createWorkspacePersistence(deps: WorkspacePersistenceDeps) {
     }
     workspaceSyncTimer = window.setTimeout(() => {
       workspaceSyncTimer = null
-      void window.characterArc.publishWorkspaceSync(toIpcPayload(deps.serializeWorkspaceState()))
+      void window.clytie.publishWorkspaceSync(toIpcPayload(deps.serializeWorkspaceState()))
     }, WORKSPACE_SYNC_DELAY_MS)
   }
 
@@ -354,7 +354,7 @@ export function createWorkspacePersistence(deps: WorkspacePersistenceDeps) {
     }
     pendingWorkspaceEntities.clear()
     updateWorkspaceEntityPendingState()
-    const result = window.characterArc.saveWorkspaceSync(toIpcPayload(deps.serializeWorkspaceState()))
+    const result = window.clytie.saveWorkspaceSync(toIpcPayload(deps.serializeWorkspaceState()))
     persistenceError.value = result.success ? null : result.error ?? '保存失败'
     if (result.success) {
       scheduledPersistAt.value = null
@@ -382,7 +382,7 @@ export function createWorkspacePersistence(deps: WorkspacePersistenceDeps) {
           persistRequested = false
           let result: { success: boolean; error?: string }
           try {
-            result = await window.characterArc.saveWorkspace(toIpcPayload(deps.serializeWorkspaceState()))
+            result = await window.clytie.saveWorkspace(toIpcPayload(deps.serializeWorkspaceState()))
           } catch (error) {
             const message = error instanceof Error ? error.message : '保存失败'
             console.error('[workspace] saveWorkspace failed:', error)
@@ -412,7 +412,7 @@ export function createWorkspacePersistence(deps: WorkspacePersistenceDeps) {
       window.clearTimeout(settingsSaveTimer)
       settingsSaveTimer = null
     }
-    const result = await window.characterArc.saveAppSettings(toIpcPayload(deps.getSettingsSnapshot()))
+    const result = await window.clytie.saveAppSettings(toIpcPayload(deps.getSettingsSnapshot()))
     if (!result.success) {
       console.error('[workspace] saveAppSettings failed:', result.error)
       persistenceError.value = result.error ?? '保存失败'

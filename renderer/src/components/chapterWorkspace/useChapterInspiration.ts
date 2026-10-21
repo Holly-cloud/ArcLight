@@ -42,7 +42,7 @@ export function useChapterInspiration(): {
           panel: 'chapters'
         },
         () =>
-          window.characterArc.generateAi(toIpcPayload({
+          window.clytie.generateAi(toIpcPayload({
             task: 'inspiration-pack',
             settings: appStore.appSettings,
             context: {

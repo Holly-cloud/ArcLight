@@ -24,7 +24,7 @@ export async function loadEnabledProjectSkillsContext(
     return []
   }
 
-  const result = await window.characterArc.getProjectSkillsContext(project.id)
+  const result = await window.clytie.getProjectSkillsContext(project.id)
   if (!result.success || !Array.isArray(result.skills)) {
     return []
   }
@@ -54,7 +54,7 @@ export async function loadProjectSkillsContextByIds(
   }
 
   const idSet = new Set(skillIds)
-  const result = await window.characterArc.getProjectSkillsContext(project.id)
+  const result = await window.clytie.getProjectSkillsContext(project.id)
   if (!result.success || !Array.isArray(result.skills)) {
     return []
   }

@@ -2,7 +2,7 @@
 // v1.30.0 双模式向导：
 // - mode='import'（章节创作「导入小说」）：只走第 1 步——粘贴 / TXT 导入 → 解析出「追加 / 覆盖」预览 → 确认落「章节创作」，完成后关闭，不做提取。
 // - mode='extract'（资产库分类「提取资产」，带 kind）：跳过第 1 步，直接从「运行提取」开始，**只提取 kind 指定那一类**。
-// 仅 Naive UI + lucide + --arc-* 令牌；渲染层不直连文件系统 / AI 服务（一律经 window.characterArc.*）。
+// 仅 Naive UI + lucide + --arc-* 令牌；渲染层不直连文件系统 / AI 服务（一律经 window.clytie.*）。
 import { computed, ref, watch } from 'vue'
 import { Check, FileText, RotateCcw, Sparkles, Upload } from 'lucide-vue-next'
 import { NAlert, NButton, NCheckbox, NInput, NModal, NPopconfirm, NProgress, NRadioButton, NRadioGroup, useMessage } from 'naive-ui'
@@ -189,7 +189,7 @@ function close(): void {
 async function importFromTxt(): Promise<void> {
   importing.value = true
   try {
-    const result = await window.characterArc.pickContinuationNovel()
+    const result = await window.clytie.pickContinuationNovel()
     if (result.canceled) return
     if (!result.success || !result.preview) {
       throw new Error(result.error || '读取小说文件失败')
@@ -246,7 +246,7 @@ async function buildImportPreview(): Promise<void> {
               label: 'AI 精准划分章节',
               panel: 'asset-library'
             },
-            () => window.characterArc.generateAi(toIpcPayload({
+            () => window.clytie.generateAi(toIpcPayload({
               task: 'novel-split-locate',
               clientKey: splitTaskKey,
               settings: appStore.appSettings,
@@ -443,7 +443,7 @@ async function runExtraction(): Promise<void> {
           description: `正在提取 ${start + 1}-${end} / ${segments.length}`,
           panel: 'asset-library'
         },
-        () => window.characterArc.generateAi(toIpcPayload({
+        () => window.clytie.generateAi(toIpcPayload({
           task: 'asset-extract',
           clientKey: extractTaskKey.value,
           settings: appStore.appSettings,

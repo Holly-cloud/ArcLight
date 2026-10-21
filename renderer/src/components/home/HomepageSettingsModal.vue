@@ -163,7 +163,7 @@ const supportsPenaltySettings = computed(() => isOpenAIChatProtocol(
   editingProfile.value?.model ?? draftSettings.model,
   editingProfile.value?.apiProtocol ?? draftSettings.apiProtocol ?? 'auto'
 ))
-const currentVersion = window.characterArc.version
+const currentVersion = window.clytie.version
 const modelSelectOptions = computed(() =>
   fetchedModels.value.map((m) => ({ label: m.id, value: m.id }))
 )
@@ -294,7 +294,7 @@ async function handleTestProxyConnection(): Promise<void> {
   isTestingProxyConnection.value = true
   proxyTestIp.value = ''
   try {
-    const result = await window.characterArc.testProxyConnection(draftSettings.proxyUrl)
+    const result = await window.clytie.testProxyConnection(draftSettings.proxyUrl)
     if (!result.success || !result.result?.ip) {
       throw new Error(result.error ?? '代理连接测试失败')
     }
@@ -464,7 +464,7 @@ async function handleFetchModels(): Promise<void> {
   if (isFetchingModels.value) return
   isFetchingModels.value = true
   try {
-    const result = await window.characterArc.fetchModels(toIpcPayload(buildProfilePayload()))
+    const result = await window.clytie.fetchModels(toIpcPayload(buildProfilePayload()))
     if (!result.success) throw new Error(result.error ?? '获取模型列表失败')
     fetchedModels.value = result.result ?? []
     if (fetchedModels.value.length === 0) {
@@ -485,7 +485,7 @@ async function handleTestAiConnection(): Promise<void> {
   isTestingAiConnection.value = true
   try {
     const payload = buildProfilePayload()
-    const result = await window.characterArc.testAiConnection(toIpcPayload(payload))
+    const result = await window.clytie.testAiConnection(toIpcPayload(payload))
     if (!result.success) throw new Error(result.error ?? '模型连接测试失败')
     const res = result.result as { provider?: string; model?: string; protocol?: string } | undefined
     message.success(

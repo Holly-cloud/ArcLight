@@ -51,7 +51,7 @@ async function persistCurrentWorkspace(action: string): Promise<void> {
 async function loadBackups(): Promise<void> {
   isLoading.value = true
   try {
-    const result = await window.characterArc.listDatabaseBackups()
+    const result = await window.clytie.listDatabaseBackups()
     if (!result.success) throw new Error(result.error ?? '读取数据库备份失败')
     backups.value = result.backups ?? []
     backupDirectory.value = result.backupDirectory ?? ''
@@ -67,7 +67,7 @@ async function backupCurrentDatabase(): Promise<void> {
   isBackingUp.value = true
   try {
     await persistCurrentWorkspace('备份')
-    const result = await window.characterArc.backupCurrentDatabase()
+    const result = await window.clytie.backupCurrentDatabase()
     if (!result.success) throw new Error(result.error ?? '备份当前数据库失败')
     message.success('当前数据库已备份')
     await loadBackups()
@@ -94,7 +94,7 @@ function rollbackDatabase(backup: DatabaseBackupSummary): void {
       try {
         await persistCurrentWorkspace('回滚')
         window.sessionStorage.setItem(DATABASE_ROLLBACK_RELOAD_FLAG, '1')
-        const result = await window.characterArc.rollbackDatabase({ backupId: backup.id })
+        const result = await window.clytie.rollbackDatabase({ backupId: backup.id })
         if (!result.success) throw new Error(result.error ?? '数据库回滚失败')
         message.loading('数据库回滚完成，正在重新载入…', { duration: 0 })
         window.location.reload()
@@ -123,7 +123,7 @@ function deleteDatabaseBackup(backup: DatabaseBackupSummary): void {
     onPositiveClick: async () => {
       deletingBackupId.value = backup.id
       try {
-        const result = await window.characterArc.deleteDatabaseBackup({ backupId: backup.id })
+        const result = await window.clytie.deleteDatabaseBackup({ backupId: backup.id })
         if (!result.success) throw new Error(result.error ?? '删除数据库备份失败')
         message.success('数据库备份已删除')
         await loadBackups()

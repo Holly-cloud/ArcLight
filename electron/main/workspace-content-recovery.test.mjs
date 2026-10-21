@@ -47,7 +47,7 @@ function createContentDatabase(path, contents) {
 }
 
 test('1.21.1 仅从升级备份回填被清空的正文和历史版本', async () => {
-  const workspaceDir = await mkdtemp(join(tmpdir(), 'characterarc-content-recovery-'))
+  const workspaceDir = await mkdtemp(join(tmpdir(), 'clytie-content-recovery-'))
   const backupDir = join(workspaceDir, 'backups', 'pre-upgrade', '2026-10-02_schema-1-to-2')
   await mkdir(backupDir, { recursive: true })
 

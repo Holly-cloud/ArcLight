@@ -18,7 +18,7 @@ function resolveFallbackAnnouncementStatus(): void {
 
 async function checkAnnouncements(): Promise<void> {
   try {
-    const res = await window.characterArc.fetchAnnouncements()
+    const res = await window.clytie.fetchAnnouncements()
     if (!res.success) {
       resolveFallbackAnnouncementStatus()
       return
@@ -34,7 +34,7 @@ async function checkAnnouncements(): Promise<void> {
 
 async function checkUpdate(): Promise<void> {
   try {
-    const result = await window.characterArc.checkUpdate()
+    const result = await window.clytie.checkUpdate()
     if (!result.success) {
       updateStatus.value = 'error'
       return
