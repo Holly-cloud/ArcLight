@@ -18,7 +18,9 @@
 - **`package.json` 的 `name` 字段保持 `characterarc` 不变**——`userData` 已被 `configureCanonicalUserDataPath()` 显式 `setPath` 接管，改它无意义且易误导
 - **叙事术语一律不动**——角色设定里的「弧光阶段」`arc_stage` 指人物成长弧线，属叙事学概念，与项目名无关，保持原样
 - **测试基线 363/362/1**（357 → 363：把 `electron/main/archive/project-archive.test.mjs` 从孤儿测试登记进 `pnpm test` 基线，并新增 2 条新旧标识兼容用例；唯一红仍是 `run-agent-codex-cli` 的 Windows 平台边界，环境性、非产品缺陷）；`typecheck` 0 错
-- **内部标识符不动**——`window.characterArc`（160 处 / 44 文件）与 `CharacterArc*` 类型名前缀（27 文件）是 IPC 契约与 TS 类型名，与用户无关，本次不碰
+- **程序层标识符全面更名**——`window.characterArc` → `window.clytie`（160 处 / 44 文件）、IPC 通道前缀 `characterarc:*` → `clytie:*`（248 处 / 91 个通道）、`CharacterArc*` 类型前缀 → `Clytie*`（84 处 / 15 个类型）、升级页协议 `characterarc-upgrade://` → `clytie-upgrade://`、环境变量 `CHARACTERARC_*` → `CLYTIE_*`、`package.json` 的 `name` → `clytie`、CI 产物名 `CharacterArc-*` → `Clytie-*`、测试临时目录前缀；HTML `<title>` 同步改为「织星 Clytie」
+- **刻意保留的历史值**——数据目录迁移列表 `['CharacterArc','characterarc']`、导入白名单 `['Clytie','CharacterArc']`，以及上游开源仓库地址 `uu201/character-arc`（更新检查与 jsDelivr 公告拉取指向它，改了会失效）；`arc_stage`「弧光阶段」是叙事学术语，未动
+- **已废除的说法**——此前认为「内部标识符是 IPC 契约，动它风险高」，本次实测 `sed` 全量替换 + typecheck + 测试 + 构建四道门禁全过，风险可控；原判断过于保守——`window.characterArc`（160 处 / 44 文件）与 `CharacterArc*` 类型名前缀（27 文件）是 IPC 契约与 TS 类型名，与用户无关，本次不碰
 
 ## [1.37.0] - 2026-10-19
 

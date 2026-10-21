@@ -130,10 +130,20 @@ git -c user.name="<name>" -c user.email="<email>" commit -m "..."
 `App.vue` 的 `appName`、托盘与窗口标题、`workspace-upgrade.ts` 升级页、
 `tutorial.json` 与 `tutorials.ts` 的教程标题、**AI system prompt 里的自我称谓**（模型与用户可见）。
 
-**内部标识符（别动）**：`window.characterArc`（IPC 桥接，160 处 / 44 文件）、
-`CharacterArc*` 类型名前缀（27 文件）。改它们要动全部 IPC 契约，收益低风险高。
+**程序层标识符（已全部更名，别再用旧名）**：
+`window.clytie`（IPC 桥接）、`clytie:*`（IPC 通道前缀）、`Clytie*`（类型名前缀）、
+`clytie-upgrade://`（升级页协议）、`CLYTIE_*`（环境变量）、`package.json` 的 `name`。
 
-**叙事术语（绝对不能改）**：`arc_stage`「弧光阶段」指人物成长弧线，是叙事学概念，与项目名无关。
+**绝对不能改的历史值**（改了会让用户丢数据或功能失效）：
+
+- `index.ts` 的 `LEGACY_APP_DATA_DIR_NAMES = ['CharacterArc', 'characterarc']` —— 数据目录迁移来源
+- 导入白名单 `['Clytie', 'CharacterArc']`（`project-archive.ts` / `index.ts`）—— 用户存量备份仍是旧标识
+- `uu201/character-arc` —— **上游开源仓库地址**，更新检查与 jsDelivr 公告拉取指向它
+- `arc_stage`「弧光阶段」—— 角色成长弧线，叙事学术语
+
+> ⚠️ **全量 `sed` 替换后必须核查这两类值**：历史兼容值会被误改成 `['Clytie','Clytie']`
+> 这种自指形式，编译能过、类型检查能过，但**用户备份会静默导不进来**。
+> 我实际踩过：`sed 's/CharacterArc/Clytie/g'` 一次性把三处兼容列表打废。
 
 **两个易踩的坑**：
 
